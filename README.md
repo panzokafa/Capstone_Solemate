@@ -64,6 +64,28 @@ Data PostgreSQL disimpan di volume Docker `solemate_pgdata`, jadi tidak hilang s
 | `.env` | Rahasia lokal (password DB). **Tidak di-commit.** Dibuat dari `.env.example` |
 | `docker-compose.yml` | Service PostgreSQL 16, port hanya `127.0.0.1` |
 | `src/config/order-status.ts` | Daftar status pesanan, status bayar, metode bayar |
+| `migrations/` | Migrasi SQL (node-pg-migrate), punya bagian Up dan Down |
+| `scripts/seed.js` | Data contoh palsu (tanpa users/PIN), hanya jalan saat `NODE_ENV=development` |
+| `tests/db-constraints.test.mjs` | Tes aturan database (transaksi di-ROLLBACK, tidak meninggalkan data) |
+
+## Database dan migrasi
+
+```bash
+npm run migrate:up      # jalankan migrasi yang belum jalan
+npm run migrate:down    # batalkan migrasi terakhir
+npm run migrate:status  # lihat migrasi mana yang sudah jalan
+npm run seed            # data contoh (dilewati kecuali NODE_ENV=development)
+npm run test:db         # tes aturan database (butuh DB hidup)
+```
+
+Aturan yang ditegakkan di level database (bukan hanya kode):
+
+1. `orders` tidak bisa dihapus — trigger blokir DELETE dan TRUNCATE; pembatalan lewat status `Dibatalkan` + `alasan_batal` wajib.
+2. `audit_logs` append-only — trigger blokir UPDATE, DELETE, dan TRUNCATE.
+3. `status_pesanan` dan `status_bayar` dua kolom terpisah, nilai dibatasi CHECK sesuai `src/config/order-status.ts`.
+4. `harga_saat_transaksi` wajib per baris `order_items` (harga disalin saat tiket dibuat).
+5. PIN hanya boleh disimpan sebagai hash (CHECK format bcrypt/argon2).
+6. `customers.nomor_wa` unik dan berformat baku: hanya angka, diawali `62`.
 
 ## Catatan
 

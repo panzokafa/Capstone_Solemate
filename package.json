@@ -6,10 +6,16 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "migrate:up": "node --env-file=.env node_modules/node-pg-migrate/bin/node-pg-migrate.js up -m migrations",
+    "migrate:down": "node --env-file=.env node_modules/node-pg-migrate/bin/node-pg-migrate.js down -m migrations",
+    "migrate:status": "node --env-file=.env node_modules/node-pg-migrate/bin/node-pg-migrate.js up -m migrations 0",
+    "seed": "node --env-file=.env scripts/seed.js",
+    "test:db": "node --env-file=.env --experimental-strip-types --test 'tests/*.test.mjs'"
   },
   "dependencies": {
     "next": "16.4.3",
+    "pg": "^8.23.1",
     "react": "19.3.0",
     "react-dom": "19.3.0"
   },
@@ -20,6 +26,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.4.3",
+    "node-pg-migrate": "^7.9.1",
     "tailwindcss": "^4",
     "typescript": "^5"
   }

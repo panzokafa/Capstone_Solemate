@@ -1,0 +1,854 @@
+<!DOCTYPE html><html lang="en" style="width: 1280px; height: 1540px; overflow: hidden; position: relative;"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Solemate Shoes Clean - Dashboard Analytics</title>
+<!-- Tailwind CSS CDN with forms and container queries -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "surface-dim": "#dfd9d1",
+            "on-surface": "#1d1b16",
+            "secondary-fixed-dim": "#cdc6b9",
+            "on-secondary-fixed-variant": "#4b463d",
+            "tertiary": "#002544",
+            "secondary-container": "#e7dfd2",
+            "surface-container-high": "#ede7de",
+            "surface-variant": "#e7e2d9",
+            "inverse-primary": "#a6c9f9",
+            "surface-container": "#f3ede4",
+            "on-background": "#1d1b16",
+            "surface-container-highest": "#e7e2d9",
+            "outline": "#73777f",
+            "on-secondary-container": "#676258",
+            "tertiary-fixed": "#d2e4ff",
+            "surface-container-lowest": "#ffffff",
+            "inverse-surface": "#32302a",
+            "on-primary-container": "#83a6d4",
+            "on-primary": "#ffffff",
+            "on-error": "#ffffff",
+            "on-primary-fixed-variant": "#244871",
+            "inverse-on-surface": "#f6f0e7",
+            "on-surface-variant": "#43474e",
+            "on-tertiary": "#ffffff",
+            "background": "#fff9ef",
+            "primary-fixed-dim": "#a6c9f9",
+            "primary-container": "#133b63",
+            "tertiary-fixed-dim": "#a3c9fa",
+            "surface-bright": "#fff9ef",
+            "tertiary-container": "#0c3b64",
+            "error-container": "#ffdad6",
+            "on-tertiary-container": "#80a6d5",
+            "surface-tint": "#3d608a",
+            "on-tertiary-fixed": "#001c37",
+            "error": "#ba1a1a",
+            "surface": "#fff9ef",
+            "surface-container-low": "#f9f3ea",
+            "primary": "#002546",
+            "on-secondary": "#ffffff",
+            "on-primary-fixed": "#001c38",
+            "secondary-fixed": "#e9e1d5",
+            "primary-fixed": "#d3e4ff",
+            "outline-variant": "#c3c6cf",
+            "on-secondary-fixed": "#1e1b13",
+            "secondary": "#635e54",
+            "on-tertiary-fixed-variant": "#1f4972",
+            "on-error-container": "#93000a"
+          },
+          fontFamily: {
+            sans: ['Plus Jakarta Sans', 'Inter', 'system-ui', '-apple-system', 'sans-serif'],
+            outfit: ['Outfit', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800&amp;family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<style data-purpose="custom-layout">
+    body {
+      background-color: #ded6c9;
+      font-family: 'Plus Jakarta Sans', 'Inter', system-ui, -apple-system, sans-serif;
+      color: #1a2430;
+    }
+    /* Subtle scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #c7beaf;
+      border-radius: 9999px;
+    }
+    .custom-shadow {
+      box-shadow: 0 10px 30px -10px rgba(19, 59, 99, 0.08), 0 4px 12px -2px rgba(19, 59, 99, 0.04);
+    }
+    .navy-card-glow {
+      box-shadow: 0 14px 34px -8px rgba(0, 37, 70, 0.35), 0 4px 12px -2px rgba(19, 59, 99, 0.2);
+    }
+  </style>
+<meta content="web_dashboard" name="shell-type"></head>
+<body class="min-h-screen p-3 md:p-6 lg:p-8 flex items-center justify-center">
+<!-- BEGIN: MainContainer -->
+<!-- Outer Rounded Shell with warm artisanal craft tone -->
+<div class="w-full max-w-[1520px] bg-[#ebe3d7] rounded-[42px] p-4 lg:p-7 shadow-2xl border border-[#faf6ee] flex flex-col xl:flex-row gap-6 lg:gap-8 min-h-[920px]">
+<!-- BEGIN: Sidebar -->
+<aside class="w-full xl:w-64 flex-shrink-0 flex flex-col justify-between select-none py-2 px-1">
+<div>
+<!-- Logo -->
+<div class="flex items-center gap-3 px-3 py-2 mb-7 cursor-pointer" data-purpose="brand-logo">
+<img alt="Solemate Shoes Clean" class="w-11 h-11 rounded-full object-cover shadow-sm ring-2 ring-[#002546]/20 bg-white" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDqatKEz-WB5XeuXIgWwK8VRGxRPe4sICiJpfsWcKgY1yAgkRCDMH43ImYzanChqjeaYjXL0CMA01SEvS9S99449hCyOhdoVxipsbYcMlZoQCp_50c8ElMQ_DHw0lTUQTxlbOrNdAD9pmXGrWl9wzzXEFi_dok8XL2uFLS7Hs0zlIQtw0c5qK2jp5jUiP0IDLBni9UntpgRj7AsuM_8-al-Xg8_WfHI7UD9ak1-tjZ566Tb4D--iSiy">
+<div class="flex flex-col">
+<span class="font-extrabold text-xl tracking-tight text-[#002546] font-outfit leading-none">Solemate</span>
+<span class="text-[10px] font-bold tracking-[0.22em] text-[#526071] uppercase mt-0.5">Shoes Clean</span>
+</div>
+</div>
+<!-- Navigation Links -->
+<nav aria-label="Sidebar Menu" class="space-y-1.5">
+<!-- 1. Dashboard (Active) -->
+<a class="flex items-center gap-3.5 px-4.5 py-3 rounded-2xl bg-[#133b63] text-white font-semibold shadow-sm transition-all" href="#">
+<span class="material-symbols-outlined text-xl text-[#d3e4ff]">dashboard</span>
+<span class="text-[15px] font-medium tracking-tight">Dashboard</span>
+</a>
+<!-- 2. Daftar Tiket -->
+<a class="flex items-center gap-3.5 px-4.5 py-3 rounded-2xl text-[#526071] hover:bg-white/70 hover:text-[#002546] transition-all font-medium group" href="#">
+<span class="material-symbols-outlined text-xl text-[#73777f] group-hover:text-[#002546]">confirmation_number</span>
+<span class="text-[15px]">Daftar Tiket</span>
+</a>
+<!-- 3. Laporan Harian -->
+<a class="flex items-center gap-3.5 px-4.5 py-3 rounded-2xl text-[#526071] hover:bg-white/70 hover:text-[#002546] transition-all font-medium group" href="#">
+<span class="material-symbols-outlined text-xl text-[#73777f] group-hover:text-[#002546]">event_note</span>
+<span class="text-[15px]">Laporan Harian</span>
+</a>
+<!-- 4. Rekap Bulanan -->
+<a class="flex items-center gap-3.5 px-4.5 py-3 rounded-2xl text-[#526071] hover:bg-white/70 hover:text-[#002546] transition-all font-medium group" href="#">
+<span class="material-symbols-outlined text-xl text-[#73777f] group-hover:text-[#002546]">calendar_month</span>
+<span class="text-[15px]">Rekap Bulanan</span>
+</a>
+<!-- 5. Katalog Layanan -->
+<a class="flex items-center gap-3.5 px-4.5 py-3 rounded-2xl text-[#526071] hover:bg-white/70 hover:text-[#002546] transition-all font-medium group" href="#">
+<span class="material-symbols-outlined text-xl text-[#73777f] group-hover:text-[#002546]">style</span>
+<span class="text-[15px]">Katalog Layanan</span>
+</a>
+<!-- 6. Karyawan -->
+<a class="flex items-center gap-3.5 px-4.5 py-3 rounded-2xl text-[#526071] hover:bg-white/70 hover:text-[#002546] transition-all font-medium group" href="#">
+<span class="material-symbols-outlined text-xl text-[#73777f] group-hover:text-[#002546]">badge</span>
+<span class="text-[15px]">Karyawan</span>
+</a>
+<!-- 7. Rekap Absensi -->
+<a class="flex items-center gap-3.5 px-4.5 py-3 rounded-2xl text-[#526071] hover:bg-white/70 hover:text-[#002546] transition-all font-medium group" href="#">
+<span class="material-symbols-outlined text-xl text-[#73777f] group-hover:text-[#002546]">fact_check</span>
+<span class="text-[15px]">Rekap Absensi</span>
+</a>
+</nav>
+</div>
+<!-- Logout Section -->
+<div class="pt-4 border-t border-[#d8cfbf]">
+<a class="flex items-center gap-3.5 px-4.5 py-3 rounded-2xl text-[#ba1a1a] hover:bg-[#ffdad6]/60 transition-all font-medium group" href="#">
+<span class="material-symbols-outlined text-xl text-[#ba1a1a] group-hover:translate-x-0.5 transition-transform">logout</span>
+<span class="text-[15px] font-semibold">Keluar</span>
+</a>
+</div>
+</aside>
+<!-- END: Sidebar -->
+<!-- BEGIN: MainContent -->
+<main class="flex-1 flex flex-col min-w-0"><div class="flex flex-col w-full gap-6">
+<!-- Top Navigation & Action Header -->
+<header class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+<div class="flex flex-col gap-1">
+<nav aria-label="Breadcrumb" class="flex items-center gap-2">
+<span class="font-label-sm text-label-sm uppercase tracking-wider text-secondary">Manajemen Tim</span>
+<span class="material-symbols-outlined text-xs text-secondary">chevron_right</span>
+<span class="font-label-sm text-label-sm uppercase tracking-wider text-primary font-bold">Karyawan</span>
+</nav>
+<div class="flex items-baseline gap-3">
+<h1 class="font-headline-lg text-headline-lg text-primary tracking-tight">Daftar Karyawan</h1>
+<span class="px-2.5 py-0.5 rounded-full bg-secondary-container text-on-secondary-container font-label-sm text-label-sm">Owner Mode</span>
+</div>
+<p class="font-body-md text-body-md text-on-surface-variant">Kelola data staf operasional, peran workshop, dan amankan PIN absensi harian.</p>
+</div>
+<div class="flex items-center gap-3">
+<button class="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-primary-container text-on-primary font-title-sm text-title-sm shadow-md hover:bg-primary transition-all active:scale-95" onclick="document.getElementById('modal-tambah-karyawan').classList.remove('hidden')">
+<span class="material-symbols-outlined text-lg">person_add</span>
+<span class="">+ Tambah Karyawan</span>
+</button>
+</div>
+</header>
+<!-- Metric Overview Cards -->
+<section aria-label="Statistik Karyawan" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+<!-- Card 1: Total Staf -->
+<div class="bg-surface-container-lowest p-5 rounded-2xl shadow-sm flex items-center justify-between relative overflow-hidden">
+<div class="flex flex-col gap-1">
+<span class="font-label-sm text-label-sm uppercase tracking-wider text-secondary">Total Karyawan</span>
+<span class="font-headline-md text-headline-md text-primary font-bold">6 Orang</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">Tercatat di sistem pusat</span>
+</div>
+<div class="w-12 h-12 rounded-xl bg-surface-container flex items-center justify-center text-primary">
+<span class="material-symbols-outlined text-2xl">group</span>
+</div>
+</div>
+<!-- Card 2: Karyawan Aktif -->
+<div class="bg-surface-container-lowest p-5 rounded-2xl shadow-sm flex items-center justify-between relative overflow-hidden">
+<div class="flex flex-col gap-1">
+<span class="font-label-sm text-label-sm uppercase tracking-wider text-secondary">Karyawan Aktif</span>
+<span class="font-headline-md text-headline-md text-primary font-bold">5 Aktif</span>
+<span class="font-body-sm text-body-sm text-secondary">1 staf nonaktif / cuti</span>
+</div>
+<div class="w-12 h-12 rounded-xl bg-surface-container flex items-center justify-center text-primary">
+<span class="material-symbols-outlined text-2xl">verified_user</span>
+</div>
+</div>
+<!-- Card 3: Frontliner / Kasir -->
+<div class="bg-surface-container-lowest p-5 rounded-2xl shadow-sm flex items-center justify-between relative overflow-hidden">
+<div class="flex flex-col gap-1">
+<span class="font-label-sm text-label-sm uppercase tracking-wider text-secondary">Frontliner &amp; Kasir</span>
+<span class="font-headline-md text-headline-md text-primary font-bold">3 Orang</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">Layanan kasir &amp; CS chat</span>
+</div>
+<div class="w-12 h-12 rounded-xl bg-surface-container flex items-center justify-center text-primary">
+<span class="material-symbols-outlined text-2xl">point_of_sale</span>
+</div>
+</div>
+<!-- Card 4: Teknisi Cuci -->
+<div class="bg-surface-container-lowest p-5 rounded-2xl shadow-sm flex items-center justify-between relative overflow-hidden">
+<div class="flex flex-col gap-1">
+<span class="font-label-sm text-label-sm uppercase tracking-wider text-secondary">Teknisi Cuci</span>
+<span class="font-headline-md text-headline-md text-primary font-bold">3 Teknisi</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">Deep clean &amp; recolor</span>
+</div>
+<div class="w-12 h-12 rounded-xl bg-surface-container flex items-center justify-center text-primary">
+<span class="material-symbols-outlined text-2xl">dry_cleaning</span>
+</div>
+</div>
+</section>
+<!-- Filter & Search Toolbar -->
+<section class="bg-surface-container-lowest p-4 rounded-2xl shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+<!-- Filter Pills -->
+<div class="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0" id="filter-container">
+<button class="filter-pill active px-3.5 py-1.5 rounded-full bg-primary-container text-on-primary font-label-md text-label-md transition-colors" data-filter="all">Semua (6)</button>
+<button class="filter-pill px-3.5 py-1.5 rounded-full bg-surface-container text-on-surface-variant hover:bg-surface-container-high font-label-md text-label-md transition-colors" data-filter="kasir">Kasir (3)</button>
+<button class="filter-pill px-3.5 py-1.5 rounded-full bg-surface-container text-on-surface-variant hover:bg-surface-container-high font-label-md text-label-md transition-colors" data-filter="teknisi">Teknisi Cuci (3)</button>
+<button class="filter-pill px-3.5 py-1.5 rounded-full bg-surface-container text-on-surface-variant hover:bg-surface-container-high font-label-md text-label-md transition-colors" data-filter="aktif">Aktif (5)</button>
+<button class="filter-pill px-3.5 py-1.5 rounded-full bg-surface-container text-on-surface-variant hover:bg-surface-container-high font-label-md text-label-md transition-colors" data-filter="nonaktif">Nonaktif (1)</button>
+</div>
+<!-- Search Input & Selector -->
+<div class="flex items-center gap-3">
+<div class="relative w-full md:w-72">
+<span class="material-symbols-outlined absolute left-3 top-2.5 text-secondary text-lg">search</span>
+<input class="w-full pl-9 pr-3 py-2 rounded-xl bg-surface-container-low text-on-surface placeholder:text-outline font-body-sm text-body-sm focus:outline-none focus:bg-surface-container" id="search-input" placeholder="Cari nama karyawan atau nomor..." type="text">
+</div>
+<div class="relative">
+<select class="appearance-none pl-3 pr-8 py-2 rounded-xl bg-surface-container text-on-surface font-label-md text-label-md focus:outline-none cursor-pointer" id="select-status">
+<option value="all">Status: Semua</option>
+<option value="aktif">Status: Aktif</option>
+<option value="nonaktif">Status: Nonaktif</option>
+</select>
+<span class="material-symbols-outlined absolute right-2.5 top-2.5 pointer-events-none text-secondary text-base">expand_more</span>
+</div>
+</div>
+</section>
+<!-- Employee Table Container -->
+<section class="bg-surface-container-lowest rounded-3xl shadow-sm overflow-hidden flex flex-col">
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse" id="employee-table">
+<thead>
+<tr class="bg-surface-container-low text-secondary font-label-sm text-label-sm uppercase tracking-wider">
+<th class="py-3.5 px-6">ID &amp; Nama Staf</th>
+<th class="py-3.5 px-4">Peran Operasional</th>
+<th class="py-3.5 px-4">Shift Kerja</th>
+<th class="py-3.5 px-4">Status PIN Absensi</th>
+<th class="py-3.5 px-4">Presensi Bulan Ini</th>
+<th class="py-3.5 px-4">Status</th>
+<th class="py-3.5 px-6 text-right">Aksi</th>
+</tr>
+</thead>
+<tbody class="divide-y-0" id="employee-list">
+<!-- Row 1: Rian Hidayat -->
+<tr class="hover:bg-surface-container-low transition-colors employee-row" data-role="kasir" data-status="aktif">
+<td class="py-4 px-6">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-full bg-primary-container text-on-primary flex items-center justify-center font-title-sm text-title-sm font-bold flex-shrink-0">
+                  RH
+                </div>
+<div class="flex flex-col min-w-0">
+<div class="flex items-center gap-2">
+<span class="font-title-sm text-title-sm text-primary font-semibold truncate">Rian Hidayat</span>
+<span class="px-2 py-0.5 rounded-full bg-surface-container text-secondary font-label-sm text-label-sm">EMP-001</span>
+</div>
+<span class="font-body-sm text-body-sm text-on-surface-variant flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px] text-secondary">phone</span> 0812-3456-7890 • Bergabung Jan 2024
+                  </span>
+</div>
+</div>
+</td>
+<td class="py-4 px-4">
+<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-surface-container text-primary font-label-md text-label-md font-semibold">
+<span class="material-symbols-outlined text-sm">point_of_sale</span> Kasir &amp; Front Office
+              </span>
+</td>
+<td class="py-4 px-4">
+<div class="flex flex-col">
+<span class="font-body-md text-body-md text-primary font-medium">Shift Pagi</span>
+<span class="font-body-sm text-body-sm text-secondary">09:00 - 17:00 WIB</span>
+</div>
+</td>
+<td class="py-4 px-4">
+<div class="flex items-center gap-2">
+<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-surface-container text-primary font-label-sm text-label-sm font-medium">
+<span class="material-symbols-outlined text-xs text-primary" style="font-variation-settings: 'FILL' 1;">lock</span> PIN Terpasang (6 Digit)
+                </span>
+<button class="text-secondary hover:text-primary transition-colors text-xs font-semibold underline underline-offset-2" onclick="openPinModal('EMP-001', 'Rian Hidayat')">Reset</button>
+</div>
+</td>
+<td class="py-4 px-4">
+<div class="flex flex-col">
+<span class="font-title-sm text-title-sm text-primary font-bold">25 Hari</span>
+<span class="font-body-sm text-body-sm text-secondary">Tingkat Kehadiran 96%</span>
+</div>
+</td>
+<td class="py-4 px-4">
+<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-secondary-container text-on-secondary-fixed font-label-sm text-label-sm font-bold">
+<span class="w-1.5 h-1.5 rounded-full bg-primary"></span> Aktif
+              </span>
+</td>
+<td class="py-4 px-6 text-right">
+<div class="inline-flex items-center gap-1">
+<button class="p-1.5 rounded-xl hover:bg-surface-container text-on-surface-variant hover:text-primary transition-colors" title="Ubah Data">
+<span class="material-symbols-outlined text-lg">edit</span>
+</button>
+<button class="p-1.5 rounded-xl hover:bg-surface-container text-on-surface-variant hover:text-primary transition-colors" onclick="openPinModal('EMP-001', 'Rian Hidayat')" title="Ubah PIN Akses">
+<span class="material-symbols-outlined text-lg">key</span>
+</button>
+<button class="p-1.5 rounded-xl hover:bg-error-container text-secondary hover:text-error transition-colors" title="Nonaktifkan Karyawan">
+<span class="material-symbols-outlined text-lg">block</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- Row 2: Dimas Saputra -->
+<tr class="hover:bg-surface-container-low transition-colors employee-row" data-role="teknisi" data-status="aktif">
+<td class="py-4 px-6">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-full bg-primary text-on-primary flex items-center justify-center font-title-sm text-title-sm font-bold flex-shrink-0">
+                  DS
+                </div>
+<div class="flex flex-col min-w-0">
+<div class="flex items-center gap-2">
+<span class="font-title-sm text-title-sm text-primary font-semibold truncate">Dimas Saputra</span>
+<span class="px-2 py-0.5 rounded-full bg-surface-container text-secondary font-label-sm text-label-sm">EMP-002</span>
+</div>
+<span class="font-body-sm text-body-sm text-on-surface-variant flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px] text-secondary">phone</span> 0821-9876-5432 • Bergabung Feb 2024
+                  </span>
+</div>
+</div>
+</td>
+<td class="py-4 px-4">
+<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-surface-container text-primary font-label-md text-label-md font-semibold">
+<span class="material-symbols-outlined text-sm">stars</span> Senior Shoe Technician
+              </span>
+</td>
+<td class="py-4 px-4">
+<div class="flex flex-col">
+<span class="font-body-md text-body-md text-primary font-medium">Shift Full Workshop</span>
+<span class="font-body-sm text-body-sm text-secondary">10:00 - 19:00 WIB</span>
+</div>
+</td>
+<td class="py-4 px-4">
+<div class="flex items-center gap-2">
+<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-surface-container text-primary font-label-sm text-label-sm font-medium">
+<span class="material-symbols-outlined text-xs text-primary" style="font-variation-settings: 'FILL' 1;">lock</span> PIN Terpasang (6 Digit)
+                </span>
+<button class="text-secondary hover:text-primary transition-colors text-xs font-semibold underline underline-offset-2" onclick="openPinModal('EMP-002', 'Dimas Saputra')">Reset</button>
+</div>
+</td>
+<td class="py-4 px-4">
+<div class="flex flex-col">
+<span class="font-title-sm text-title-sm text-primary font-bold">26 Hari</span>
+<span class="font-body-sm text-body-sm text-secondary">Tingkat Kehadiran 100%</span>
+</div>
+</td>
+<td class="py-4 px-4">
+<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-secondary-container text-on-secondary-fixed font-label-sm text-label-sm font-bold">
+<span class="w-1.5 h-1.5 rounded-full bg-primary"></span> Aktif
+              </span>
+</td>
+<td class="py-4 px-6 text-right">
+<div class="inline-flex items-center gap-1">
+<button class="p-1.5 rounded-xl hover:bg-surface-container text-on-surface-variant hover:text-primary transition-colors" title="Ubah Data">
+<span class="material-symbols-outlined text-lg">edit</span>
+</button>
+<button class="p-1.5 rounded-xl hover:bg-surface-container text-on-surface-variant hover:text-primary transition-colors" onclick="openPinModal('EMP-002', 'Dimas Saputra')" title="Ubah PIN Akses">
+<span class="material-symbols-outlined text-lg">key</span>
+</button>
+<button class="p-1.5 rounded-xl hover:bg-error-container text-secondary hover:text-error transition-colors" title="Nonaktifkan Karyawan">
+<span class="material-symbols-outlined text-lg">block</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- Row 3: Siti Nurhaliza -->
+<tr class="hover:bg-surface-container-low transition-colors employee-row" data-role="kasir" data-status="aktif">
+<td class="py-4 px-6">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-full bg-secondary text-surface-container-lowest flex items-center justify-center font-title-sm text-title-sm font-bold flex-shrink-0">
+                  SN
+                </div>
+<div class="flex flex-col min-w-0">
+<div class="flex items-center gap-2">
+<span class="font-title-sm text-title-sm text-primary font-semibold truncate">Siti Nurhaliza</span>
+<span class="px-2 py-0.5 rounded-full bg-surface-container text-secondary font-label-sm text-label-sm">EMP-003</span>
+</div>
+<span class="font-body-sm text-body-sm text-on-surface-variant flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px] text-secondary">phone</span> 0857-1122-3344 • Bergabung Mar 2024
+                  </span>
+</div>
+</div>
+</td>
+<td class="py-4 px-4">
+<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-surface-container text-primary font-label-md text-label-md font-semibold">
+<span class="material-symbols-outlined text-sm">support_agent</span> Kasir &amp; CS WhatsApp
+              </span>
+</td>
+<td class="py-4 px-4">
+<div class="flex flex-col">
+<span class="font-body-md text-body-md text-primary font-medium">Shift Sore</span>
+<span class="font-body-sm text-body-sm text-secondary">13:00 - 21:00 WIB</span>
+</div>
+</td>
+<td class="py-4 px-4">
+<div class="flex items-center gap-2">
+<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-surface-container text-primary font-label-sm text-label-sm font-medium">
+<span class="material-symbols-outlined text-xs text-primary" style="font-variation-settings: 'FILL' 1;">lock</span> PIN Terpasang (6 Digit)
+                </span>
+<button class="text-secondary hover:text-primary transition-colors text-xs font-semibold underline underline-offset-2" onclick="openPinModal('EMP-003', 'Siti Nurhaliza')">Reset</button>
+</div>
+</td>
+<td class="py-4 px-4">
+<div class="flex flex-col">
+<span class="font-title-sm text-title-sm text-primary font-bold">24 Hari</span>
+<span class="font-body-sm text-body-sm text-secondary">Tingkat Kehadiran 92%</span>
+</div>
+</td>
+<td class="py-4 px-4">
+<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-secondary-container text-on-secondary-fixed font-label-sm text-label-sm font-bold">
+<span class="w-1.5 h-1.5 rounded-full bg-primary"></span> Aktif
+              </span>
+</td>
+<td class="py-4 px-6 text-right">
+<div class="inline-flex items-center gap-1">
+<button class="p-1.5 rounded-xl hover:bg-surface-container text-on-surface-variant hover:text-primary transition-colors" title="Ubah Data">
+<span class="material-symbols-outlined text-lg">edit</span>
+</button>
+<button class="p-1.5 rounded-xl hover:bg-surface-container text-on-surface-variant hover:text-primary transition-colors" onclick="openPinModal('EMP-003', 'Siti Nurhaliza')" title="Ubah PIN Akses">
+<span class="material-symbols-outlined text-lg">key</span>
+</button>
+<button class="p-1.5 rounded-xl hover:bg-error-container text-secondary hover:text-error transition-colors" title="Nonaktifkan Karyawan">
+<span class="material-symbols-outlined text-lg">block</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- Row 4: Fajar Ramadhan -->
+<tr class="hover:bg-surface-container-low transition-colors employee-row" data-role="teknisi" data-status="aktif">
+<td class="py-4 px-6">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-full bg-secondary-fixed text-primary flex items-center justify-center font-title-sm text-title-sm font-bold flex-shrink-0">
+                  FR
+                </div>
+<div class="flex flex-col min-w-0">
+<div class="flex items-center gap-2">
+<span class="font-title-sm text-title-sm text-primary font-semibold truncate">Fajar Ramadhan</span>
+<span class="px-2 py-0.5 rounded-full bg-surface-container text-secondary font-label-sm text-label-sm">EMP-004</span>
+</div>
+<span class="font-body-sm text-body-sm text-on-surface-variant flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px] text-secondary">phone</span> 0813-7788-9900 • Bergabung Apr 2024
+                  </span>
+</div>
+</div>
+</td>
+<td class="py-4 px-4">
+<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-surface-container text-primary font-label-md text-label-md font-semibold">
+<span class="material-symbols-outlined text-sm">cleaning_services</span> Technician (Deep Clean)
+              </span>
+</td>
+<td class="py-4 px-4">
+<div class="flex flex-col">
+<span class="font-body-md text-body-md text-primary font-medium">Shift Pagi</span>
+<span class="font-body-sm text-body-sm text-secondary">09:00 - 17:00 WIB</span>
+</div>
+</td>
+<td class="py-4 px-4">
+<div class="flex items-center gap-2">
+<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-surface-container text-primary font-label-sm text-label-sm font-medium">
+<span class="material-symbols-outlined text-xs text-primary" style="font-variation-settings: 'FILL' 1;">lock</span> PIN Terpasang (6 Digit)
+                </span>
+<button class="text-secondary hover:text-primary transition-colors text-xs font-semibold underline underline-offset-2" onclick="openPinModal('EMP-004', 'Fajar Ramadhan')">Reset</button>
+</div>
+</td>
+<td class="py-4 px-4">
+<div class="flex flex-col">
+<span class="font-title-sm text-title-sm text-primary font-bold">23 Hari</span>
+<span class="font-body-sm text-body-sm text-secondary">Tingkat Kehadiran 88%</span>
+</div>
+</td>
+<td class="py-4 px-4">
+<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-secondary-container text-on-secondary-fixed font-label-sm text-label-sm font-bold">
+<span class="w-1.5 h-1.5 rounded-full bg-primary"></span> Aktif
+              </span>
+</td>
+<td class="py-4 px-6 text-right">
+<div class="inline-flex items-center gap-1">
+<button class="p-1.5 rounded-xl hover:bg-surface-container text-on-surface-variant hover:text-primary transition-colors" title="Ubah Data">
+<span class="material-symbols-outlined text-lg">edit</span>
+</button>
+<button class="p-1.5 rounded-xl hover:bg-surface-container text-on-surface-variant hover:text-primary transition-colors" onclick="openPinModal('EMP-004', 'Fajar Ramadhan')" title="Ubah PIN Akses">
+<span class="material-symbols-outlined text-lg">key</span>
+</button>
+<button class="p-1.5 rounded-xl hover:bg-error-container text-secondary hover:text-error transition-colors" title="Nonaktifkan Karyawan">
+<span class="material-symbols-outlined text-lg">block</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- Row 5: Bagas Pratama -->
+<tr class="hover:bg-surface-container-low transition-colors employee-row" data-role="teknisi" data-status="aktif">
+<td class="py-4 px-6">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-full bg-secondary-container text-primary font-title-sm text-title-sm font-bold flex items-center justify-center flex-shrink-0">
+                  BP
+                </div>
+<div class="flex flex-col min-w-0">
+<div class="flex items-center gap-2">
+<span class="font-title-sm text-title-sm text-primary font-semibold truncate">Bagas Pratama</span>
+<span class="px-2 py-0.5 rounded-full bg-surface-container text-secondary font-label-sm text-label-sm">EMP-005</span>
+</div>
+<span class="font-body-sm text-body-sm text-on-surface-variant flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px] text-secondary">phone</span> 0878-5544-3322 • Bergabung Mei 2024
+                  </span>
+</div>
+</div>
+</td>
+<td class="py-4 px-4">
+<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-surface-container text-primary font-label-md text-label-md font-semibold">
+<span class="material-symbols-outlined text-sm">handyman</span> Junior Cleaner &amp; Bag Care
+              </span>
+</td>
+<td class="py-4 px-4">
+<div class="flex flex-col">
+<span class="font-body-md text-body-md text-primary font-medium">Shift Siang</span>
+<span class="font-body-sm text-body-sm text-secondary">11:00 - 19:00 WIB</span>
+</div>
+</td>
+<td class="py-4 px-4">
+<div class="flex items-center gap-2">
+<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-surface-container text-primary font-label-sm text-label-sm font-medium">
+<span class="material-symbols-outlined text-xs text-primary" style="font-variation-settings: 'FILL' 1;">lock</span> PIN Terpasang (6 Digit)
+                </span>
+<button class="text-secondary hover:text-primary transition-colors text-xs font-semibold underline underline-offset-2" onclick="openPinModal('EMP-005', 'Bagas Pratama')">Reset</button>
+</div>
+</td>
+<td class="py-4 px-4">
+<div class="flex flex-col">
+<span class="font-title-sm text-title-sm text-primary font-bold">21 Hari</span>
+<span class="font-body-sm text-body-sm text-secondary">Tingkat Kehadiran 80%</span>
+</div>
+</td>
+<td class="py-4 px-4">
+<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-secondary-container text-on-secondary-fixed font-label-sm text-label-sm font-bold">
+<span class="w-1.5 h-1.5 rounded-full bg-primary"></span> Aktif
+              </span>
+</td>
+<td class="py-4 px-6 text-right">
+<div class="inline-flex items-center gap-1">
+<button class="p-1.5 rounded-xl hover:bg-surface-container text-on-surface-variant hover:text-primary transition-colors" title="Ubah Data">
+<span class="material-symbols-outlined text-lg">edit</span>
+</button>
+<button class="p-1.5 rounded-xl hover:bg-surface-container text-on-surface-variant hover:text-primary transition-colors" onclick="openPinModal('EMP-005', 'Bagas Pratama')" title="Ubah PIN Akses">
+<span class="material-symbols-outlined text-lg">key</span>
+</button>
+<button class="p-1.5 rounded-xl hover:bg-error-container text-secondary hover:text-error transition-colors" title="Nonaktifkan Karyawan">
+<span class="material-symbols-outlined text-lg">block</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- Row 6: Andre Kurniawan (Nonaktif / PIN Belum Diatur) -->
+<tr class="hover:bg-surface-container-low transition-colors employee-row opacity-75" data-role="kasir" data-status="nonaktif">
+<td class="py-4 px-6">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-full bg-surface-container text-secondary flex items-center justify-center font-title-sm text-title-sm font-bold flex-shrink-0">
+                  AK
+                </div>
+<div class="flex flex-col min-w-0">
+<div class="flex items-center gap-2">
+<span class="font-title-sm text-title-sm text-on-surface font-semibold truncate">Andre Kurniawan</span>
+<span class="px-2 py-0.5 rounded-full bg-surface-container text-secondary font-label-sm text-label-sm">EMP-006</span>
+</div>
+<span class="font-body-sm text-body-sm text-on-surface-variant flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px] text-secondary">phone</span> 0896-1234-5678 • Bergabung Jun 2024
+                  </span>
+</div>
+</div>
+</td>
+<td class="py-4 px-4">
+<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-surface-container-high text-secondary font-label-md text-label-md font-semibold">
+<span class="material-symbols-outlined text-sm">schedule</span> Part-time Cleaner
+              </span>
+</td>
+<td class="py-4 px-4">
+<div class="flex flex-col">
+<span class="font-body-md text-body-md text-secondary font-medium">Jadwal Fleksibel</span>
+<span class="font-body-sm text-body-sm text-secondary">On-call Request</span>
+</div>
+</td>
+<td class="py-4 px-4">
+<div class="flex items-center gap-2">
+<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-surface-container-high text-secondary font-label-sm text-label-sm font-medium">
+<span class="material-symbols-outlined text-xs text-secondary">lock_open</span> PIN Belum Diatur
+                </span>
+<button class="text-primary hover:underline text-xs font-semibold" onclick="openPinModal('EMP-006', 'Andre Kurniawan')">Setel PIN</button>
+</div>
+</td>
+<td class="py-4 px-4">
+<div class="flex flex-col">
+<span class="font-title-sm text-title-sm text-secondary font-bold">0 Hari</span>
+<span class="font-body-sm text-body-sm text-secondary">Sedang Cuti / Nonaktif</span>
+</div>
+</td>
+<td class="py-4 px-4">
+<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-surface-container text-secondary font-label-sm text-label-sm font-bold">
+<span class="w-1.5 h-1.5 rounded-full bg-outline"></span> Nonaktif
+              </span>
+</td>
+<td class="py-4 px-6 text-right">
+<div class="inline-flex items-center gap-1">
+<button class="p-1.5 rounded-xl hover:bg-surface-container text-on-surface-variant hover:text-primary transition-colors" title="Ubah Data">
+<span class="material-symbols-outlined text-lg">edit</span>
+</button>
+<button class="p-1.5 rounded-xl hover:bg-surface-container text-on-surface-variant hover:text-primary transition-colors" onclick="openPinModal('EMP-006', 'Andre Kurniawan')" title="Setel PIN">
+<span class="material-symbols-outlined text-lg">key</span>
+</button>
+<button class="p-1.5 rounded-xl hover:bg-surface-container text-primary transition-colors" title="Aktifkan Kembali">
+<span class="material-symbols-outlined text-lg">check_circle</span>
+</button>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- Table Footer / Pagination -->
+<div class="p-4 bg-surface-container-low flex flex-col sm:flex-row items-center justify-between gap-3 text-secondary font-body-sm text-body-sm">
+<div class="flex items-center gap-2">
+
+
+</div>
+<div class="flex items-center gap-4">
+<span class="">Menampilkan <strong class="text-primary font-bold">6</strong> dari 6 staf</span>
+<div class="inline-flex items-center gap-1">
+<button class="p-1 rounded-lg text-outline cursor-not-allowed" disabled="">
+<span class="material-symbols-outlined text-base">chevron_left</span>
+</button>
+<span class="px-2.5 py-1 rounded-lg bg-primary-container text-on-primary font-bold text-xs">1</span>
+<button class="p-1 rounded-lg text-outline cursor-not-allowed" disabled="">
+<span class="material-symbols-outlined text-base">chevron_right</span>
+</button>
+</div>
+</div>
+</div>
+</section>
+<!-- Quick Info & PIN Management Guidelines Card (PRD 7.10 Guidance) -->
+<section class="grid grid-cols-1 md:grid-cols-3 gap-4">
+
+
+
+</section>
+<!-- Modal: Atur / Reset PIN Akses -->
+<div class="fixed inset-0 z-50 bg-on-surface/40 backdrop-blur-sm hidden flex items-center justify-center p-4" id="modal-pin">
+<div class="bg-surface-container-lowest rounded-3xl max-w-md w-full p-6 shadow-2xl relative flex flex-col gap-5 animate-in fade-in zoom-in-95 duration-150">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-full bg-primary-container text-on-primary flex items-center justify-center">
+<span class="material-symbols-outlined text-xl">lock_reset</span>
+</div>
+<div>
+<h3 class="font-title-lg text-title-lg text-primary font-bold">Atur PIN Absensi</h3>
+<p class="font-body-sm text-body-sm text-secondary" id="modal-employee-target">EMP-001 • Rian Hidayat</p>
+</div>
+</div>
+<button class="w-8 h-8 rounded-full hover:bg-surface-container flex items-center justify-center text-secondary" onclick="closePinModal()">
+<span class="material-symbols-outlined text-lg">close</span>
+</button>
+</div>
+<div class="bg-surface-container-low p-3.5 rounded-xl flex items-center gap-3 text-secondary font-body-sm text-body-sm">
+<span class="material-symbols-outlined text-primary text-xl flex-shrink-0">info</span>
+<span class="">PIN ini digunakan oleh staf saat mencatat absensi masuk &amp; keluar pada tablet kasir.</span>
+</div>
+<form class="flex flex-col gap-4" onsubmit="handlePinSubmit(event)">
+<div class="flex flex-col gap-1.5">
+<label class="font-label-md text-label-md text-primary font-semibold">PIN Baru (6 Digit Angka)</label>
+<input class="w-full px-4 py-2.5 rounded-xl bg-surface-container-low text-on-surface font-title-sm tracking-widest text-center focus:outline-none focus:ring-2 focus:ring-primary/20" maxlength="6" pattern="[0-9]{6}" placeholder="Contoh: 849201" required="" type="password">
+</div>
+<div class="flex flex-col gap-1.5">
+<label class="font-label-md text-label-md text-primary font-semibold">Konfirmasi PIN Baru</label>
+<input class="w-full px-4 py-2.5 rounded-xl bg-surface-container-low text-on-surface font-title-sm tracking-widest text-center focus:outline-none focus:ring-2 focus:ring-primary/20" maxlength="6" pattern="[0-9]{6}" placeholder="Masukkan ulang 6 digit" required="" type="password">
+</div>
+<div class="flex items-center justify-end gap-2.5 pt-2">
+<button class="px-5 py-2 rounded-full hover:bg-surface-container text-secondary font-label-md text-label-md transition-colors" onclick="closePinModal()" type="button">
+            Batal
+          </button>
+<button class="px-6 py-2 rounded-full bg-primary-container text-on-primary font-title-sm text-title-sm shadow-md hover:bg-primary transition-all" type="submit">
+            Simpan PIN Baru
+          </button>
+</div>
+</form>
+</div>
+</div>
+<!-- Modal: Tambah Karyawan Baru -->
+<div class="fixed inset-0 z-50 bg-on-surface/40 backdrop-blur-sm hidden flex items-center justify-center p-4" id="modal-tambah-karyawan">
+<div class="bg-surface-container-lowest rounded-3xl max-w-lg w-full p-6 shadow-2xl relative flex flex-col gap-5 animate-in fade-in zoom-in-95 duration-150">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-full bg-primary-container text-on-primary flex items-center justify-center">
+<span class="material-symbols-outlined text-xl">person_add</span>
+</div>
+<div>
+<h3 class="font-title-lg text-title-lg text-primary font-bold">Tambah Karyawan Baru</h3>
+<p class="font-body-sm text-body-sm text-secondary">Daftarkan data staf operasional dan buat PIN awal</p>
+</div>
+</div>
+<button class="w-8 h-8 rounded-full hover:bg-surface-container flex items-center justify-center text-secondary" onclick="document.getElementById('modal-tambah-karyawan').classList.add('hidden')">
+<span class="material-symbols-outlined text-lg">close</span>
+</button>
+</div>
+<form class="flex flex-col gap-4" onsubmit="handleNewEmployeeSubmit(event)">
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+<div class="flex flex-col gap-1.5">
+<label class="font-label-md text-label-md text-primary font-semibold">Nama Lengkap</label>
+<input class="w-full px-3.5 py-2 rounded-xl bg-surface-container-low text-on-surface font-body-sm text-body-sm focus:outline-none focus:bg-surface-container" placeholder="Nama karyawan..." required="" type="text">
+</div>
+<div class="flex flex-col gap-1.5">
+<label class="font-label-md text-label-md text-primary font-semibold">No. WhatsApp / Telepon</label>
+<input class="w-full px-3.5 py-2 rounded-xl bg-surface-container-low text-on-surface font-body-sm text-body-sm focus:outline-none focus:bg-surface-container" placeholder="08xxxxxxxxxx" required="" type="tel">
+</div>
+</div>
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+<div class="flex flex-col gap-1.5">
+<label class="font-label-md text-label-md text-primary font-semibold">Peran Operasional</label>
+<select class="w-full px-3.5 py-2 rounded-xl bg-surface-container-low text-on-surface font-body-sm text-body-sm focus:outline-none focus:bg-surface-container">
+<option>Kasir &amp; Front Office</option>
+<option>Shoe Care Technician</option>
+<option>Senior Technician</option>
+<option>Junior Cleaner</option>
+</select>
+</div>
+<div class="flex flex-col gap-1.5">
+<label class="font-label-md text-label-md text-primary font-semibold">Pilihan Shift</label>
+<select class="w-full px-3.5 py-2 rounded-xl bg-surface-container-low text-on-surface font-body-sm text-body-sm focus:outline-none focus:bg-surface-container">
+<option>Shift Pagi (09:00 - 17:00)</option>
+<option>Shift Sore (13:00 - 21:00)</option>
+<option>Full Day (10:00 - 19:00)</option>
+<option>Fleksibel / Part-time</option>
+</select>
+</div>
+</div>
+<div class="flex flex-col gap-1.5">
+<label class="font-label-md text-label-md text-primary font-semibold">PIN Absensi Awal (6 Digit)</label>
+<input class="w-full px-3.5 py-2 rounded-xl bg-surface-container-low text-on-surface font-title-sm tracking-widest focus:outline-none focus:bg-surface-container" maxlength="6" pattern="[0-9]{6}" placeholder="Buat 6 digit PIN numerik" required="" type="password">
+</div>
+<div class="flex items-center justify-end gap-2.5 pt-2">
+<button class="px-5 py-2 rounded-full hover:bg-surface-container text-secondary font-label-md text-label-md transition-colors" onclick="document.getElementById('modal-tambah-karyawan').classList.add('hidden')" type="button">
+            Batal
+          </button>
+<button class="px-6 py-2 rounded-full bg-primary-container text-on-primary font-title-sm text-title-sm shadow-md hover:bg-primary transition-all" type="submit">
+            Simpan Karyawan
+          </button>
+</div>
+</form>
+</div>
+</div>
+</div>
+<script>
+  function openPinModal(id, name) {
+    document.getElementById('modal-employee-target').innerText = id + ' • ' + name;
+    document.getElementById('modal-pin').classList.remove('hidden');
+  }
+
+  function closePinModal() {
+    document.getElementById('modal-pin').classList.add('hidden');
+  }
+
+  function handlePinSubmit(e) {
+    e.preventDefault();
+    alert('PIN absensi karyawan berhasil diperbarui secara aman.');
+    closePinModal();
+  }
+
+  function handleNewEmployeeSubmit(e) {
+    e.preventDefault();
+    alert('Karyawan baru berhasil didaftarkan ke sistem operasional Solemate Shoes Clean.');
+    document.getElementById('modal-tambah-karyawan').classList.add('hidden');
+  }
+
+  // Interactive filtering
+  const filterPills = document.querySelectorAll('.filter-pill');
+  const searchInput = document.getElementById('search-input');
+  const statusSelect = document.getElementById('select-status');
+  const rows = document.querySelectorAll('.employee-row');
+
+  function applyFilters() {
+    const activePill = document.querySelector('.filter-pill.active').dataset.filter;
+    const query = searchInput.value.toLowerCase().trim();
+    const statusVal = statusSelect.value;
+
+    rows.forEach(row => {
+      const role = row.dataset.role;
+      const status = row.dataset.status;
+      const text = row.innerText.toLowerCase();
+
+      let matchPill = true;
+      if (activePill === 'kasir') matchPill = (role === 'kasir');
+      else if (activePill === 'teknisi') matchPill = (role === 'teknisi');
+      else if (activePill === 'aktif') matchPill = (status === 'aktif');
+      else if (activePill === 'nonaktif') matchPill = (status === 'nonaktif');
+
+      let matchSearch = text.includes(query);
+      let matchStatus = (statusVal === 'all') || (status === statusVal);
+
+      if (matchPill && matchSearch && matchStatus) {
+        row.style.display = '';
+      } else {
+        row.style.display = 'none';
+      }
+    });
+  }
+
+  filterPills.forEach(pill => {
+    pill.addEventListener('click', () => {
+      filterPills.forEach(p => {
+        p.classList.remove('active', 'bg-primary-container', 'text-on-primary');
+        p.classList.add('bg-surface-container', 'text-on-surface-variant');
+      });
+      pill.classList.add('active', 'bg-primary-container', 'text-on-primary');
+      pill.classList.remove('bg-surface-container', 'text-on-surface-variant');
+      applyFilters();
+    });
+  });
+
+  searchInput.addEventListener('input', applyFilters);
+  statusSelect.addEventListener('change', applyFilters);
+</script></main>
+<!-- END: MainContent -->
+</div>
+<!-- END: MainContainer -->
+
+
+</body></html>

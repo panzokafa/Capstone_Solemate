@@ -1,0 +1,596 @@
+<!DOCTYPE html><html lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Solemate Shoes Clean - Dashboard Analytics</title>
+<!-- Tailwind CSS CDN with forms and container queries -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "surface-dim": "#dfd9d1",
+            "on-surface": "#1d1b16",
+            "secondary-fixed-dim": "#cdc6b9",
+            "on-secondary-fixed-variant": "#4b463d",
+            "tertiary": "#002544",
+            "secondary-container": "#e7dfd2",
+            "surface-container-high": "#ede7de",
+            "surface-variant": "#e7e2d9",
+            "inverse-primary": "#a6c9f9",
+            "surface-container": "#f3ede4",
+            "on-background": "#1d1b16",
+            "surface-container-highest": "#e7e2d9",
+            "outline": "#73777f",
+            "on-secondary-container": "#676258",
+            "tertiary-fixed": "#d2e4ff",
+            "surface-container-lowest": "#ffffff",
+            "inverse-surface": "#32302a",
+            "on-primary-container": "#83a6d4",
+            "on-primary": "#ffffff",
+            "on-error": "#ffffff",
+            "on-primary-fixed-variant": "#244871",
+            "inverse-on-surface": "#f6f0e7",
+            "on-surface-variant": "#43474e",
+            "on-tertiary": "#ffffff",
+            "background": "#fff9ef",
+            "primary-fixed-dim": "#a6c9f9",
+            "primary-container": "#133b63",
+            "tertiary-fixed-dim": "#a3c9fa",
+            "surface-bright": "#fff9ef",
+            "tertiary-container": "#0c3b64",
+            "error-container": "#ffdad6",
+            "on-tertiary-container": "#80a6d5",
+            "surface-tint": "#3d608a",
+            "on-tertiary-fixed": "#001c37",
+            "error": "#ba1a1a",
+            "surface": "#fff9ef",
+            "surface-container-low": "#f9f3ea",
+            "primary": "#002546",
+            "on-secondary": "#ffffff",
+            "on-primary-fixed": "#001c38",
+            "secondary-fixed": "#e9e1d5",
+            "primary-fixed": "#d3e4ff",
+            "outline-variant": "#c3c6cf",
+            "on-secondary-fixed": "#1e1b13",
+            "secondary": "#635e54",
+            "on-tertiary-fixed-variant": "#1f4972",
+            "on-error-container": "#93000a"
+          },
+          fontFamily: {
+            sans: ['Plus Jakarta Sans', 'Inter', 'system-ui', '-apple-system', 'sans-serif'],
+            outfit: ['Outfit', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800&amp;family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<style data-purpose="custom-layout">
+    body {
+      background-color: #ded6c9;
+      font-family: 'Plus Jakarta Sans', 'Inter', system-ui, -apple-system, sans-serif;
+      color: #1a2430;
+    }
+    /* Subtle scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #c7beaf;
+      border-radius: 9999px;
+    }
+    .custom-shadow {
+      box-shadow: 0 10px 30px -10px rgba(19, 59, 99, 0.08), 0 4px 12px -2px rgba(19, 59, 99, 0.04);
+    }
+    .navy-card-glow {
+      box-shadow: 0 14px 34px -8px rgba(0, 37, 70, 0.35), 0 4px 12px -2px rgba(19, 59, 99, 0.2);
+    }
+  </style>
+<meta content="web_dashboard" name="shell-type"></head>
+<body class="min-h-screen p-3 md:p-6 lg:p-8 flex items-center justify-center">
+<!-- BEGIN: MainContainer -->
+<!-- Outer Rounded Shell with warm artisanal craft tone -->
+<div class="w-full max-w-[1520px] bg-[#ebe3d7] rounded-[42px] p-4 lg:p-7 shadow-2xl border border-[#faf6ee] flex flex-col xl:flex-row gap-6 lg:gap-8 min-h-[920px]">
+<!-- BEGIN: Sidebar -->
+<aside class="w-full xl:w-64 flex-shrink-0 flex flex-col justify-between select-none py-2 px-1">
+<div>
+<!-- Logo -->
+<div class="flex items-center gap-3 px-3 py-2 mb-7 cursor-pointer" data-purpose="brand-logo">
+<img alt="Solemate Shoes Clean" class="w-11 h-11 rounded-full object-cover shadow-sm ring-2 ring-[#002546]/20 bg-white" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDqatKEz-WB5XeuXIgWwK8VRGxRPe4sICiJpfsWcKgY1yAgkRCDMH43ImYzanChqjeaYjXL0CMA01SEvS9S99449hCyOhdoVxipsbYcMlZoQCp_50c8ElMQ_DHw0lTUQTxlbOrNdAD9pmXGrWl9wzzXEFi_dok8XL2uFLS7Hs0zlIQtw0c5qK2jp5jUiP0IDLBni9UntpgRj7AsuM_8-al-Xg8_WfHI7UD9ak1-tjZ566Tb4D--iSiy">
+<div class="flex flex-col">
+<span class="font-extrabold text-xl tracking-tight text-[#002546] font-outfit leading-none">Solemate</span>
+<span class="text-[10px] font-bold tracking-[0.22em] text-[#526071] uppercase mt-0.5">Shoes Clean</span>
+</div>
+</div>
+<!-- Navigation Links -->
+<nav aria-label="Sidebar Menu" class="space-y-1.5">
+<!-- 1. Dashboard (Active) -->
+<a class="flex items-center gap-3.5 px-4.5 py-3 rounded-2xl bg-[#133b63] text-white font-semibold shadow-sm transition-all" href="#">
+<span class="material-symbols-outlined text-xl text-[#d3e4ff]">dashboard</span>
+<span class="text-[15px] font-medium tracking-tight">Dashboard</span>
+</a>
+<!-- 2. Daftar Tiket -->
+<a class="flex items-center gap-3.5 px-4.5 py-3 rounded-2xl text-[#526071] hover:bg-white/70 hover:text-[#002546] transition-all font-medium group" href="#">
+<span class="material-symbols-outlined text-xl text-[#73777f] group-hover:text-[#002546]">confirmation_number</span>
+<span class="text-[15px]">Daftar Tiket</span>
+</a>
+<!-- 3. Laporan Harian -->
+<a class="flex items-center gap-3.5 px-4.5 py-3 rounded-2xl text-[#526071] hover:bg-white/70 hover:text-[#002546] transition-all font-medium group" href="#">
+<span class="material-symbols-outlined text-xl text-[#73777f] group-hover:text-[#002546]">event_note</span>
+<span class="text-[15px]">Laporan Harian</span>
+</a>
+<!-- 4. Rekap Bulanan -->
+<a class="flex items-center gap-3.5 px-4.5 py-3 rounded-2xl text-[#526071] hover:bg-white/70 hover:text-[#002546] transition-all font-medium group" href="#">
+<span class="material-symbols-outlined text-xl text-[#73777f] group-hover:text-[#002546]">calendar_month</span>
+<span class="text-[15px]">Rekap Bulanan</span>
+</a>
+<!-- 5. Katalog Layanan -->
+<a class="flex items-center gap-3.5 px-4.5 py-3 rounded-2xl text-[#526071] hover:bg-white/70 hover:text-[#002546] transition-all font-medium group" href="#">
+<span class="material-symbols-outlined text-xl text-[#73777f] group-hover:text-[#002546]">style</span>
+<span class="text-[15px]">Katalog Layanan</span>
+</a>
+<!-- 6. Karyawan -->
+<a class="flex items-center gap-3.5 px-4.5 py-3 rounded-2xl text-[#526071] hover:bg-white/70 hover:text-[#002546] transition-all font-medium group" href="#">
+<span class="material-symbols-outlined text-xl text-[#73777f] group-hover:text-[#002546]">badge</span>
+<span class="text-[15px]">Karyawan</span>
+</a>
+<!-- 7. Rekap Absensi -->
+<a class="flex items-center gap-3.5 px-4.5 py-3 rounded-2xl text-[#526071] hover:bg-white/70 hover:text-[#002546] transition-all font-medium group" href="#">
+<span class="material-symbols-outlined text-xl text-[#73777f] group-hover:text-[#002546]">fact_check</span>
+<span class="text-[15px]">Rekap Absensi</span>
+</a>
+</nav>
+</div>
+<!-- Logout Section -->
+<div class="pt-4 border-t border-[#d8cfbf]">
+<a class="flex items-center gap-3.5 px-4.5 py-3 rounded-2xl text-[#ba1a1a] hover:bg-[#ffdad6]/60 transition-all font-medium group" href="#">
+<span class="material-symbols-outlined text-xl text-[#ba1a1a] group-hover:translate-x-0.5 transition-transform">logout</span>
+<span class="text-[15px] font-semibold">Keluar</span>
+</a>
+</div>
+</aside>
+<!-- END: Sidebar -->
+<!-- BEGIN: MainContent -->
+<main class="flex-1 flex flex-col min-w-0"><div class="flex flex-col w-full">
+<!-- Top Header / Breadcrumb & Actions Hub -->
+<div class="w-full flex flex-col gap-4 pb-6">
+<!-- Breadcrumb Row -->
+<nav class="flex items-center gap-2 text-secondary font-body-sm text-body-sm">
+<a class="flex items-center gap-1 hover:text-primary transition-colors text-on-surface-variant font-medium" href="#">
+<span class="material-symbols-outlined text-base">receipt_long</span>
+<span class="">Tiket Pesanan</span>
+</a>
+<span class="material-symbols-outlined text-xs text-outline">chevron_right</span>
+<span class="font-semibold text-primary">Detail Tiket (#SM-2601-042)</span>
+</nav>
+<!-- Main Title & Operational Buttons Bar -->
+<div class="flex flex-wrap items-center justify-between gap-4">
+<div class="flex flex-col gap-1.5 min-w-0">
+<div class="flex items-center gap-3 flex-wrap">
+<h1 class="font-headline-lg text-headline-lg text-primary tracking-tight">Detail Tiket #SM-2601-042</h1>
+<!-- Status Pills Bundle -->
+<div class="flex items-center gap-2 flex-wrap">
+<!-- Pengerjaan -->
+<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-secondary-fixed text-on-secondary-fixed font-label-sm text-label-sm">
+<span class="w-2 h-2 rounded-full bg-secondary"></span>
+              Belum Dicuci
+            </span>
+<!-- Pembayaran -->
+<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-error-container text-on-error-container font-label-sm text-label-sm">
+<span class="w-2 h-2 rounded-full bg-error"></span>
+              Belum Bayar
+            </span>
+<!-- Sumber -->
+<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-surface-container-high text-primary font-label-sm text-label-sm">
+<span class="material-symbols-outlined text-sm text-primary">forum</span>
+              WhatsApp Auto-bot
+            </span>
+<!-- Cabang Outlet -->
+<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-surface-container-low text-secondary font-label-sm text-label-sm">
+<span class="material-symbols-outlined text-sm">storefront</span>
+              Outlet Bojongsoang
+            </span>
+</div>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant">
+          Terdaftar pada sistem: Kamis, 15 Januari 2026 • 14:20 WIB • Protokol Service SLA-2601
+        </p>
+</div>
+<!-- Action Buttons Hub -->
+<div class="flex items-center gap-2.5 flex-wrap">
+<!-- WhatsApp Update Trigger -->
+<a class="inline-flex items-center gap-2 px-4 py-2.5 rounded-full bg-primary-container text-on-primary font-label-md text-label-md shadow-sm hover:opacity-95 active:scale-95 transition-all" href="https://wa.me/6281288219012" rel="noopener" target="_blank">
+<span class="material-symbols-outlined text-lg text-primary-fixed">chat</span>
+<span class="">Kirim Update WA</span>
+</a>
+<!-- Cetak Resi Struk -->
+<button class="inline-flex items-center gap-2 px-4 py-2.5 rounded-full bg-surface-container-lowest text-primary font-label-md text-label-md shadow-sm hover:bg-surface-container-high transition-all" onclick="window.print()" type="button">
+<span class="material-symbols-outlined text-lg">print</span>
+<span class="">Cetak Resi Struk</span>
+</button>
+<!-- Batalkan Tiket (Triggers Modal Banner) -->
+<button class="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-full bg-error-container/60 hover:bg-error-container text-error font-label-md text-label-md transition-all" onclick="document.getElementById('cancellation-box').scrollIntoView({behavior: 'smooth'})" type="button">
+<span class="material-symbols-outlined text-lg">cancel</span>
+<span class="">Batalkan Tiket</span>
+</button>
+</div>
+</div>
+</div>
+<!-- 2-Column Responsive Bento Layout (~65% / ~35%) -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-6 w-full items-start">
+<!-- ========================================== -->
+<!-- LEFT COLUMN: Main Order Data (8 of 12 cols = 66%) -->
+<!-- ========================================== -->
+<div class="lg:col-span-8 flex flex-col gap-6 w-full">
+<!-- Section A: Kartu Informasi Pelanggan -->
+<section class="bg-surface-container-lowest rounded-3xl p-6 shadow-sm flex flex-col gap-5">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-2xl bg-secondary-fixed flex items-center justify-center text-primary font-bold">
+<span class="material-symbols-outlined text-xl">person</span>
+</div>
+<div>
+<h2 class="font-title-lg text-title-lg text-primary leading-tight">Informasi Pelanggan</h2>
+<p class="font-body-sm text-body-sm text-secondary">Data kontak &amp; riwayat loyalitas pelanggan</p>
+</div>
+</div>
+<span class="px-3 py-1 rounded-full bg-surface-container text-on-surface-variant font-label-sm text-label-sm">
+            Walk-in / Reguler
+          </span>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
+<!-- Nama & Total Riwayat -->
+<div class="p-4 rounded-2xl bg-surface-container-low flex flex-col gap-1.5">
+<span class="font-label-sm text-label-sm text-secondary uppercase">Nama Pemilik Sepatu</span>
+<div class="flex items-baseline justify-between">
+<span class="font-title-lg text-title-lg text-primary font-bold">Dimas Pratama</span>
+<span class="inline-flex items-center gap-1 text-on-surface-variant font-body-sm text-body-sm">
+<span class="material-symbols-outlined text-base text-primary">history</span>
+                4x Pesanan Sebelumnya
+              </span>
+</div>
+</div>
+<!-- Kontak WhatsApp -->
+<div class="p-4 rounded-2xl bg-surface-container-low flex flex-col gap-1.5">
+<span class="font-label-sm text-label-sm text-secondary uppercase">Nomor WhatsApp Aktif</span>
+<div class="flex items-center justify-between gap-2">
+<span class="font-title-lg text-title-lg text-primary tracking-wide">0812-8821-9012</span>
+<div class="flex items-center gap-1.5">
+<button class="p-1.5 rounded-full hover:bg-surface-container text-secondary hover:text-primary transition-colors" onclick="navigator.clipboard.writeText('081288219012'); alert('Nomor WhatsApp disalin!');" title="Salin Nomor" type="button">
+<span class="material-symbols-outlined text-base">content_copy</span>
+</button>
+<a class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-primary text-on-primary font-label-sm text-label-sm hover:opacity-90 transition-opacity" href="https://wa.me/6281288219012" rel="noopener" target="_blank">
+<span class="material-symbols-outlined text-xs">open_in_new</span>
+                  Buka Chat
+                </a>
+</div>
+</div>
+</div>
+</div>
+<!-- Alamat / Catatan Penjemputan -->
+<div class="p-4 rounded-2xl bg-surface-container-high/40 flex items-start gap-3.5">
+<span class="material-symbols-outlined text-primary mt-0.5">local_shipping</span>
+<div class="flex flex-col min-w-0">
+<span class="font-label-sm text-label-sm text-primary uppercase">Alamat &amp; Catatan Penjemputan Reguler</span>
+<p class="font-body-md text-body-md text-on-surface mt-0.5">
+              Jalan Telekomunikasi No. 42, Bojongsoang — <span class="text-secondary font-medium">Penjemputan Reguler Shift Siang (Diambil staf outlet).</span>
+</p>
+</div>
+</div>
+</section>
+<!-- Section B: Kartu Rincian Barang & Layanan (FR-23, FR-61) -->
+<section class="bg-surface-container-lowest rounded-3xl p-6 shadow-sm flex flex-col gap-5">
+<div class="flex items-center justify-between flex-wrap gap-2">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-2xl bg-secondary-fixed flex items-center justify-center text-primary font-bold">
+<span class="material-symbols-outlined text-xl">roller_skating</span>
+</div>
+<div>
+<h2 class="font-title-lg text-title-lg text-primary leading-tight">Rincian Barang &amp; Pengerjaan</h2>
+<p class="font-body-sm text-body-sm text-secondary">2 Pasang Sepatu Terdaftar Dalam Tiket Ini</p>
+</div>
+</div>
+<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-surface-container-high text-primary font-label-sm text-label-sm">
+<span class="material-symbols-outlined text-sm">lock</span>
+            Tarif Katalog Jan 2026
+          </span>
+</div>
+<!-- Item List Matrix -->
+<div class="flex flex-col gap-4">
+<!-- Item #1: Nike Air Jordan 1 Low -->
+<div class="rounded-2xl p-4 md:p-5 bg-surface-container-low flex flex-col md:flex-row gap-5 items-start">
+<div class="w-24 h-24 rounded-2xl overflow-hidden flex-shrink-0 bg-surface-container">
+<img class="w-full h-full object-cover" data-alt="Close up high-end studio shot of Nike Air Jordan 1 Low sneaker with Chicago Red, White, and Black colorway resting on an artisan workshop wooden workbench for premium shoe cleaning" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAxhp8SxpuxmCxZKnlwzobVntzcukThzlhySxouiNHhuBPcLzQLrOOeoezrHaVYu7RWZ8ykqW8t0VdyYHp94IjMVrs2IY8UG6IGpdamgCT942y5ldyyGwWjuPYN3dhlt50iDlKdoIk1ZM_4J6hvK2HrB4j2W4rjUYVPT_HjZNS1bXH3BSAgoReOEdsoCrEVqR0s_hFDnk8QBDzrrWl2KRxMromgTkgR5RiDAhraW_U">
+</div>
+<div class="flex-1 flex flex-col gap-2.5 min-w-0 w-full">
+<div class="flex items-start justify-between gap-3">
+<div>
+<span class="font-label-sm text-label-sm text-secondary uppercase">Item #1 • Sepatu Sneakers</span>
+<h3 class="font-title-lg text-title-lg text-primary font-bold">Nike Air Jordan 1 Low</h3>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Warna: Chicago Red / White / Black</p>
+</div>
+<div class="text-right">
+<span class="font-label-sm text-label-sm text-secondary block">Subtotal</span>
+<span class="font-title-lg text-title-lg text-primary font-extrabold">Rp 30.000</span>
+</div>
+</div>
+<!-- Badges Info -->
+<div class="flex items-center gap-2 flex-wrap">
+<span class="px-2.5 py-1 rounded-full bg-surface-container-highest text-primary font-label-sm text-label-sm font-semibold">
+                  Deep Clean Standard
+                </span>
+<span class="px-2 py-0.5 rounded-full bg-surface-container text-secondary font-label-sm text-label-sm">
+                  Est. 2-3 Hari
+                </span>
+<span class="px-2 py-0.5 rounded-full bg-surface-container text-secondary font-label-sm text-label-sm">
+                  Qty: 1 Pasang (@ Rp 30.000)
+                </span>
+</div>
+<!-- Catatan Kondisi Awal -->
+<div class="p-3 rounded-xl bg-surface-container-highest/60 text-body-sm font-body-sm text-on-surface-variant flex items-start gap-2">
+<span class="material-symbols-outlined text-sm text-secondary mt-0.5">info</span>
+<div class="">
+<strong class="font-semibold text-primary">Kondisi Awal:</strong>
+                  Creasing ringan pada toe box, outsole berpasir tebal, tanpa robekan material.
+                </div>
+</div>
+</div>
+</div>
+<!-- Item #2: Adidas Samba OG -->
+<div class="rounded-2xl p-4 md:p-5 bg-surface-container-low flex flex-col md:flex-row gap-5 items-start">
+<div class="w-24 h-24 rounded-2xl overflow-hidden flex-shrink-0 bg-surface-container">
+<img class="w-full h-full object-cover" data-alt="Macro product photography of Adidas Samba OG Cloud White with Core Black stripes and oxidized yellow midsole on an artisan leather crafting desk under soft diffused morning light" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBzOjleqaAtmLBNV04lcrFvtsNNN-imX2ZSVWRg-Y87w7N_FZ8mT5wy8WiVMYXRkoTOCIzeihSmSZDN9nNpERzefq_UkPVvlA7qKGOlZQ4jGBc64YgWixamXLQ1vGXEiTXnOj9Wg1C8URbSe9SGifuNUqW-BxRN8PlJWZLnKYzvfoxE2X0JIHhTM9yPXPbyfTbCxLPHZ7yfJkV3i_Q9VXl3aNk4NNqz-zsXUx8jzF8">
+</div>
+<div class="flex-1 flex flex-col gap-2.5 min-w-0 w-full">
+<div class="flex items-start justify-between gap-3">
+<div>
+<span class="font-label-sm text-label-sm text-secondary uppercase">Item #2 • Sepatu Classic Leather / Suede</span>
+<h3 class="font-title-lg text-title-lg text-primary font-bold">Adidas Samba OG</h3>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Warna: Cloud White / Core Black</p>
+</div>
+<div class="text-right">
+<span class="font-label-sm text-label-sm text-secondary block">Subtotal</span>
+<span class="font-title-lg text-title-lg text-primary font-extrabold">Rp 75.000</span>
+</div>
+</div>
+<!-- Badges Info -->
+<div class="flex items-center gap-2 flex-wrap">
+<span class="px-2.5 py-1 rounded-full bg-surface-container-highest text-primary font-label-sm text-label-sm font-semibold">
+                  Unyellowing + Cleaning
+                </span>
+<span class="px-2 py-0.5 rounded-full bg-surface-container text-secondary font-label-sm text-label-sm">
+                  Est. 5-6 Hari
+                </span>
+<span class="px-2 py-0.5 rounded-full bg-surface-container text-secondary font-label-sm text-label-sm">
+                  Qty: 1 Pasang (@ Rp 75.000)
+                </span>
+</div>
+<!-- Catatan Kondisi Awal -->
+<div class="p-3 rounded-xl bg-surface-container-highest/60 text-body-sm font-body-sm text-on-surface-variant flex items-start gap-2">
+<span class="material-symbols-outlined text-sm text-error mt-0.5">warning</span>
+<div class="">
+<strong class="font-semibold text-primary">Kondisi Awal &amp; Instruksi Lab:</strong>
+                  Midsole mengalami oksidasi kekuningan sedang, bahan suede samping agak getas. Wajib chemical suede lembut &amp; hindari sikat kawat kasar.
+                </div>
+</div>
+</div>
+</div>
+</div>
+<!-- Tariff Lock Notice (FR-61) -->
+
+</section>
+<!-- Section C: Log Audit & Riwayat Perubahan (NFR-02) -->
+<section class="bg-surface-container-lowest rounded-3xl p-6 shadow-sm flex flex-col gap-4">
+<div class="flex items-start justify-between">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-2xl bg-secondary-fixed flex items-center justify-center text-primary font-bold">
+<span class="material-symbols-outlined text-xl">history_edu</span>
+</div>
+<div>
+<h2 class="font-title-lg text-title-lg text-primary leading-tight">Riwayat Perubahan &amp; Log Audit</h2>
+<p class="font-body-sm text-body-sm text-secondary">Catatan sistem immutable (Hanya Baca) untuk kepatuhan operasional kasir &amp; owner</p>
+</div>
+</div>
+<span class="hidden sm:inline-flex items-center gap-1 px-3 py-1 rounded-full bg-surface-container text-secondary font-label-sm text-label-sm">
+<span class="material-symbols-outlined text-xs">shield</span>
+            Immutable Record
+          </span>
+</div>
+<!-- Vertical Timeline List -->
+<div class="relative pl-6 space-y-6 pt-2 before:absolute before:left-2 before:top-3 before:bottom-3 before:w-0.5 before:bg-surface-container-high">
+<!-- Event 1 -->
+<div class="relative flex items-start gap-3">
+<span class="absolute -left-6 top-1.5 w-3.5 h-3.5 rounded-full bg-primary-container ring-4 ring-surface-container-lowest"></span>
+<div class="flex flex-col gap-0.5">
+<div class="flex items-center gap-2 flex-wrap">
+<span class="font-label-md text-label-md text-primary font-bold">15 Jan 2026, 14:20 WIB</span>
+<span class="px-2 py-0.5 rounded-full bg-surface-container text-on-surface-variant font-label-sm text-label-sm">Sistem Bot WA</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant">
+                Tiket Dibuat otomatis via WhatsApp Bot dengan status <span class="font-semibold text-primary">Belum Dicuci</span> dan status bayar <span class="font-semibold text-error">Belum Bayar</span>.
+              </p>
+</div>
+</div>
+<!-- Event 2 -->
+<div class="relative flex items-start gap-3">
+<span class="absolute -left-6 top-1.5 w-3.5 h-3.5 rounded-full bg-secondary ring-4 ring-surface-container-lowest"></span>
+<div class="flex flex-col gap-0.5">
+<div class="flex items-center gap-2 flex-wrap">
+<span class="font-label-md text-label-md text-primary font-bold">15 Jan 2026, 14:35 WIB</span>
+<span class="px-2 py-0.5 rounded-full bg-surface-container text-on-surface-variant font-label-sm text-label-sm">Kasir Rian</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant">
+                Sepatu diterima fisik di Outlet Bojongsoang. Verifikasi fisik 2 pasang (Jordan 1 &amp; Adidas Samba) sesuai foto awal.
+              </p>
+</div>
+</div>
+<!-- Event 3 -->
+<div class="relative flex items-start gap-3">
+<span class="absolute -left-6 top-1.5 w-3.5 h-3.5 rounded-full bg-secondary ring-4 ring-surface-container-lowest"></span>
+<div class="flex flex-col gap-0.5">
+<div class="flex items-center gap-2 flex-wrap">
+<span class="font-label-md text-label-md text-primary font-bold">15 Jan 2026, 14:38 WIB</span>
+<span class="px-2 py-0.5 rounded-full bg-surface-container text-on-surface-variant font-label-sm text-label-sm">Kasir Rian</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant">
+                Catatan teknisi lab ditambahkan: <em class="text-on-surface">"Midsole Samba oksidasi, suede perlu chemical khusus, jangan sikat kasar."</em>
+</p>
+</div>
+</div>
+<!-- Event 4 -->
+<div class="relative flex items-start gap-3">
+<span class="absolute -left-6 top-1.5 w-3.5 h-3.5 rounded-full bg-primary ring-4 ring-surface-container-lowest"></span>
+<div class="flex flex-col gap-0.5">
+<div class="flex items-center gap-2 flex-wrap">
+<span class="font-label-md text-label-md text-primary font-bold">15 Jan 2026, 15:00 WIB</span>
+<span class="px-2 py-0.5 rounded-full bg-surface-container text-on-surface-variant font-label-sm text-label-sm">Gateway WA Notifier</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant">
+                Notifikasi resi digital terkirim otomatis ke nomor WhatsApp pelanggan (0812-8821-9012) via template #NOTIF-DROP-2601.
+              </p>
+</div>
+</div>
+</div>
+</section>
+</div>
+<!-- ========================================== -->
+<!-- RIGHT COLUMN: Billing & SLA Sidebar (~35%) -->
+<!-- ========================================== -->
+<div class="lg:col-span-4 flex flex-col gap-6 w-full">
+<!-- Module A: Timeline Workshop & SLA Pengerjaan -->
+<section class="bg-surface-container-lowest rounded-3xl p-6 shadow-sm flex flex-col gap-5">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-2xl bg-secondary-fixed flex items-center justify-center text-primary font-bold">
+<span class="material-symbols-outlined text-xl">schedule</span>
+</div>
+<div>
+<h2 class="font-title-lg text-title-lg text-primary leading-tight">Estimasi Workshop</h2>
+<p class="font-body-sm text-body-sm text-secondary">Target SLA &amp; Lokasi Pengerjaan</p>
+</div>
+</div>
+<div class="space-y-3.5 pt-1">
+<!-- Drop off -->
+<div class="flex justify-between items-start gap-2">
+<span class="font-body-sm text-body-sm text-secondary">Drop-off Tiket</span>
+<span class="font-label-md text-label-md text-on-surface text-right">Kamis, 15 Jan 2026 (14:20)</span>
+</div>
+<!-- Target Selesai -->
+<div class="flex justify-between items-start gap-2 p-3 rounded-2xl bg-surface-container-low">
+<div>
+<span class="font-label-sm text-label-sm text-secondary uppercase block">Target Maksimal</span>
+<span class="font-title-sm text-title-sm text-primary font-bold">Rabu, 21 Jan 2026</span>
+</div>
+<span class="font-label-md text-label-md text-primary font-semibold">18:00 WIB</span>
+</div>
+<!-- Total SLA -->
+<div class="flex justify-between items-center gap-2">
+<span class="font-body-sm text-body-sm text-secondary">Estimasi Durasi</span>
+<span class="font-label-md text-label-md text-primary font-bold">6 Hari Kerja (Ikut Unyellowing)</span>
+</div>
+<!-- PIC -->
+<div class="flex justify-between items-center gap-2">
+<span class="font-body-sm text-body-sm text-secondary">Teknisi / PIC</span>
+<span class="font-label-md text-label-md text-on-surface">Workshop Lab Bojongsoang</span>
+</div>
+</div>
+<!-- SLA Visual Meter -->
+<div class="pt-2 flex flex-col gap-1.5">
+<div class="flex justify-between text-body-sm font-body-sm">
+<span class="text-secondary">Progress SLA Waktu</span>
+<span class="font-semibold text-primary">Hari ke-1 dari 6</span>
+</div>
+<div class="w-full h-2 rounded-full bg-surface-container-high overflow-hidden">
+<div class="h-full bg-primary-container rounded-full" style="width: 16.6%;"></div>
+</div>
+</div>
+</section>
+<!-- Module B: Rincian Kasir & Billing (FR-80, FR-81) -->
+<section class="bg-surface-container-lowest rounded-3xl p-6 shadow-sm flex flex-col gap-5">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-2xl bg-secondary-fixed flex items-center justify-center text-primary font-bold">
+<span class="material-symbols-outlined text-xl">payments</span>
+</div>
+<div>
+<h2 class="font-title-lg text-title-lg text-primary leading-tight">Rincian Pembayaran</h2>
+<p class="font-body-sm text-body-sm text-secondary">Kasir &amp; Faktur Transaksi</p>
+</div>
+</div>
+<span class="px-2.5 py-1 rounded-full bg-error-container text-on-error-container font-label-sm text-label-sm">
+            Belum Bayar
+          </span>
+</div>
+<!-- Breakdown List -->
+<div class="space-y-3 pt-1 text-body-md font-body-md">
+<div class="flex justify-between text-on-surface">
+<span class="">Subtotal Layanan (2 pasang)</span>
+<span class="font-semibold">Rp 105.000</span>
+</div>
+<div class="flex justify-between text-on-surface">
+<span class="">Diskon / Potongan Promo</span>
+<span class="font-semibold">Rp 0</span>
+</div>
+<div class="flex justify-between text-on-surface items-center">
+<div class="flex flex-col">
+<span class="">Biaya Jemput (Kurir Outlet)</span>
+<span class="font-body-sm text-body-sm text-secondary">Wilayah Bojongsoang / Telkom</span>
+</div>
+<span class="font-semibold text-primary">Gratis</span>
+</div>
+<div class="pt-3 border-t border-dashed border-outline-variant flex justify-between items-baseline">
+<span class="font-title-lg text-title-lg text-primary font-bold">Total Tagihan</span>
+<span class="font-headline-lg text-headline-lg text-primary font-extrabold tracking-tight">Rp 105.000</span>
+</div>
+</div>
+<!-- Quick Payment Settlement Button (FR-80) -->
+<div class="pt-2 flex flex-col gap-3">
+<button class="w-full py-3.5 px-4 rounded-full bg-primary text-on-primary font-title-sm text-title-sm hover:opacity-95 active:scale-[0.99] transition-all flex items-center justify-center gap-2 shadow-md" onclick="alert('Membuka dialog pembayaran kasir untuk #SM-2601-042...')" type="button">
+<span class="material-symbols-outlined text-xl">check_circle</span>
+<span class="">Catat Pembayaran Sekarang (Lunas)</span>
+</button>
+<div class="flex items-center justify-center gap-3 text-secondary font-label-sm text-label-sm">
+<span class="inline-flex items-center gap-1">
+<span class="material-symbols-outlined text-sm">payments</span> Tunai
+            </span>
+<span class="">•</span>
+<span class="inline-flex items-center gap-1">
+<span class="material-symbols-outlined text-sm">qr_code_scanner</span> QRIS Toko
+            </span>
+<span class="">•</span>
+<span class="inline-flex items-center gap-1">
+<span class="material-symbols-outlined text-sm">account_balance</span> Transfer Bank
+            </span>
+</div>
+</div>
+</section>
+<!-- Module C: Standar Pembatalan Tiket (FR-16) -->
+<section class="bg-surface-container-low rounded-3xl p-5 shadow-sm flex flex-col gap-3" id="cancellation-box">
+<div class="flex items-start gap-3">
+<div class="w-8 h-8 rounded-full bg-error-container text-error flex items-center justify-center flex-shrink-0">
+
+</div>
+<div class="flex flex-col gap-1 min-w-0">
+
+
+</div>
+</div>
+<button class="mt-2 w-full py-2.5 px-4 rounded-full bg-surface-container-lowest hover:bg-error-container/40 text-error font-label-md text-label-md transition-colors flex items-center justify-center gap-1.5" onclick="const reason = prompt('Masukkan alasan pembatalan tiket #SM-2601-042 (Wajib PRD FR-16):'); if(reason) alert('Tiket ditandai Batal dengan alasan: ' + reason);" type="button">
+<span class="material-symbols-outlined text-base">warning</span>
+<span class="">Proses Batalkan Tiket Ini</span>
+</button>
+</section>
+</div>
+</div>
+</div></main>
+<!-- END: MainContent -->
+</div>
+<!-- END: MainContainer -->
+
+
+</body></html>

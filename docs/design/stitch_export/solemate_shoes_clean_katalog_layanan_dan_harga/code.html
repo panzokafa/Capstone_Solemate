@@ -1,0 +1,790 @@
+<!DOCTYPE html><html lang="en" style="width: 1280px; height: 1818px; overflow: hidden; position: relative;"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Solemate Shoes Clean - Dashboard Analytics</title>
+<!-- Tailwind CSS CDN with forms and container queries -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "surface-dim": "#dfd9d1",
+            "on-surface": "#1d1b16",
+            "secondary-fixed-dim": "#cdc6b9",
+            "on-secondary-fixed-variant": "#4b463d",
+            "tertiary": "#002544",
+            "secondary-container": "#e7dfd2",
+            "surface-container-high": "#ede7de",
+            "surface-variant": "#e7e2d9",
+            "inverse-primary": "#a6c9f9",
+            "surface-container": "#f3ede4",
+            "on-background": "#1d1b16",
+            "surface-container-highest": "#e7e2d9",
+            "outline": "#73777f",
+            "on-secondary-container": "#676258",
+            "tertiary-fixed": "#d2e4ff",
+            "surface-container-lowest": "#ffffff",
+            "inverse-surface": "#32302a",
+            "on-primary-container": "#83a6d4",
+            "on-primary": "#ffffff",
+            "on-error": "#ffffff",
+            "on-primary-fixed-variant": "#244871",
+            "inverse-on-surface": "#f6f0e7",
+            "on-surface-variant": "#43474e",
+            "on-tertiary": "#ffffff",
+            "background": "#fff9ef",
+            "primary-fixed-dim": "#a6c9f9",
+            "primary-container": "#133b63",
+            "tertiary-fixed-dim": "#a3c9fa",
+            "surface-bright": "#fff9ef",
+            "tertiary-container": "#0c3b64",
+            "error-container": "#ffdad6",
+            "on-tertiary-container": "#80a6d5",
+            "surface-tint": "#3d608a",
+            "on-tertiary-fixed": "#001c37",
+            "error": "#ba1a1a",
+            "surface": "#fff9ef",
+            "surface-container-low": "#f9f3ea",
+            "primary": "#002546",
+            "on-secondary": "#ffffff",
+            "on-primary-fixed": "#001c38",
+            "secondary-fixed": "#e9e1d5",
+            "primary-fixed": "#d3e4ff",
+            "outline-variant": "#c3c6cf",
+            "on-secondary-fixed": "#1e1b13",
+            "secondary": "#635e54",
+            "on-tertiary-fixed-variant": "#1f4972",
+            "on-error-container": "#93000a"
+          },
+          fontFamily: {
+            sans: ['Plus Jakarta Sans', 'Inter', 'system-ui', '-apple-system', 'sans-serif'],
+            outfit: ['Outfit', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800&amp;family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<style data-purpose="custom-layout">
+    body {
+      background-color: #ded6c9;
+      font-family: 'Plus Jakarta Sans', 'Inter', system-ui, -apple-system, sans-serif;
+      color: #1a2430;
+    }
+    /* Subtle scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #c7beaf;
+      border-radius: 9999px;
+    }
+    .custom-shadow {
+      box-shadow: 0 10px 30px -10px rgba(19, 59, 99, 0.08), 0 4px 12px -2px rgba(19, 59, 99, 0.04);
+    }
+    .navy-card-glow {
+      box-shadow: 0 14px 34px -8px rgba(0, 37, 70, 0.35), 0 4px 12px -2px rgba(19, 59, 99, 0.2);
+    }
+  </style>
+<meta content="web_dashboard" name="shell-type"></head>
+<body class="min-h-screen p-3 md:p-6 lg:p-8 flex items-center justify-center">
+<!-- BEGIN: MainContainer -->
+<!-- Outer Rounded Shell with warm artisanal craft tone -->
+<div class="w-full max-w-[1520px] bg-[#ebe3d7] rounded-[42px] p-4 lg:p-7 shadow-2xl border border-[#faf6ee] flex flex-col xl:flex-row gap-6 lg:gap-8 min-h-[920px]">
+<!-- BEGIN: Sidebar -->
+<aside class="w-full xl:w-64 flex-shrink-0 flex flex-col justify-between select-none py-2 px-1">
+<div>
+<!-- Logo -->
+<div class="flex items-center gap-3 px-3 py-2 mb-7 cursor-pointer" data-purpose="brand-logo">
+<img alt="Solemate Shoes Clean" class="w-11 h-11 rounded-full object-cover shadow-sm ring-2 ring-[#002546]/20 bg-white" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDqatKEz-WB5XeuXIgWwK8VRGxRPe4sICiJpfsWcKgY1yAgkRCDMH43ImYzanChqjeaYjXL0CMA01SEvS9S99449hCyOhdoVxipsbYcMlZoQCp_50c8ElMQ_DHw0lTUQTxlbOrNdAD9pmXGrWl9wzzXEFi_dok8XL2uFLS7Hs0zlIQtw0c5qK2jp5jUiP0IDLBni9UntpgRj7AsuM_8-al-Xg8_WfHI7UD9ak1-tjZ566Tb4D--iSiy">
+<div class="flex flex-col">
+<span class="font-extrabold text-xl tracking-tight text-[#002546] font-outfit leading-none">Solemate</span>
+<span class="text-[10px] font-bold tracking-[0.22em] text-[#526071] uppercase mt-0.5">Shoes Clean</span>
+</div>
+</div>
+<!-- Navigation Links -->
+<nav aria-label="Sidebar Menu" class="space-y-1.5">
+<!-- 1. Dashboard (Active) -->
+<a class="flex items-center gap-3.5 px-4.5 py-3 rounded-2xl bg-[#133b63] text-white font-semibold shadow-sm transition-all" href="#">
+<span class="material-symbols-outlined text-xl text-[#d3e4ff]">dashboard</span>
+<span class="text-[15px] font-medium tracking-tight">Dashboard</span>
+</a>
+<!-- 2. Daftar Tiket -->
+<a class="flex items-center gap-3.5 px-4.5 py-3 rounded-2xl text-[#526071] hover:bg-white/70 hover:text-[#002546] transition-all font-medium group" href="#">
+<span class="material-symbols-outlined text-xl text-[#73777f] group-hover:text-[#002546]">confirmation_number</span>
+<span class="text-[15px]">Daftar Tiket</span>
+</a>
+<!-- 3. Laporan Harian -->
+<a class="flex items-center gap-3.5 px-4.5 py-3 rounded-2xl text-[#526071] hover:bg-white/70 hover:text-[#002546] transition-all font-medium group" href="#">
+<span class="material-symbols-outlined text-xl text-[#73777f] group-hover:text-[#002546]">event_note</span>
+<span class="text-[15px]">Laporan Harian</span>
+</a>
+<!-- 4. Rekap Bulanan -->
+<a class="flex items-center gap-3.5 px-4.5 py-3 rounded-2xl text-[#526071] hover:bg-white/70 hover:text-[#002546] transition-all font-medium group" href="#">
+<span class="material-symbols-outlined text-xl text-[#73777f] group-hover:text-[#002546]">calendar_month</span>
+<span class="text-[15px]">Rekap Bulanan</span>
+</a>
+<!-- 5. Katalog Layanan -->
+<a class="flex items-center gap-3.5 px-4.5 py-3 rounded-2xl text-[#526071] hover:bg-white/70 hover:text-[#002546] transition-all font-medium group" href="#">
+<span class="material-symbols-outlined text-xl text-[#73777f] group-hover:text-[#002546]">style</span>
+<span class="text-[15px]">Katalog Layanan</span>
+</a>
+<!-- 6. Karyawan -->
+<a class="flex items-center gap-3.5 px-4.5 py-3 rounded-2xl text-[#526071] hover:bg-white/70 hover:text-[#002546] transition-all font-medium group" href="#">
+<span class="material-symbols-outlined text-xl text-[#73777f] group-hover:text-[#002546]">badge</span>
+<span class="text-[15px]">Karyawan</span>
+</a>
+<!-- 7. Rekap Absensi -->
+<a class="flex items-center gap-3.5 px-4.5 py-3 rounded-2xl text-[#526071] hover:bg-white/70 hover:text-[#002546] transition-all font-medium group" href="#">
+<span class="material-symbols-outlined text-xl text-[#73777f] group-hover:text-[#002546]">fact_check</span>
+<span class="text-[15px]">Rekap Absensi</span>
+</a>
+</nav>
+</div>
+<!-- Logout Section -->
+<div class="pt-4 border-t border-[#d8cfbf]">
+<a class="flex items-center gap-3.5 px-4.5 py-3 rounded-2xl text-[#ba1a1a] hover:bg-[#ffdad6]/60 transition-all font-medium group" href="#">
+<span class="material-symbols-outlined text-xl text-[#ba1a1a] group-hover:translate-x-0.5 transition-transform">logout</span>
+<span class="text-[15px] font-semibold">Keluar</span>
+</a>
+</div>
+</aside>
+<!-- END: Sidebar -->
+<!-- BEGIN: MainContent -->
+<main class="flex-1 flex flex-col min-w-0"><div class="flex flex-col w-full">
+<!-- Top Navigation & Header Row -->
+<div class="flex flex-col lg:flex-row lg:items-center justify-between gap-6 mb-8">
+<div class="flex flex-col gap-1.5">
+<div class="flex items-center gap-2 text-on-surface-variant font-label-sm text-label-sm uppercase tracking-wider">
+<span class="">Katalog &amp; Layanan</span>
+<span class="material-symbols-outlined text-xs">chevron_right</span>
+<span class="text-primary font-bold">Katalog Layanan dan Harga</span>
+</div>
+<h1 class="font-headline-lg text-headline-lg text-primary tracking-tight">Katalog Layanan &amp; Harga</h1>
+<p class="font-body-md text-body-md text-on-surface-variant">
+        Kelola daftar pricelist, estimasi pengerjaan, dan status layanan untuk kasir &amp; bot WhatsApp.
+      </p>
+</div>
+<!-- Quick Action Triggers -->
+<div class="flex items-center gap-3">
+<button class="flex items-center gap-2 px-5 py-3 rounded-full bg-surface-container-high text-primary hover:bg-surface-variant font-label-md text-label-md transition-all shadow-sm" id="toggleMenuPricelist" type="button">
+<span class="material-symbols-outlined text-lg">photo_library</span>
+<span class="">Lihat Menu Fisik</span>
+</button>
+<button class="flex items-center gap-2 px-6 py-3 rounded-full bg-primary-container text-on-primary hover:bg-primary transition-all font-label-md text-label-md shadow-md hover:shadow-lg" onclick="document.getElementById('modalTambahLayanan').classList.remove('hidden')" type="button">
+<span class="material-symbols-outlined text-xl">add</span>
+<span class="">Tambah Layanan Baru</span>
+</button>
+</div>
+</div>
+<!-- 4 Metrik Ringkas -->
+<div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5 mb-8">
+<!-- Card 1 -->
+<div class="bg-surface-container-lowest rounded-3xl p-6 shadow-sm flex flex-col justify-between">
+<div class="flex items-center justify-between mb-4">
+<span class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">Total Layanan</span>
+<div class="w-10 h-10 rounded-2xl bg-secondary-fixed flex items-center justify-center text-primary">
+<span class="material-symbols-outlined text-xl">dataset</span>
+</div>
+</div>
+<div>
+<div class="font-headline-lg text-headline-lg text-primary mb-1">14 Layanan</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Siap digunakan di Kasir &amp; Bot WA</p>
+</div>
+</div>
+<!-- Card 2 -->
+<div class="bg-surface-container-lowest rounded-3xl p-6 shadow-sm flex flex-col justify-between">
+<div class="flex items-center justify-between mb-4">
+<span class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">Kategori Utama</span>
+<div class="w-10 h-10 rounded-2xl bg-primary-fixed flex items-center justify-center text-primary">
+<span class="material-symbols-outlined text-xl">category</span>
+</div>
+</div>
+<div>
+<div class="font-headline-lg text-headline-lg text-primary mb-1">4 Kategori</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Sepatu, Tas, Topi, Khusus</p>
+</div>
+</div>
+<!-- Card 3 -->
+<div class="bg-surface-container-lowest rounded-3xl p-6 shadow-sm flex flex-col justify-between">
+<div class="flex items-center justify-between mb-4">
+<span class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">Estimasi Rata-rata</span>
+<div class="w-10 h-10 rounded-2xl bg-surface-container-high flex items-center justify-center text-primary">
+<span class="material-symbols-outlined text-xl">schedule</span>
+</div>
+</div>
+<div>
+<div class="font-headline-lg text-headline-lg text-primary mb-1">2–3 Hari</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Durasi standar pengerjaan</p>
+</div>
+</div>
+<!-- Card 4 -->
+<div class="bg-surface-container-lowest rounded-3xl p-6 shadow-sm flex flex-col justify-between">
+<div class="flex items-center justify-between mb-4">
+<span class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">Update Terakhir</span>
+<div class="w-10 h-10 rounded-2xl bg-tertiary-fixed flex items-center justify-center text-primary">
+<span class="material-symbols-outlined text-xl">sync</span>
+</div>
+</div>
+<div>
+<div class="font-headline-lg text-headline-lg text-primary mb-1">Januari 2026</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Sinkron otomatis ke WhatsApp bot</p>
+</div>
+</div>
+</div>
+<!-- Physical Pricelist Reference Showcase (Collapsible / Preview Area) -->
+<div class="hidden mb-8 bg-surface-container-lowest rounded-3xl p-6 shadow-sm" id="pricelistReference">
+<div class="flex items-center justify-between mb-4">
+<div class="flex items-center gap-3">
+<div class="w-9 h-9 rounded-full bg-secondary-fixed flex items-center justify-center text-primary">
+<span class="material-symbols-outlined text-xl">menu_book</span>
+</div>
+<div>
+<h2 class="font-title-lg text-title-lg text-primary">Arsip Master Pricelist Toko</h2>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Acuan standar tarif fisik outlet (Solemate Shoes Clean)</p>
+</div>
+</div>
+<button class="w-8 h-8 rounded-full bg-surface-container flex items-center justify-center text-on-surface-variant hover:text-primary" onclick="document.getElementById('pricelistReference').classList.add('hidden')" type="button">
+<span class="material-symbols-outlined text-lg">close</span>
+</button>
+</div>
+<div class="flex flex-col md:flex-row items-center gap-6 bg-surface-container-low p-4 rounded-2xl">
+<div class="w-full md:w-48 max-w-[200px] rounded-xl overflow-hidden shadow-md bg-white">
+<img alt="Pricelist Fisik Outlet" class="w-full h-auto object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuC1feDKONAXZPX1umnXLzJtx-sCnzTTHe-eVrOkeeZOJ-MLmA04Eem4S1B5bESzabjhKcuXa7UI_NCNuMytyvaioEBxhgBAI5HYmXsj51rSUJ2PdiaEpHIsW8SeeyloWYWBUlpYub7gyfDIOaaS_1WtSZ0yiBjMa4Y-OqBHNzlz06NmKDgadYq2neqUJkLsimzOcvmyzcKqRH7zTajJHmRtqZYFXgWKY_8n5Ip5PVJR2arac3avliru">
+</div>
+<div class="flex-1 space-y-2">
+<span class="font-label-sm text-label-sm uppercase px-3 py-1 rounded-full bg-primary-fixed text-on-primary-fixed">Terverifikasi Sesuai Outlet</span>
+<h3 class="font-headline-md text-headline-md text-primary">Standarisasi Biaya Layanan</h3>
+<p class="font-body-md text-body-md text-on-surface-variant">
+          Semua nominal dan durasi di katalog sistem ini tersinkronisasi langsung dengan menu cetak outlet https://lh3.googleusercontent.com/aida-public/AB6AXuC1feDKONAXZPX1umnXLzJtx-sCnzTTHe-eVrOkeeZOJ-MLmA04Eem4S1B5bESzabjhKcuXa7UI_NCNuMytyvaioEBxhgBAI5HYmXsj51rSUJ2PdiaEpHIsW8SeeyloWYWBUlpYub7gyfDIOaaS_1WtSZ0yiBjMa4Y-OqBHNzlz06NmKDgadYq2neqUJkLsimzOcvmyzcKqRH7zTajJHmRtqZYFXgWKY_8n5Ip5PVJR2arac3avliru. Menjamin tidak adanya selisih perhitungan biaya antara kasir fisik dan layanan pesanan online via WhatsApp.
+        </p>
+</div>
+</div>
+</div>
+<!-- Filter & Search Toolbar -->
+<div class="bg-surface-container-lowest rounded-3xl p-6 shadow-sm mb-6 flex flex-col lg:flex-row lg:items-center justify-between gap-5">
+<!-- Filter Tabs (Kategori) -->
+<div class="flex flex-wrap items-center gap-2">
+<button class="px-5 py-2.5 rounded-full bg-primary-container text-on-primary font-label-md text-label-md shadow-sm transition-all">
+        Semua (14)
+      </button>
+<button class="px-5 py-2.5 rounded-full bg-surface-container hover:bg-surface-variant text-on-surface-variant font-label-md text-label-md transition-all">
+        Sepatu (8)
+      </button>
+<button class="px-5 py-2.5 rounded-full bg-surface-container hover:bg-surface-variant text-on-surface-variant font-label-md text-label-md transition-all">
+        Tas (3)
+      </button>
+<button class="px-5 py-2.5 rounded-full bg-surface-container hover:bg-surface-variant text-on-surface-variant font-label-md text-label-md transition-all">
+        Topi (2)
+      </button>
+<button class="px-5 py-2.5 rounded-full bg-surface-container hover:bg-surface-variant text-on-surface-variant font-label-md text-label-md transition-all">
+        Treatment Khusus (1)
+      </button>
+</div>
+<!-- Search and Status Filter -->
+<div class="flex flex-col sm:flex-row items-center gap-3">
+<div class="relative w-full sm:w-64">
+<span class="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-outline text-lg">search</span>
+<input class="w-full pl-10 pr-4 py-2.5 rounded-2xl bg-surface-container-low text-on-surface placeholder:text-outline text-body-md font-body-md focus:outline-none focus:bg-surface-container transition-all" placeholder="Cari nama layanan..." type="text">
+</div>
+<div class="flex items-center gap-2 w-full sm:w-auto">
+<div class="relative w-full sm:w-36">
+<select class="w-full appearance-none pl-3.5 pr-8 py-2.5 rounded-2xl bg-surface-container-low text-on-surface text-body-md font-body-md focus:outline-none cursor-pointer">
+<option>Status: Semua</option>
+<option>Aktif</option>
+<option>Nonaktif</option>
+</select>
+<span class="material-symbols-outlined absolute right-2.5 top-1/2 -translate-y-1/2 text-outline text-base pointer-events-none">expand_more</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Tabel Master Katalog Layanan & Harga (PRD FR-60) -->
+<div class="bg-surface-container-lowest rounded-3xl p-6 shadow-sm overflow-hidden flex flex-col">
+<div class="overflow-x-auto">
+<table class="w-full text-left">
+<thead>
+<tr class="bg-surface-container-low text-on-surface-variant font-label-md text-label-md">
+<th class="py-4 px-5 rounded-l-2xl">Kode &amp; Nama Layanan</th>
+<th class="py-4 px-4">Kategori</th>
+<th class="py-4 px-4">Harga (Rp)</th>
+<th class="py-4 px-4">Estimasi Durasi</th>
+<th class="py-4 px-4">Saluran Terhubung</th>
+<th class="py-4 px-4 text-center">Status</th>
+<th class="py-4 px-5 rounded-r-2xl text-right">Aksi</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-surface-container">
+<!-- Row 1: Deep Clean Standard -->
+<tr class="hover:bg-surface-container-low/60 transition-colors">
+<td class="py-4 px-5">
+<div class="flex flex-col">
+<span class="font-title-sm text-title-sm text-primary">Deep Clean Standard</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">SVC-001 • Pembersihan menyeluruh upper, midsole &amp; laces</span>
+</div>
+</td>
+<td class="py-4 px-4">
+<span class="px-3 py-1 rounded-full bg-secondary-fixed text-on-secondary-fixed font-label-sm text-label-sm">Sepatu</span>
+</td>
+<td class="py-4 px-4">
+<span class="font-title-sm text-title-sm text-primary">Rp 30.000</span>
+</td>
+<td class="py-4 px-4">
+<div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-surface-container text-on-surface font-body-sm text-body-sm">
+<span class="material-symbols-outlined text-xs">schedule</span>
+<span class="">2-3 Hari</span>
+</div>
+</td>
+<td class="py-4 px-4">
+<div class="flex items-center gap-1.5">
+<span class="px-2 py-0.5 rounded-md bg-primary-fixed text-primary font-label-sm text-[10px]">Web Kasir</span>
+<span class="px-2 py-0.5 rounded-md bg-secondary-container text-on-secondary-container font-label-sm text-[10px]">WhatsApp Bot</span>
+</div>
+</td>
+<td class="py-4 px-4 text-center">
+<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-primary-fixed text-on-primary-fixed-variant font-label-sm text-label-sm">
+<span class="w-1.5 h-1.5 rounded-full bg-primary"></span>
+<span class="">Aktif</span>
+</span>
+</td>
+<td class="py-4 px-5 text-right">
+<div class="flex items-center justify-end gap-1">
+<button class="w-8 h-8 rounded-full flex items-center justify-center text-on-surface-variant hover:text-primary hover:bg-surface-container transition-all" title="Ubah Layanan" type="button">
+<span class="material-symbols-outlined text-base">edit</span>
+</button>
+<button class="w-8 h-8 rounded-full flex items-center justify-center text-on-surface-variant hover:text-error hover:bg-error-container transition-all" title="Nonaktifkan Layanan" type="button">
+<span class="material-symbols-outlined text-base">power_settings_new</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- Row 2: Fast Clean Express -->
+<tr class="hover:bg-surface-container-low/60 transition-colors">
+<td class="py-4 px-5">
+<div class="flex flex-col">
+<span class="font-title-sm text-title-sm text-primary">Fast Clean Express</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">SVC-005 • Pembersihan kilat bagian luar &amp; midsole instan</span>
+</div>
+</td>
+<td class="py-4 px-4">
+<span class="px-3 py-1 rounded-full bg-secondary-fixed text-on-secondary-fixed font-label-sm text-label-sm">Sepatu</span>
+</td>
+<td class="py-4 px-4">
+<span class="font-title-sm text-title-sm text-primary">Rp 45.000</span>
+</td>
+<td class="py-4 px-4">
+<div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary-fixed-dim text-on-primary-fixed font-body-sm text-body-sm">
+<span class="material-symbols-outlined text-xs">bolt</span>
+<span class="">Express&nbsp;</span>
+</div>
+</td>
+<td class="py-4 px-4">
+<div class="flex items-center gap-1.5">
+<span class="px-2 py-0.5 rounded-md bg-primary-fixed text-primary font-label-sm text-[10px]">Web Kasir</span>
+<span class="px-2 py-0.5 rounded-md bg-secondary-container text-on-secondary-container font-label-sm text-[10px]">WhatsApp Bot</span>
+</div>
+</td>
+<td class="py-4 px-4 text-center">
+<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-primary-fixed text-on-primary-fixed-variant font-label-sm text-label-sm">
+<span class="w-1.5 h-1.5 rounded-full bg-primary"></span>
+<span class="">Aktif</span>
+</span>
+</td>
+<td class="py-4 px-5 text-right">
+<div class="flex items-center justify-end gap-1">
+<button class="w-8 h-8 rounded-full flex items-center justify-center text-on-surface-variant hover:text-primary hover:bg-surface-container transition-all" title="Ubah Layanan" type="button">
+<span class="material-symbols-outlined text-base">edit</span>
+</button>
+<button class="w-8 h-8 rounded-full flex items-center justify-center text-on-surface-variant hover:text-error hover:bg-error-container transition-all" title="Nonaktifkan Layanan" type="button">
+<span class="material-symbols-outlined text-base">power_settings_new</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- Row 3: Unyellowing + Cleaning -->
+<tr class="hover:bg-surface-container-low/60 transition-colors">
+<td class="py-4 px-5">
+<div class="flex flex-col">
+<span class="font-title-sm text-title-sm text-primary">Unyellowing + Cleaning</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">SVC-002 • Restorasi midsole menguning kembali putih cerah</span>
+</div>
+</td>
+<td class="py-4 px-4">
+<span class="px-3 py-1 rounded-full bg-secondary-fixed text-on-secondary-fixed font-label-sm text-label-sm">Sepatu</span>
+</td>
+<td class="py-4 px-4">
+<span class="font-title-sm text-title-sm text-primary">Rp 75.000</span>
+</td>
+<td class="py-4 px-4">
+<div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-surface-container text-on-surface font-body-sm text-body-sm">
+<span class="material-symbols-outlined text-xs">schedule</span>
+<span class="">5-6 Hari</span>
+</div>
+</td>
+<td class="py-4 px-4">
+<div class="flex items-center gap-1.5">
+<span class="px-2 py-0.5 rounded-md bg-primary-fixed text-primary font-label-sm text-[10px]">Web Kasir</span>
+<span class="px-2 py-0.5 rounded-md bg-secondary-container text-on-secondary-container font-label-sm text-[10px]">WhatsApp Bot</span>
+</div>
+</td>
+<td class="py-4 px-4 text-center">
+<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-primary-fixed text-on-primary-fixed-variant font-label-sm text-label-sm">
+<span class="w-1.5 h-1.5 rounded-full bg-primary"></span>
+<span class="">Aktif</span>
+</span>
+</td>
+<td class="py-4 px-5 text-right">
+<div class="flex items-center justify-end gap-1">
+<button class="w-8 h-8 rounded-full flex items-center justify-center text-on-surface-variant hover:text-primary hover:bg-surface-container transition-all" title="Ubah Layanan" type="button">
+<span class="material-symbols-outlined text-base">edit</span>
+</button>
+<button class="w-8 h-8 rounded-full flex items-center justify-center text-on-surface-variant hover:text-error hover:bg-error-container transition-all" title="Nonaktifkan Layanan" type="button">
+<span class="material-symbols-outlined text-base">power_settings_new</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- Row 4: Suede & Leather Treatment -->
+<tr class="hover:bg-surface-container-low/60 transition-colors">
+<td class="py-4 px-5">
+<div class="flex flex-col">
+<span class="font-title-sm text-title-sm text-primary">Suede &amp; Leather Treatment</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">SVC-003 • Perawatan khusus conditioning bahan suede &amp; kulit</span>
+</div>
+</td>
+<td class="py-4 px-4">
+<span class="px-3 py-1 rounded-full bg-secondary-fixed text-on-secondary-fixed font-label-sm text-label-sm">Sepatu</span>
+</td>
+<td class="py-4 px-4">
+<span class="font-title-sm text-title-sm text-primary">Rp 55.000</span>
+</td>
+<td class="py-4 px-4">
+<div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-surface-container text-on-surface font-body-sm text-body-sm">
+<span class="material-symbols-outlined text-xs">schedule</span>
+<span class="">3-4 Hari</span>
+</div>
+</td>
+<td class="py-4 px-4">
+<div class="flex items-center gap-1.5">
+<span class="px-2 py-0.5 rounded-md bg-primary-fixed text-primary font-label-sm text-[10px]">Web Kasir</span>
+<span class="px-2 py-0.5 rounded-md bg-secondary-container text-on-secondary-container font-label-sm text-[10px]">WhatsApp Bot</span>
+</div>
+</td>
+<td class="py-4 px-4 text-center">
+<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-primary-fixed text-on-primary-fixed-variant font-label-sm text-label-sm">
+<span class="w-1.5 h-1.5 rounded-full bg-primary"></span>
+<span class="">Aktif</span>
+</span>
+</td>
+<td class="py-4 px-5 text-right">
+<div class="flex items-center justify-end gap-1">
+<button class="w-8 h-8 rounded-full flex items-center justify-center text-on-surface-variant hover:text-primary hover:bg-surface-container transition-all" title="Ubah Layanan" type="button">
+<span class="material-symbols-outlined text-base">edit</span>
+</button>
+<button class="w-8 h-8 rounded-full flex items-center justify-center text-on-surface-variant hover:text-error hover:bg-error-container transition-all" title="Nonaktifkan Layanan" type="button">
+<span class="material-symbols-outlined text-base">power_settings_new</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- Row 5: Bag Cleaning (Medium) -->
+<tr class="hover:bg-surface-container-low/60 transition-colors">
+<td class="py-4 px-5">
+<div class="flex flex-col">
+<span class="font-title-sm text-title-sm text-primary">Bag Cleaning (Medium)</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">SVC-006 • Cuci tas ransel/tote bag ukuran sedang anti jamur</span>
+</div>
+</td>
+<td class="py-4 px-4">
+<span class="px-3 py-1 rounded-full bg-tertiary-fixed text-on-tertiary-fixed font-label-sm text-label-sm">Tas</span>
+</td>
+<td class="py-4 px-4">
+<span class="font-title-sm text-title-sm text-primary">Rp 60.000</span>
+</td>
+<td class="py-4 px-4">
+<div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-surface-container text-on-surface font-body-sm text-body-sm">
+<span class="material-symbols-outlined text-xs">schedule</span>
+<span class="">3-4 Hari</span>
+</div>
+</td>
+<td class="py-4 px-4">
+<div class="flex items-center gap-1.5">
+<span class="px-2 py-0.5 rounded-md bg-primary-fixed text-primary font-label-sm text-[10px]">Web Kasir</span>
+<span class="px-2 py-0.5 rounded-md bg-secondary-container text-on-secondary-container font-label-sm text-[10px]">WhatsApp Bot</span>
+</div>
+</td>
+<td class="py-4 px-4 text-center">
+<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-primary-fixed text-on-primary-fixed-variant font-label-sm text-label-sm">
+<span class="w-1.5 h-1.5 rounded-full bg-primary"></span>
+<span class="">Aktif</span>
+</span>
+</td>
+<td class="py-4 px-5 text-right">
+<div class="flex items-center justify-end gap-1">
+<button class="w-8 h-8 rounded-full flex items-center justify-center text-on-surface-variant hover:text-primary hover:bg-surface-container transition-all" title="Ubah Layanan" type="button">
+<span class="material-symbols-outlined text-base">edit</span>
+</button>
+<button class="w-8 h-8 rounded-full flex items-center justify-center text-on-surface-variant hover:text-error hover:bg-error-container transition-all" title="Nonaktifkan Layanan" type="button">
+<span class="material-symbols-outlined text-base">power_settings_new</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- Row 6: Cap Cleaning -->
+<tr class="hover:bg-surface-container-low/60 transition-colors">
+<td class="py-4 px-5">
+<div class="flex flex-col">
+<span class="font-title-sm text-title-sm text-primary">Cap Cleaning</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">SVC-007 • Pembersihan bentuk topi snapback / baseball cap presisi</span>
+</div>
+</td>
+<td class="py-4 px-4">
+<span class="px-3 py-1 rounded-full bg-surface-variant text-on-surface-variant font-label-sm text-label-sm">Topi</span>
+</td>
+<td class="py-4 px-4">
+<span class="font-title-sm text-title-sm text-primary">Rp 35.000</span>
+</td>
+<td class="py-4 px-4">
+<div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-surface-container text-on-surface font-body-sm text-body-sm">
+<span class="material-symbols-outlined text-xs">schedule</span>
+<span class="">2-3 Hari</span>
+</div>
+</td>
+<td class="py-4 px-4">
+<div class="flex items-center gap-1.5">
+<span class="px-2 py-0.5 rounded-md bg-primary-fixed text-primary font-label-sm text-[10px]">Web Kasir</span>
+<span class="px-2 py-0.5 rounded-md bg-secondary-container text-on-secondary-container font-label-sm text-[10px]">WhatsApp Bot</span>
+</div>
+</td>
+<td class="py-4 px-4 text-center">
+<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-primary-fixed text-on-primary-fixed-variant font-label-sm text-label-sm">
+<span class="w-1.5 h-1.5 rounded-full bg-primary"></span>
+<span class="">Aktif</span>
+</span>
+</td>
+<td class="py-4 px-5 text-right">
+<div class="flex items-center justify-end gap-1">
+<button class="w-8 h-8 rounded-full flex items-center justify-center text-on-surface-variant hover:text-primary hover:bg-surface-container transition-all" title="Ubah Layanan" type="button">
+<span class="material-symbols-outlined text-base">edit</span>
+</button>
+<button class="w-8 h-8 rounded-full flex items-center justify-center text-on-surface-variant hover:text-error hover:bg-error-container transition-all" title="Nonaktifkan Layanan" type="button">
+<span class="material-symbols-outlined text-base">power_settings_new</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- Row 7: Kids Shoes Cleaning -->
+<tr class="hover:bg-surface-container-low/60 transition-colors">
+<td class="py-4 px-5">
+<div class="flex flex-col">
+<span class="font-title-sm text-title-sm text-primary">Kids Shoes Cleaning</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">SVC-008 • Khusus sepatu balita &amp; anak kecil (di bawah size 35)</span>
+</div>
+</td>
+<td class="py-4 px-4">
+<span class="px-3 py-1 rounded-full bg-secondary-fixed text-on-secondary-fixed font-label-sm text-label-sm">Sepatu</span>
+</td>
+<td class="py-4 px-4">
+<span class="font-title-sm text-title-sm text-primary">Rp 25.000</span>
+</td>
+<td class="py-4 px-4">
+<div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-surface-container text-on-surface font-body-sm text-body-sm">
+<span class="material-symbols-outlined text-xs">schedule</span>
+<span class="">2-3 Hari</span>
+</div>
+</td>
+<td class="py-4 px-4">
+<div class="flex items-center gap-1.5">
+<span class="px-2 py-0.5 rounded-md bg-primary-fixed text-primary font-label-sm text-[10px]">Web Kasir</span>
+<span class="px-2 py-0.5 rounded-md bg-secondary-container text-on-secondary-container font-label-sm text-[10px]">WhatsApp Bot</span>
+</div>
+</td>
+<td class="py-4 px-4 text-center">
+<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-primary-fixed text-on-primary-fixed-variant font-label-sm text-label-sm">
+<span class="w-1.5 h-1.5 rounded-full bg-primary"></span>
+<span class="">Aktif</span>
+</span>
+</td>
+<td class="py-4 px-5 text-right">
+<div class="flex items-center justify-end gap-1">
+<button class="w-8 h-8 rounded-full flex items-center justify-center text-on-surface-variant hover:text-primary hover:bg-surface-container transition-all" title="Ubah Layanan" type="button">
+<span class="material-symbols-outlined text-base">edit</span>
+</button>
+<button class="w-8 h-8 rounded-full flex items-center justify-center text-on-surface-variant hover:text-error hover:bg-error-container transition-all" title="Nonaktifkan Layanan" type="button">
+<span class="material-symbols-outlined text-base">power_settings_new</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- Row 8: Insole + Outsole Clean -->
+<tr class="hover:bg-surface-container-low/60 transition-colors">
+<td class="py-4 px-5">
+<div class="flex flex-col">
+<span class="font-title-sm text-title-sm text-primary">Insole + Outsole Clean</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">SVC-004 • Sanitasi bau telapak &amp; pembersihan grip tapak bawah</span>
+</div>
+</td>
+<td class="py-4 px-4">
+<span class="px-3 py-1 rounded-full bg-secondary-fixed text-on-secondary-fixed font-label-sm text-label-sm">Sepatu</span>
+</td>
+<td class="py-4 px-4">
+<span class="font-title-sm text-title-sm text-primary">Rp 50.000</span>
+</td>
+<td class="py-4 px-4">
+<div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-surface-container text-on-surface font-body-sm text-body-sm">
+<span class="material-symbols-outlined text-xs">schedule</span>
+<span class="">Next</span>
+</div>
+</td>
+<td class="py-4 px-4">
+<div class="flex items-center gap-1.5">
+<span class="px-2 py-0.5 rounded-md bg-primary-fixed text-primary font-label-sm text-[10px]">Web Kasir</span>
+<span class="px-2 py-0.5 rounded-md bg-secondary-container text-on-secondary-container font-label-sm text-[10px]">WhatsApp Bot</span>
+</div>
+</td>
+<td class="py-4 px-4 text-center">
+<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-surface-variant text-on-surface-variant font-label-sm text-label-sm">
+<span class="w-1.5 h-1.5 rounded-full bg-outline"></span>
+<span class="">Nonaktif</span>
+</span>
+</td>
+<td class="py-4 px-5 text-right">
+<div class="flex items-center justify-end gap-1">
+<button class="w-8 h-8 rounded-full flex items-center justify-center text-on-surface-variant hover:text-primary hover:bg-surface-container transition-all" title="Ubah Layanan" type="button">
+<span class="material-symbols-outlined text-base">edit</span>
+</button>
+<button class="w-8 h-8 rounded-full flex items-center justify-center text-on-surface-variant hover:text-primary hover:bg-primary-fixed transition-all" title="Aktifkan Kembali" type="button">
+<span class="material-symbols-outlined text-base">check_circle</span>
+</button>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- Table Footer / Pagination -->
+<div class="flex flex-col sm:flex-row items-center justify-between gap-4 pt-6 mt-4">
+<span class="font-body-sm text-body-sm text-on-surface-variant">Menampilkan 8 dari 14 total layanan terdaftar</span>
+<div class="flex items-center gap-2">
+<button class="px-3.5 py-2 rounded-xl bg-surface-container text-on-surface-variant hover:text-primary font-label-md text-label-md transition-all">Sebelumnya</button>
+<button class="w-9 h-9 rounded-xl bg-primary text-on-primary font-label-md text-label-md flex items-center justify-center shadow-sm">1</button>
+<button class="w-9 h-9 rounded-xl bg-surface-container text-on-surface-variant hover:text-primary font-label-md text-label-md flex items-center justify-center transition-all">2</button>
+<button class="px-3.5 py-2 rounded-xl bg-surface-container text-on-surface-variant hover:text-primary font-label-md text-label-md transition-all">Selanjutnya</button>
+</div>
+</div>
+</div>
+<!-- Modal Dialog: Tambah / Edit Layanan Baru (FR-60, FR-61) -->
+<div class="fixed inset-0 z-50 flex items-center justify-center bg-inverse-surface/40 backdrop-blur-sm p-4 hidden" id="modalTambahLayanan">
+<div class="bg-surface-container-lowest rounded-3xl w-full max-w-xl p-6 sm:p-8 shadow-2xl flex flex-col max-h-[90vh] overflow-y-auto">
+<div class="flex items-center justify-between pb-4 mb-6 border-b border-surface-container">
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">Master Data Toko</span>
+<h3 class="font-headline-md text-headline-md text-primary">Tambah Layanan Baru</h3>
+</div>
+<button class="w-10 h-10 rounded-full bg-surface-container flex items-center justify-center text-on-surface-variant hover:text-primary hover:bg-surface-variant transition-all" onclick="document.getElementById('modalTambahLayanan').classList.add('hidden')" type="button">
+<span class="material-symbols-outlined text-xl">close</span>
+</button>
+</div>
+<!-- Form Inputs -->
+<form class="space-y-5" onsubmit="event.preventDefault(); document.getElementById('modalTambahLayanan').classList.add('hidden');">
+<!-- Kode Layanan & Kategori -->
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+<div class="flex flex-col gap-1.5">
+<label class="font-label-md text-label-md text-primary">Kode Layanan</label>
+<input class="px-4 py-3 rounded-2xl bg-surface-container text-on-surface-variant font-title-sm text-title-sm focus:outline-none cursor-not-allowed" readonly="" type="text" value="SVC-010">
+</div>
+<div class="flex flex-col gap-1.5">
+<label class="font-label-md text-label-md text-primary">Kategori Layanan</label>
+<select class="px-4 py-3 rounded-2xl bg-surface-container-low text-on-surface font-body-md text-body-md focus:outline-none focus:bg-surface-container transition-all">
+<option value="Sepatu">Sepatu</option>
+<option value="Tas">Tas</option>
+<option value="Topi">Topi</option>
+<option value="Treatment Khusus">Treatment Khusus</option>
+</select>
+</div>
+</div>
+<!-- Nama Layanan -->
+<div class="flex flex-col gap-1.5">
+<label class="font-label-md text-label-md text-primary">Nama Layanan</label>
+<input class="px-4 py-3 rounded-2xl bg-surface-container-low text-on-surface placeholder:text-outline font-body-md text-body-md focus:outline-none focus:bg-surface-container transition-all" placeholder="Contoh: Premium Leather Recolor" required="" type="text">
+</div>
+<!-- Deskripsi Ringkas -->
+<div class="flex flex-col gap-1.5">
+<label class="font-label-md text-label-md text-primary">Keterangan / Prosedur</label>
+<textarea class="px-4 py-3 rounded-2xl bg-surface-container-low text-on-surface placeholder:text-outline font-body-md text-body-md focus:outline-none focus:bg-surface-container transition-all resize-none" placeholder="Keterangan singkat yang muncul di kasir &amp; detail balasan bot WA" rows="2"></textarea>
+</div>
+<!-- Harga (Rp) & Estimasi Pengerjaan -->
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+<div class="flex flex-col gap-1.5">
+<label class="font-label-md text-label-md text-primary">Harga Layanan (Rp)</label>
+<div class="relative">
+<span class="absolute left-4 top-1/2 -translate-y-1/2 font-title-sm text-title-sm text-primary">Rp</span>
+<input class="w-full pl-12 pr-4 py-3 rounded-2xl bg-surface-container-low text-on-surface font-title-sm text-title-sm focus:outline-none focus:bg-surface-container transition-all" placeholder="40.000" required="" type="number">
+</div>
+</div>
+<div class="flex flex-col gap-1.5">
+<label class="font-label-md text-label-md text-primary">Estimasi Durasi Pengerjaan</label>
+<select class="px-4 py-3 rounded-2xl bg-surface-container-low text-on-surface font-body-md text-body-md focus:outline-none focus:bg-surface-container transition-all">
+<option>2-3 Hari</option>
+<option>3-4 Hari</option>
+<option>5-6 Hari</option>
+<option>Next Day (1 Hari)</option>
+<option>Express (Hari yang sama)</option>
+</select>
+</div>
+</div>
+<!-- Toggle Status Layanan -->
+<div class="flex items-center justify-between p-4 rounded-2xl bg-surface-container-low">
+<div class="flex flex-col">
+<span class="font-title-sm text-title-sm text-primary">Status Langsung Aktif</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">Layanan langsung tersedia di Kasir dan respons WhatsApp bot</span>
+</div>
+<label class="relative inline-flex items-center cursor-pointer">
+<input checked="" class="sr-only peer" type="checkbox">
+<div class="w-11 h-6 bg-surface-container-high peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+</label>
+</div>
+<!-- Catatan FR-61 -->
+<div class="p-3.5 rounded-2xl bg-surface-container flex items-start gap-2.5">
+<span class="material-symbols-outlined text-primary text-lg mt-0.5">info</span>
+<p class="font-body-sm text-body-sm text-on-surface-variant">
+            Perubahan harga tersimpan untuk transaksi baru dan tidak mengubah riwayat tiket yang sudah dibuat sebelumnya (FR-61).
+          </p>
+</div>
+<!-- Action Buttons -->
+<div class="flex items-center justify-end gap-3 pt-4">
+<button class="px-6 py-3 rounded-full bg-surface-container text-on-surface-variant hover:text-primary font-label-md text-label-md transition-all" onclick="document.getElementById('modalTambahLayanan').classList.add('hidden')" type="button">
+            Batal
+          </button>
+<button class="px-8 py-3 rounded-full bg-primary-container text-on-primary hover:bg-primary font-label-md text-label-md shadow-md transition-all" type="submit">
+            Simpan Layanan
+          </button>
+</div>
+</form>
+</div>
+</div>
+</div>
+<script>
+  // Toggle showing Master Pricelist Image Preview
+  const btnTogglePricelist = document.getElementById('toggleMenuPricelist');
+  const panelPricelist = document.getElementById('pricelistReference');
+
+  if (btnTogglePricelist && panelPricelist) {
+    btnTogglePricelist.addEventListener('click', () => {
+      panelPricelist.classList.toggle('hidden');
+    });
+  }
+</script></main>
+<!-- END: MainContent -->
+</div>
+<!-- END: MainContainer -->
+
+
+</body></html>

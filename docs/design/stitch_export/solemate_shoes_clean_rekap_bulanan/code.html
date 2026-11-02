@@ -1,0 +1,542 @@
+<!DOCTYPE html><html lang="en" style="width: 1280px; height: 1818px; overflow: hidden; position: relative;"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Solemate Shoes Clean - Dashboard Analytics</title>
+<!-- Tailwind CSS CDN with forms and container queries -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "surface-dim": "#dfd9d1",
+            "on-surface": "#1d1b16",
+            "secondary-fixed-dim": "#cdc6b9",
+            "on-secondary-fixed-variant": "#4b463d",
+            "tertiary": "#002544",
+            "secondary-container": "#e7dfd2",
+            "surface-container-high": "#ede7de",
+            "surface-variant": "#e7e2d9",
+            "inverse-primary": "#a6c9f9",
+            "surface-container": "#f3ede4",
+            "on-background": "#1d1b16",
+            "surface-container-highest": "#e7e2d9",
+            "outline": "#73777f",
+            "on-secondary-container": "#676258",
+            "tertiary-fixed": "#d2e4ff",
+            "surface-container-lowest": "#ffffff",
+            "inverse-surface": "#32302a",
+            "on-primary-container": "#83a6d4",
+            "on-primary": "#ffffff",
+            "on-error": "#ffffff",
+            "on-primary-fixed-variant": "#244871",
+            "inverse-on-surface": "#f6f0e7",
+            "on-surface-variant": "#43474e",
+            "on-tertiary": "#ffffff",
+            "background": "#fff9ef",
+            "primary-fixed-dim": "#a6c9f9",
+            "primary-container": "#133b63",
+            "tertiary-fixed-dim": "#a3c9fa",
+            "surface-bright": "#fff9ef",
+            "tertiary-container": "#0c3b64",
+            "error-container": "#ffdad6",
+            "on-tertiary-container": "#80a6d5",
+            "surface-tint": "#3d608a",
+            "on-tertiary-fixed": "#001c37",
+            "error": "#ba1a1a",
+            "surface": "#fff9ef",
+            "surface-container-low": "#f9f3ea",
+            "primary": "#002546",
+            "on-secondary": "#ffffff",
+            "on-primary-fixed": "#001c38",
+            "secondary-fixed": "#e9e1d5",
+            "primary-fixed": "#d3e4ff",
+            "outline-variant": "#c3c6cf",
+            "on-secondary-fixed": "#1e1b13",
+            "secondary": "#635e54",
+            "on-tertiary-fixed-variant": "#1f4972",
+            "on-error-container": "#93000a"
+          },
+          fontFamily: {
+            sans: ['Plus Jakarta Sans', 'Inter', 'system-ui', '-apple-system', 'sans-serif'],
+            outfit: ['Outfit', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800&amp;family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<style data-purpose="custom-layout">
+    body {
+      background-color: #ded6c9;
+      font-family: 'Plus Jakarta Sans', 'Inter', system-ui, -apple-system, sans-serif;
+      color: #1a2430;
+    }
+    /* Subtle scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #c7beaf;
+      border-radius: 9999px;
+    }
+    .custom-shadow {
+      box-shadow: 0 10px 30px -10px rgba(19, 59, 99, 0.08), 0 4px 12px -2px rgba(19, 59, 99, 0.04);
+    }
+    .navy-card-glow {
+      box-shadow: 0 14px 34px -8px rgba(0, 37, 70, 0.35), 0 4px 12px -2px rgba(19, 59, 99, 0.2);
+    }
+  </style>
+<meta content="web_dashboard" name="shell-type"></head>
+<body class="min-h-screen p-3 md:p-6 lg:p-8 flex items-center justify-center">
+<!-- BEGIN: MainContainer -->
+<!-- Outer Rounded Shell with warm artisanal craft tone -->
+<div class="w-full max-w-[1520px] bg-[#ebe3d7] rounded-[42px] p-4 lg:p-7 shadow-2xl border border-[#faf6ee] flex flex-col xl:flex-row gap-6 lg:gap-8 min-h-[920px]">
+<!-- BEGIN: Sidebar -->
+<aside class="w-full xl:w-64 flex-shrink-0 flex flex-col justify-between select-none py-2 px-1">
+<div>
+<!-- Logo -->
+<div class="flex items-center gap-3 px-3 py-2 mb-7 cursor-pointer" data-purpose="brand-logo">
+<img alt="Solemate Shoes Clean" class="w-11 h-11 rounded-full object-cover shadow-sm ring-2 ring-[#002546]/20 bg-white" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDqatKEz-WB5XeuXIgWwK8VRGxRPe4sICiJpfsWcKgY1yAgkRCDMH43ImYzanChqjeaYjXL0CMA01SEvS9S99449hCyOhdoVxipsbYcMlZoQCp_50c8ElMQ_DHw0lTUQTxlbOrNdAD9pmXGrWl9wzzXEFi_dok8XL2uFLS7Hs0zlIQtw0c5qK2jp5jUiP0IDLBni9UntpgRj7AsuM_8-al-Xg8_WfHI7UD9ak1-tjZ566Tb4D--iSiy">
+<div class="flex flex-col">
+<span class="font-extrabold text-xl tracking-tight text-[#002546] font-outfit leading-none">Solemate</span>
+<span class="text-[10px] font-bold tracking-[0.22em] text-[#526071] uppercase mt-0.5">Shoes Clean</span>
+</div>
+</div>
+<!-- Navigation Links -->
+<nav aria-label="Sidebar Menu" class="space-y-1.5">
+<!-- 1. Dashboard (Active) -->
+<a class="flex items-center gap-3.5 px-4.5 py-3 rounded-2xl bg-[#133b63] text-white font-semibold shadow-sm transition-all" href="#">
+<span class="material-symbols-outlined text-xl text-[#d3e4ff]">dashboard</span>
+<span class="text-[15px] font-medium tracking-tight">Dashboard</span>
+</a>
+<!-- 2. Daftar Tiket -->
+<a class="flex items-center gap-3.5 px-4.5 py-3 rounded-2xl text-[#526071] hover:bg-white/70 hover:text-[#002546] transition-all font-medium group" href="#">
+<span class="material-symbols-outlined text-xl text-[#73777f] group-hover:text-[#002546]">confirmation_number</span>
+<span class="text-[15px]">Daftar Tiket</span>
+</a>
+<!-- 3. Laporan Harian -->
+<a class="flex items-center gap-3.5 px-4.5 py-3 rounded-2xl text-[#526071] hover:bg-white/70 hover:text-[#002546] transition-all font-medium group" href="#">
+<span class="material-symbols-outlined text-xl text-[#73777f] group-hover:text-[#002546]">event_note</span>
+<span class="text-[15px]">Laporan Harian</span>
+</a>
+<!-- 4. Rekap Bulanan -->
+<a class="flex items-center gap-3.5 px-4.5 py-3 rounded-2xl text-[#526071] hover:bg-white/70 hover:text-[#002546] transition-all font-medium group" href="#">
+<span class="material-symbols-outlined text-xl text-[#73777f] group-hover:text-[#002546]">calendar_month</span>
+<span class="text-[15px]">Rekap Bulanan</span>
+</a>
+<!-- 5. Katalog Layanan -->
+<a class="flex items-center gap-3.5 px-4.5 py-3 rounded-2xl text-[#526071] hover:bg-white/70 hover:text-[#002546] transition-all font-medium group" href="#">
+<span class="material-symbols-outlined text-xl text-[#73777f] group-hover:text-[#002546]">style</span>
+<span class="text-[15px]">Katalog Layanan</span>
+</a>
+<!-- 6. Karyawan -->
+<a class="flex items-center gap-3.5 px-4.5 py-3 rounded-2xl text-[#526071] hover:bg-white/70 hover:text-[#002546] transition-all font-medium group" href="#">
+<span class="material-symbols-outlined text-xl text-[#73777f] group-hover:text-[#002546]">badge</span>
+<span class="text-[15px]">Karyawan</span>
+</a>
+<!-- 7. Rekap Absensi -->
+<a class="flex items-center gap-3.5 px-4.5 py-3 rounded-2xl text-[#526071] hover:bg-white/70 hover:text-[#002546] transition-all font-medium group" href="#">
+<span class="material-symbols-outlined text-xl text-[#73777f] group-hover:text-[#002546]">fact_check</span>
+<span class="text-[15px]">Rekap Absensi</span>
+</a>
+</nav>
+</div>
+<!-- Logout Section -->
+<div class="pt-4 border-t border-[#d8cfbf]">
+<a class="flex items-center gap-3.5 px-4.5 py-3 rounded-2xl text-[#ba1a1a] hover:bg-[#ffdad6]/60 transition-all font-medium group" href="#">
+<span class="material-symbols-outlined text-xl text-[#ba1a1a] group-hover:translate-x-0.5 transition-transform">logout</span>
+<span class="text-[15px] font-semibold">Keluar</span>
+</a>
+</div>
+</aside>
+<!-- END: Sidebar -->
+<!-- BEGIN: MainContent -->
+<main class="flex-1 flex flex-col min-w-0"><div class="flex flex-col w-full gap-6 p-1 md:p-2">
+<!-- Top Navigation & Context Bar -->
+<div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+<div class="space-y-1">
+<div class="flex items-center gap-2 text-on-surface-variant font-label-sm text-label-sm uppercase tracking-wider">
+<span class="">Laporan &amp; Keuangan</span>
+<span class="material-symbols-outlined text-sm">chevron_right</span>
+<span class="text-primary font-bold">Rekap Bulanan</span>
+</div>
+<div class="flex items-baseline gap-3">
+
+
+</div>
+</div>
+<!-- Period Selection & Quick Actions -->
+<div class="flex flex-wrap items-center gap-2.5">
+<div class="inline-flex p-1 bg-surface-container rounded-full">
+<button class="px-4 py-2 rounded-full font-label-md text-label-md bg-primary text-on-primary shadow-sm transition-all" type="button">
+          Bulan Ini (Januari 2026)
+        </button>
+<button class="px-4 py-2 rounded-full font-label-md text-label-md text-secondary hover:text-primary transition-all" type="button">
+          Bulan Lalu (Desember 2025)
+        </button>
+<button class="px-4 py-2 rounded-full font-label-md text-label-md text-secondary hover:text-primary transition-all flex items-center gap-1" type="button">
+<span class="">Rentang Kustom</span>
+<span class="material-symbols-outlined text-sm">tune</span>
+</button>
+</div>
+<div class="flex items-center gap-2">
+<button class="h-10 px-4 rounded-full bg-surface-container text-primary font-label-md text-label-md flex items-center gap-2 hover:bg-surface-container-high transition-all" type="button">
+<span class="material-symbols-outlined text-base">refresh</span>
+<span class="hidden sm:inline">Segarkan</span>
+</button>
+<button class="h-10 px-5 rounded-full bg-primary-container text-on-primary font-label-md text-label-md flex items-center gap-2 shadow-sm hover:opacity-95 transition-all" type="button">
+<span class="material-symbols-outlined text-base text-primary-fixed">download</span>
+<span class="">Ekspor Data</span>
+</button>
+</div>
+</div>
+</div>
+<!-- 4 Key Summary Performance Cards -->
+<div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+<!-- Volume -->
+<div class="bg-surface-container-low rounded-3xl p-5 shadow-sm flex flex-col justify-between relative overflow-hidden">
+<div class="flex items-start justify-between">
+<div>
+<span class="font-label-sm text-label-sm text-secondary uppercase tracking-wider block">Volume Sepatu</span>
+<span class="font-headline-lg text-headline-lg text-primary mt-1 block">642 <span class="font-title-sm text-title-sm text-secondary font-normal">Pasang</span></span>
+</div>
+<div class="w-10 h-10 rounded-2xl bg-surface-container flex items-center justify-center text-primary">
+<span class="material-symbols-outlined text-xl">footprint</span>
+</div>
+</div>
+<div class="mt-4 pt-3 flex items-center justify-between">
+<span class="inline-flex items-center gap-1 font-label-md text-label-md text-primary font-bold bg-primary-fixed/40 px-2 py-0.5 rounded-full">
+<span class="material-symbols-outlined text-sm">trending_up</span>
+          +18%
+        </span>
+<span class="font-body-sm text-body-sm text-secondary">vs bulan lalu</span>
+</div>
+</div>
+<!-- Gross Revenue -->
+<div class="bg-primary-container text-on-primary rounded-3xl p-5 shadow-sm flex flex-col justify-between relative overflow-hidden">
+<div class="flex items-start justify-between">
+<div>
+<span class="font-label-sm text-label-sm text-primary-fixed uppercase tracking-wider block">Total Pendapatan</span>
+<span class="font-headline-lg text-headline-lg text-white mt-1 block tracking-tight">Rp 26.850.000</span>
+</div>
+<div class="w-10 h-10 rounded-2xl bg-white/10 flex items-center justify-center text-white">
+<span class="material-symbols-outlined text-xl">payments</span>
+</div>
+</div>
+<div class="mt-4 pt-3 flex items-center justify-between">
+<span class="font-body-sm text-body-sm text-on-primary-container">Rata-rata Harian</span>
+<span class="font-label-md text-label-md text-white font-semibold">Rp 895.000 / hari</span>
+</div>
+</div>
+<!-- Settled Amount -->
+<div class="bg-surface-container-low rounded-3xl p-5 shadow-sm flex flex-col justify-between">
+<div class="flex items-start justify-between">
+<div>
+<span class="font-label-sm text-label-sm text-secondary uppercase tracking-wider block">Sudah Dibayar</span>
+<span class="font-headline-lg text-headline-lg text-primary mt-1 block tracking-tight">Rp 24.120.000</span>
+</div>
+<div class="w-10 h-10 rounded-2xl bg-surface-container flex items-center justify-center text-primary">
+<span class="material-symbols-outlined text-xl">task_alt</span>
+</div>
+</div>
+<div class="mt-4 pt-3 flex items-center justify-between">
+<span class="font-body-sm text-body-sm text-secondary">Tingkat Pelunasan</span>
+<span class="font-label-md text-label-md text-primary font-bold bg-surface-container px-2.5 py-0.5 rounded-full">89.8%</span>
+</div>
+</div>
+<!-- Unpaid / Outstanding -->
+<div class="bg-surface-container-low rounded-3xl p-5 shadow-sm flex flex-col justify-between">
+<div class="flex items-start justify-between">
+<div>
+<span class="font-label-sm text-label-sm text-secondary uppercase tracking-wider block">Piutang Berjalan</span>
+<span class="font-headline-lg text-headline-lg text-on-surface mt-1 block tracking-tight">Rp 2.730.000</span>
+</div>
+<div class="w-10 h-10 rounded-2xl bg-surface-container flex items-center justify-center text-secondary">
+<span class="material-symbols-outlined text-xl">pending_actions</span>
+</div>
+</div>
+<div class="mt-4 pt-3 flex items-center justify-between">
+<span class="font-body-sm text-body-sm text-secondary">Status Tiket</span>
+<span class="font-label-md text-label-md text-secondary font-medium">52 Tiket Belum Lunas</span>
+</div>
+</div>
+</div>
+<!-- Analytical Breakdowns Grid -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+<!-- Top Performing Services -->
+<div class="lg:col-span-7 bg-surface-container-low rounded-3xl p-6 shadow-sm flex flex-col justify-between">
+<div>
+<div class="flex items-center justify-between mb-5">
+<div class="flex items-center gap-3">
+<div class="w-9 h-9 rounded-xl bg-surface-container flex items-center justify-center text-primary">
+<span class="material-symbols-outlined text-lg">local_laundry_service</span>
+</div>
+<div>
+<h2 class="font-title-lg text-title-lg text-primary">Layanan Terlaris</h2>
+<span class="font-body-sm text-body-sm text-secondary">Berdasarkan volume pengerjaan &amp; perolehan omset</span>
+</div>
+</div>
+<span class="font-label-sm text-label-sm text-secondary bg-surface-container px-3 py-1 rounded-full uppercase">Januari 2026</span>
+</div>
+<div class="space-y-4">
+<!-- Item 1 -->
+<div class="space-y-1.5">
+<div class="flex items-center justify-between font-body-md text-body-md">
+<span class="font-semibold text-primary">1. Deep Clean Standard</span>
+<div class="flex items-center gap-3">
+<span class="text-secondary font-body-sm text-body-sm">312 Pasang</span>
+<span class="font-title-sm text-title-sm text-primary">Rp 9.360.000</span>
+<span class="font-label-sm text-label-sm text-primary font-bold bg-surface-container px-2 py-0.5 rounded-full">48.6%</span>
+</div>
+</div>
+<div class="w-full h-2.5 bg-surface-container rounded-full overflow-hidden">
+<div class="h-full bg-primary rounded-full" style="width: 48.6%"></div>
+</div>
+</div>
+<!-- Item 2 -->
+<div class="space-y-1.5">
+<div class="flex items-center justify-between font-body-md text-body-md">
+<span class="font-semibold text-primary">2. Unyellowing + Cleaning</span>
+<div class="flex items-center gap-3">
+<span class="text-secondary font-body-sm text-body-sm">154 Pasang</span>
+<span class="font-title-sm text-title-sm text-primary">Rp 11.550.000</span>
+<span class="font-label-sm text-label-sm text-primary font-bold bg-surface-container px-2 py-0.5 rounded-full">24.0%</span>
+</div>
+</div>
+<div class="w-full h-2.5 bg-surface-container rounded-full overflow-hidden">
+<div class="h-full bg-primary-container rounded-full" style="width: 24.0%"></div>
+</div>
+</div>
+<!-- Item 3 -->
+<div class="space-y-1.5">
+<div class="flex items-center justify-between font-body-md text-body-md">
+<span class="font-semibold text-primary">3. Suede &amp; Leather Treatment</span>
+<div class="flex items-center gap-3">
+<span class="text-secondary font-body-sm text-body-sm">96 Pasang</span>
+<span class="font-title-sm text-title-sm text-primary">Rp 3.360.000</span>
+<span class="font-label-sm text-label-sm text-primary font-bold bg-surface-container px-2 py-0.5 rounded-full">15.0%</span>
+</div>
+</div>
+<div class="w-full h-2.5 bg-surface-container rounded-full overflow-hidden">
+<div class="h-full bg-surface-tint rounded-full" style="width: 15.0%"></div>
+</div>
+</div>
+<!-- Item 4 -->
+<div class="space-y-1.5">
+<div class="flex items-center justify-between font-body-md text-body-md">
+<span class="font-semibold text-primary">4. Insole + Outsole Clean</span>
+<div class="flex items-center gap-3">
+<span class="text-secondary font-body-sm text-body-sm">52 Pasang</span>
+<span class="font-title-sm text-title-sm text-primary">Rp 1.560.000</span>
+<span class="font-label-sm text-label-sm text-primary font-bold bg-surface-container px-2 py-0.5 rounded-full">8.1%</span>
+</div>
+</div>
+<div class="w-full h-2.5 bg-surface-container rounded-full overflow-hidden">
+<div class="h-full bg-secondary rounded-full" style="width: 8.1%"></div>
+</div>
+</div>
+<!-- Item 5 -->
+<div class="space-y-1.5">
+<div class="flex items-center justify-between font-body-md text-body-md">
+<span class="font-semibold text-primary">5. Fast Clean Express</span>
+<div class="flex items-center gap-3">
+<span class="text-secondary font-body-sm text-body-sm">28 Pasang</span>
+<span class="font-title-sm text-title-sm text-primary">Rp 1.020.000</span>
+<span class="font-label-sm text-label-sm text-primary font-bold bg-surface-container px-2 py-0.5 rounded-full">4.3%</span>
+</div>
+</div>
+<div class="w-full h-2.5 bg-surface-container rounded-full overflow-hidden">
+<div class="h-full bg-secondary-fixed-dim rounded-full" style="width: 4.3%"></div>
+</div>
+</div>
+</div>
+</div>
+<div class="mt-6 pt-4 bg-surface-container/60 rounded-2xl p-4 flex items-center justify-between">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-base">insights</span>
+<span class="font-body-sm text-body-sm text-primary font-medium">Unyellowing menghasilkan kontribusi omset tertinggi per item (rata-rata Rp 75k).</span>
+</div>
+</div>
+</div>
+<!-- Payments & Channels Overview -->
+<div class="lg:col-span-5 flex flex-col gap-6">
+<!-- Payment Methods -->
+<div class="bg-surface-container-low rounded-3xl p-6 shadow-sm">
+<div class="flex items-center justify-between mb-4">
+<h2 class="font-title-lg text-title-lg text-primary">Metode Pembayaran</h2>
+<span class="font-body-sm text-body-sm text-secondary">590 Transaksi</span>
+</div>
+<!-- Proportion Stack Bar -->
+<div class="space-y-2 mb-4">
+<div class="h-3 w-full bg-surface-container rounded-full overflow-hidden flex">
+<div class="h-full bg-secondary" style="width: 46.4%" title="Cash"></div>
+<div class="h-full bg-primary" style="width: 53.6%" title="Non-Cash"></div>
+</div>
+<div class="flex justify-between font-label-sm text-label-sm text-secondary">
+<span class="">Tunai: 46.4%</span>
+<span class="">Non-Tunai: 53.6%</span>
+</div>
+</div>
+<div class="grid grid-cols-2 gap-3 mb-4">
+<div class="bg-surface-container p-3.5 rounded-2xl">
+<span class="font-label-sm text-label-sm text-secondary block">Tunai (Cash)</span>
+<span class="font-title-lg text-title-lg text-primary block mt-0.5">Rp 11.200.000</span>
+<span class="font-body-sm text-body-sm text-secondary mt-1 block">268 Transaksi</span>
+</div>
+<div class="bg-primary text-on-primary p-3.5 rounded-2xl">
+<span class="font-label-sm text-label-sm text-tertiary-fixed block">Non-Tunai Digital</span>
+<span class="font-title-lg text-title-lg text-white block mt-0.5">Rp 12.920.000</span>
+<span class="font-body-sm text-body-sm text-on-primary-container mt-1 block">322 Transaksi</span>
+</div>
+</div>
+<!-- Sub Breakdown -->
+<div class="space-y-2 pt-2">
+<div class="flex items-center justify-between font-body-sm text-body-sm">
+<span class="text-secondary flex items-center gap-1.5">
+<span class="w-2 h-2 rounded-full bg-primary"></span>
+              QRIS Toko (ShopeePay/GoPay/BCA)
+            </span>
+<span class="font-semibold text-primary">Rp 8.450.000</span>
+</div>
+<div class="flex items-center justify-between font-body-sm text-body-sm">
+<span class="text-secondary flex items-center gap-1.5">
+<span class="w-2 h-2 rounded-full bg-surface-tint"></span>
+              Transfer Bank (BCA Official)
+            </span>
+<span class="font-semibold text-primary">Rp 4.470.000</span>
+</div>
+</div>
+</div>
+<!-- Order Channels Distribution -->
+<div class="bg-surface-container-low rounded-3xl p-6 shadow-sm">
+<div class="flex items-center justify-between mb-4">
+<h2 class="font-title-lg text-title-lg text-primary">Saluran Pesanan</h2>
+<span class="font-label-sm text-label-sm text-secondary bg-surface-container px-2.5 py-0.5 rounded-full">Komposisi</span>
+</div>
+<div class="flex items-center gap-4">
+<div class="flex-1 bg-surface-container p-4 rounded-2xl flex items-center gap-3">
+<div class="w-10 h-10 rounded-xl bg-white flex items-center justify-center text-primary">
+<span class="material-symbols-outlined">storefront</span>
+</div>
+<div>
+<span class="font-label-sm text-label-sm text-secondary block">Walk-in Toko</span>
+<span class="font-title-lg text-title-lg text-primary">62%</span>
+<span class="font-body-sm text-body-sm text-secondary block">398 Pasang</span>
+</div>
+</div>
+<div class="flex-1 bg-surface-container p-4 rounded-2xl flex items-center gap-3">
+<div class="w-10 h-10 rounded-xl bg-white flex items-center justify-center text-primary">
+<span class="material-symbols-outlined">chat</span>
+</div>
+<div>
+<span class="font-label-sm text-label-sm text-secondary block">WhatsApp Bot</span>
+<span class="font-title-lg text-title-lg text-primary">38%</span>
+<span class="font-body-sm text-body-sm text-secondary block">244 Pasang</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Weekly Performance Breakdown Table -->
+<div class="bg-surface-container-low rounded-3xl p-6 shadow-sm">
+<div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-6">
+<div>
+<h2 class="font-title-lg text-title-lg text-primary">Kinerja Mingguan</h2>
+<span class="font-body-sm text-body-sm text-secondary">Rincian pendapatan dan status pelunasan per rentang minggu</span>
+</div>
+<div class="flex items-center gap-2">
+<span class="font-label-sm text-label-sm text-secondary bg-surface-container px-3 py-1 rounded-full">Januari 2026 (4 Siklus)</span>
+</div>
+</div>
+<div class="overflow-x-auto -mx-2">
+<table class="w-full text-left min-w-[620px]">
+<thead>
+<tr class="font-label-sm text-label-sm text-secondary uppercase tracking-wider">
+<th class="py-3 px-4">Periode Minggu</th>
+<th class="py-3 px-4">Volume</th>
+<th class="py-3 px-4">Total Omset</th>
+<th class="py-3 px-4">Sudah Lunas</th>
+<th class="py-3 px-4">Piutang</th>
+<th class="py-3 px-4 text-right">Tingkat Bayar</th>
+</tr>
+</thead>
+<tbody class="font-body-md text-body-md">
+<tr class="hover:bg-surface-container/40 transition-colors">
+<td class="py-3.5 px-4 font-semibold text-primary">Minggu 1 (1 - 7 Jan)</td>
+<td class="py-3.5 px-4 text-on-surface">148 Pasang</td>
+<td class="py-3.5 px-4 text-primary font-medium">Rp 6.210.000</td>
+<td class="py-3.5 px-4 text-primary">Rp 5.850.000</td>
+<td class="py-3.5 px-4 text-secondary">Rp 360.000</td>
+<td class="py-3.5 px-4 text-right">
+<span class="font-label-sm text-label-sm text-primary font-bold bg-surface-container px-2.5 py-0.5 rounded-full">94.2%</span>
+</td>
+</tr>
+<tr class="hover:bg-surface-container/40 transition-colors">
+<td class="py-3.5 px-4 font-semibold text-primary">Minggu 2 (8 - 14 Jan)</td>
+<td class="py-3.5 px-4 text-on-surface">162 Pasang</td>
+<td class="py-3.5 px-4 text-primary font-medium">Rp 6.780.000</td>
+<td class="py-3.5 px-4 text-primary">Rp 6.120.000</td>
+<td class="py-3.5 px-4 text-secondary">Rp 660.000</td>
+<td class="py-3.5 px-4 text-right">
+<span class="font-label-sm text-label-sm text-primary font-bold bg-surface-container px-2.5 py-0.5 rounded-full">90.3%</span>
+</td>
+</tr>
+<tr class="hover:bg-surface-container/40 transition-colors">
+<td class="py-3.5 px-4 font-semibold text-primary">Minggu 3 (15 - 21 Jan)</td>
+<td class="py-3.5 px-4 text-on-surface">175 Pasang</td>
+<td class="py-3.5 px-4 text-primary font-medium">Rp 7.340.000</td>
+<td class="py-3.5 px-4 text-primary">Rp 6.690.000</td>
+<td class="py-3.5 px-4 text-secondary">Rp 650.000</td>
+<td class="py-3.5 px-4 text-right">
+<span class="font-label-sm text-label-sm text-primary font-bold bg-surface-container px-2.5 py-0.5 rounded-full">91.1%</span>
+</td>
+</tr>
+<tr class="hover:bg-surface-container/40 transition-colors">
+<td class="py-3.5 px-4 font-semibold text-primary">Minggu 4 (22 - 31 Jan)</td>
+<td class="py-3.5 px-4 text-on-surface">157 Pasang</td>
+<td class="py-3.5 px-4 text-primary font-medium">Rp 6.520.000</td>
+<td class="py-3.5 px-4 text-primary">Rp 5.460.000</td>
+<td class="py-3.5 px-4 text-secondary">Rp 1.060.000</td>
+<td class="py-3.5 px-4 text-right">
+<span class="font-label-sm text-label-sm text-primary font-bold bg-surface-container px-2.5 py-0.5 rounded-full">83.7%</span>
+</td>
+</tr>
+</tbody>
+<tfoot>
+<tr class="bg-surface-container font-title-sm text-title-sm text-primary">
+<td class="py-3.5 px-4 rounded-l-2xl font-bold">Total Akumulasi Bulan Ini</td>
+<td class="py-3.5 px-4 font-bold">642 Pasang</td>
+<td class="py-3.5 px-4 font-bold">Rp 26.850.000</td>
+<td class="py-3.5 px-4 font-bold">Rp 24.120.000</td>
+<td class="py-3.5 px-4 font-bold text-secondary">Rp 2.730.000</td>
+<td class="py-3.5 px-4 text-right rounded-r-2xl font-bold">89.8%</td>
+</tr>
+</tfoot>
+</table>
+</div>
+</div>
+</div>
+<script>
+  // Simple micro-interaction for period buttons
+  document.querySelectorAll('button').forEach(btn => {
+    btn.addEventListener('click', function(e) {
+      if (this.textContent.includes('Segarkan')) {
+        this.classList.add('rotate-180');
+        setTimeout(() => this.classList.remove('rotate-180'), 400);
+      }
+    });
+  });
+</script></main>
+<!-- END: MainContent -->
+</div>
+<!-- END: MainContainer -->
+
+
+<div id="snapdom-sandbox" data-snapdom-sandbox="true" aria-hidden="true" style="position: absolute; left: -9999px; top: -9999px; width: 0px; height: 0px; overflow: hidden;"></div></body></html>

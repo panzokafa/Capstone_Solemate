@@ -1,0 +1,610 @@
+<!DOCTYPE html><html lang="en" style="width: 1280px; height: 1818px; overflow: hidden; position: relative;"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Solemate Shoes Clean - Dashboard Analytics</title>
+<!-- Tailwind CSS CDN with forms and container queries -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "surface-dim": "#dfd9d1",
+            "on-surface": "#1d1b16",
+            "secondary-fixed-dim": "#cdc6b9",
+            "on-secondary-fixed-variant": "#4b463d",
+            "tertiary": "#002544",
+            "secondary-container": "#e7dfd2",
+            "surface-container-high": "#ede7de",
+            "surface-variant": "#e7e2d9",
+            "inverse-primary": "#a6c9f9",
+            "surface-container": "#f3ede4",
+            "on-background": "#1d1b16",
+            "surface-container-highest": "#e7e2d9",
+            "outline": "#73777f",
+            "on-secondary-container": "#676258",
+            "tertiary-fixed": "#d2e4ff",
+            "surface-container-lowest": "#ffffff",
+            "inverse-surface": "#32302a",
+            "on-primary-container": "#83a6d4",
+            "on-primary": "#ffffff",
+            "on-error": "#ffffff",
+            "on-primary-fixed-variant": "#244871",
+            "inverse-on-surface": "#f6f0e7",
+            "on-surface-variant": "#43474e",
+            "on-tertiary": "#ffffff",
+            "background": "#fff9ef",
+            "primary-fixed-dim": "#a6c9f9",
+            "primary-container": "#133b63",
+            "tertiary-fixed-dim": "#a3c9fa",
+            "surface-bright": "#fff9ef",
+            "tertiary-container": "#0c3b64",
+            "error-container": "#ffdad6",
+            "on-tertiary-container": "#80a6d5",
+            "surface-tint": "#3d608a",
+            "on-tertiary-fixed": "#001c37",
+            "error": "#ba1a1a",
+            "surface": "#fff9ef",
+            "surface-container-low": "#f9f3ea",
+            "primary": "#002546",
+            "on-secondary": "#ffffff",
+            "on-primary-fixed": "#001c38",
+            "secondary-fixed": "#e9e1d5",
+            "primary-fixed": "#d3e4ff",
+            "outline-variant": "#c3c6cf",
+            "on-secondary-fixed": "#1e1b13",
+            "secondary": "#635e54",
+            "on-tertiary-fixed-variant": "#1f4972",
+            "on-error-container": "#93000a"
+          },
+          fontFamily: {
+            sans: ['Plus Jakarta Sans', 'Inter', 'system-ui', '-apple-system', 'sans-serif'],
+            outfit: ['Outfit', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800&amp;family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<style data-purpose="custom-layout">
+    body {
+      background-color: #ded6c9;
+      font-family: 'Plus Jakarta Sans', 'Inter', system-ui, -apple-system, sans-serif;
+      color: #1a2430;
+    }
+    /* Subtle scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #c7beaf;
+      border-radius: 9999px;
+    }
+    .custom-shadow {
+      box-shadow: 0 10px 30px -10px rgba(19, 59, 99, 0.08), 0 4px 12px -2px rgba(19, 59, 99, 0.04);
+    }
+    .navy-card-glow {
+      box-shadow: 0 14px 34px -8px rgba(0, 37, 70, 0.35), 0 4px 12px -2px rgba(19, 59, 99, 0.2);
+    }
+  </style>
+<meta content="web_dashboard" name="shell-type"></head>
+<body class="min-h-screen p-3 md:p-6 lg:p-8 flex items-center justify-center">
+<!-- BEGIN: MainContainer -->
+<!-- Outer Rounded Shell with warm artisanal craft tone -->
+<div class="w-full max-w-[1520px] bg-[#ebe3d7] rounded-[42px] p-4 lg:p-7 shadow-2xl border border-[#faf6ee] flex flex-col xl:flex-row gap-6 lg:gap-8 min-h-[920px]">
+<!-- BEGIN: Sidebar -->
+<aside class="w-full xl:w-64 flex-shrink-0 flex flex-col justify-between select-none py-2 px-1"><div>
+    <!-- Brand Logo -->
+    <div class="flex items-center gap-3 px-3 py-2 mb-7 cursor-pointer" data-purpose="brand-logo">
+      <div class="w-11 h-11 rounded-full bg-primary flex items-center justify-center text-on-primary shadow-sm flex-shrink-0">
+        <span class="material-symbols-outlined text-2xl">dry_cleaning</span>
+      </div>
+      <div class="flex flex-col">
+        <span class="font-extrabold text-xl tracking-tight text-primary font-outfit leading-none">Solemate</span>
+        <span class="text-[10px] font-bold tracking-[0.22em] text-[#526071] uppercase mt-0.5">Shoes Care Atelier</span>
+      </div>
+    </div>
+
+    <!-- Categorized Navigation Menu -->
+    <nav aria-label="Sidebar Menu" class="space-y-5">
+      <!-- Category 1: MENU UTAMA -->
+      <div>
+        <div class="px-4 pb-2 text-[10px] font-bold uppercase tracking-[0.18em] text-[#73777f]">Menu Utama</div>
+        <div class="space-y-1">
+          <a class="flex items-center gap-3.5 px-4 py-2.5 rounded-2xl text-[#526071] hover:bg-white/70 hover:text-[#002546] transition-all font-medium group" href="#">
+            <span class="material-symbols-outlined text-xl text-[#73777f] group-hover:text-[#002546]">grid_view</span>
+            <span class="text-[14px]">Dashboard</span>
+          </a>
+          <a class="flex items-center gap-3.5 px-4 py-2.5 rounded-2xl text-[#526071] hover:bg-white/70 hover:text-[#002546] transition-all font-medium group" href="#">
+            <span class="material-symbols-outlined text-xl text-[#73777f] group-hover:text-[#002546]">confirmation_number</span>
+            <span class="text-[14px]">Daftar Tiket</span>
+          </a>
+          <a class="flex items-center gap-3.5 px-4 py-2.5 rounded-2xl text-[#526071] hover:bg-white/70 hover:text-[#002546] transition-all font-medium group" href="#">
+            <span class="material-symbols-outlined text-xl text-[#73777f] group-hover:text-[#002546]">inventory_2</span>
+            <span class="text-[14px]">Katalog Layanan</span>
+          </a>
+        </div>
+      </div>
+
+      <!-- Category 2: LAPORAN & KEUANGAN -->
+      <div>
+        <div class="px-4 pb-2 text-[10px] font-bold uppercase tracking-[0.18em] text-[#73777f]">Laporan &amp; Keuangan</div>
+        <div class="space-y-1">
+          <a class="flex items-center gap-3.5 px-4 py-2.5 rounded-2xl text-[#526071] hover:bg-white/70 hover:text-[#002546] transition-all font-medium group" href="#">
+            <span class="material-symbols-outlined text-xl text-[#73777f] group-hover:text-[#002546]">calendar_today</span>
+            <span class="text-[14px]">Laporan Harian</span>
+          </a>
+          <a class="flex items-center gap-3.5 px-4 py-2.5 rounded-2xl text-[#526071] hover:bg-white/70 hover:text-[#002546] transition-all font-medium group" href="#">
+            <span class="material-symbols-outlined text-xl text-[#73777f] group-hover:text-[#002546]">assessment</span>
+            <span class="text-[14px]">Rekap Bulanan</span>
+          </a>
+        </div>
+      </div>
+
+      <!-- Category 3: OPERASIONAL -->
+      <div>
+        <div class="px-4 pb-2 text-[10px] font-bold uppercase tracking-[0.18em] text-[#73777f]">Operasional</div>
+        <div class="space-y-1">
+          <a class="flex items-center gap-3.5 px-4 py-2.5 rounded-2xl text-[#526071] hover:bg-white/70 hover:text-[#002546] transition-all font-medium group" href="#">
+            <span class="material-symbols-outlined text-xl text-[#73777f] group-hover:text-[#002546]">badge</span>
+            <span class="text-[14px]">Karyawan</span>
+          </a>
+          <!-- Active Item: Rekap Absensi -->
+          <a class="flex items-center gap-3.5 px-4 py-2.5 rounded-2xl bg-primary text-on-primary font-semibold shadow-sm transition-all" href="#">
+            <span class="material-symbols-outlined text-xl text-primary-fixed">how_to_reg</span>
+            <span class="text-[14px]">Rekap Absensi</span>
+          </a>
+        </div>
+      </div>
+    </nav>
+  </div>
+
+  <!-- Bottom Logout Button -->
+  <div class="pt-4 border-t border-[#d8cfbf]">
+    <a class="flex items-center gap-3.5 px-4 py-2.5 rounded-2xl text-[#ba1a1a] hover:bg-[#ffdad6]/60 transition-all font-medium group" href="#">
+      <span class="material-symbols-outlined text-xl text-[#ba1a1a] group-hover:translate-x-0.5 transition-transform">logout</span>
+      <span class="text-[14px] font-semibold">Keluar</span>
+    </a>
+  </div></aside>
+<!-- END: Sidebar -->
+<!-- BEGIN: MainContent -->
+<main class="flex-1 flex flex-col min-w-0"><div class="flex flex-col w-full gap-8">
+<script>
+    (function activateSidebarMenu() {
+      const links = document.querySelectorAll('aside nav a');
+      links.forEach((link) => {
+        const text = link.innerText.trim();
+        if (text.includes('Rekap Absensi')) {
+          link.className = 'flex items-center gap-3.5 px-4.5 py-3 rounded-2xl bg-primary-container text-on-primary font-semibold shadow-sm transition-all';
+          const icon = link.querySelector('.material-symbols-outlined');
+          if (icon) icon.className = 'material-symbols-outlined text-xl text-primary-fixed';
+        } else if (text.includes('Dashboard')) {
+          link.className = 'flex items-center gap-3.5 px-4.5 py-3 rounded-2xl text-on-surface-variant hover:bg-surface-container-lowest/70 hover:text-primary transition-all font-medium group';
+          const icon = link.querySelector('.material-symbols-outlined');
+          if (icon) icon.className = 'material-symbols-outlined text-xl text-outline group-hover:text-primary';
+        }
+      });
+    })();
+  </script>
+<!-- Top Header & Quick Actions -->
+<header class="flex flex-col xl:flex-row xl:items-end justify-between gap-6 pb-2">
+<div class="space-y-2">
+<div class="flex items-center gap-2 text-secondary font-label-sm uppercase tracking-wider">
+<span class="">Manajemen Tim</span>
+<span class="text-outline-variant">/</span>
+<span class="text-primary font-semibold">Rekap Absensi</span>
+</div>
+<h1 class="text-primary font-headline-lg font-bold tracking-tight">
+        Rekap Absensi Staf &amp; Teknisi
+      </h1>
+<p class="text-on-surface-variant font-body-md max-w-2xl">
+        Tinjau catatan jam kerja, tingkat ketepatan waktu, dan rekapitulasi kehadiran staf toko secara terpadu.
+      </p>
+</div>
+<!-- Date Range & Action Buttons -->
+<div class="flex flex-wrap items-center gap-3">
+<div class="flex items-center bg-secondary-container/60 p-1 rounded-full shadow-sm">
+<button class="px-4 py-2 rounded-full font-label-md bg-primary-container text-on-primary shadow-sm transition-all" type="button">
+          Bulan Ini (Jan 2026)
+        </button>
+<button class="px-4 py-2 rounded-full font-label-md text-on-secondary-container hover:text-primary transition-colors" type="button">
+          Bulan Lalu (Des 2025)
+        </button>
+<button class="px-4 py-2 rounded-full font-label-md text-on-secondary-container hover:text-primary flex items-center gap-1.5 transition-colors" type="button">
+<span class="material-symbols-outlined text-base">date_range</span>
+<span class="">Kustom</span>
+</button>
+</div>
+<div class="flex items-center gap-2.5">
+<button class="flex items-center gap-2 px-5 py-2.5 rounded-full font-label-md text-primary bg-surface-container-lowest shadow-sm hover:bg-surface-container transition-all" type="button">
+<span class="material-symbols-outlined text-lg">download</span>
+<span class="">Ekspor Presensi</span>
+</button>
+<button class="flex items-center gap-2 px-5 py-2.5 rounded-full font-label-md text-on-primary bg-primary-container shadow-md hover:bg-tertiary-container transition-all" type="button">
+<span class="material-symbols-outlined text-lg">refresh</span>
+<span class="">Segarkan Data</span>
+</button>
+</div>
+</div>
+</header>
+<!-- 4 KPI Metrics -->
+<section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+<!-- Card 1: Total Kehadiran -->
+<div class="bg-surface-container-lowest rounded-3xl p-6 shadow-sm flex flex-col justify-between relative overflow-hidden group hover:shadow-md transition-shadow">
+<div class="flex items-start justify-between">
+<div class="space-y-1">
+<span class="text-secondary font-label-sm uppercase tracking-wider">Total Kehadiran</span>
+<div class="text-primary font-headline-lg font-bold tracking-tight">119 <span class="font-title-sm text-secondary">Hari Kerja</span></div>
+</div>
+<div class="w-11 h-11 rounded-2xl bg-secondary-container flex items-center justify-center text-primary">
+<span class="material-symbols-outlined text-2xl">event_available</span>
+</div>
+</div>
+<div class="mt-5 pt-4 flex items-center justify-between">
+<div class="flex items-center gap-1.5 text-primary font-body-sm font-semibold">
+<span class="material-symbols-outlined text-base">check_circle</span>
+<span class="">96.8% Target</span>
+</div>
+<span class="text-on-surface-variant font-body-sm">Akumulasi shift</span>
+</div>
+</div>
+<!-- Card 2: Tepat Waktu -->
+<div class="bg-surface-container-lowest rounded-3xl p-6 shadow-sm flex flex-col justify-between relative overflow-hidden group hover:shadow-md transition-shadow">
+<div class="flex items-start justify-between">
+<div class="space-y-1">
+<span class="text-secondary font-label-sm uppercase tracking-wider">Tingkat Tepat Waktu</span>
+<div class="text-primary font-headline-lg font-bold tracking-tight">94.2%</div>
+</div>
+<div class="w-11 h-11 rounded-2xl bg-primary-fixed flex items-center justify-center text-primary">
+<span class="material-symbols-outlined text-2xl">schedule</span>
+</div>
+</div>
+<div class="mt-5 pt-4 flex items-center justify-between">
+<div class="flex items-center gap-1.5 text-primary font-body-sm font-semibold">
+<span class="material-symbols-outlined text-base">verified</span>
+<span class="">112 On-time</span>
+</div>
+<span class="text-on-surface-variant font-body-sm">Clock-in valid</span>
+</div>
+</div>
+<!-- Card 3: Keterlambatan -->
+<div class="bg-surface-container-lowest rounded-3xl p-6 shadow-sm flex flex-col justify-between relative overflow-hidden group hover:shadow-md transition-shadow">
+<div class="flex items-start justify-between">
+<div class="space-y-1">
+<span class="text-secondary font-label-sm uppercase tracking-wider">Keterlambatan</span>
+<div class="text-primary font-headline-lg font-bold tracking-tight">7 <span class="font-title-sm text-secondary">Catatan</span></div>
+</div>
+<div class="w-11 h-11 rounded-2xl bg-error-container flex items-center justify-center text-error">
+<span class="material-symbols-outlined text-2xl">warning</span>
+</div>
+</div>
+<div class="mt-5 pt-4 flex items-center justify-between">
+<div class="flex items-center gap-1.5 text-on-surface-variant font-body-sm">
+<span class="material-symbols-outlined text-base text-secondary">timer</span>
+<span class="">Rata-rata 8 menit</span>
+</div>
+<span class="text-on-surface-variant font-body-sm">Batas toleransi</span>
+</div>
+</div>
+<!-- Card 4: Jam Kerja -->
+<div class="bg-surface-container-lowest rounded-3xl p-6 shadow-sm flex flex-col justify-between relative overflow-hidden group hover:shadow-md transition-shadow">
+<div class="flex items-start justify-between">
+<div class="space-y-1">
+<span class="text-secondary font-label-sm uppercase tracking-wider">Total Operasional</span>
+<div class="text-primary font-headline-lg font-bold tracking-tight">952 <span class="font-title-sm text-secondary">Jam Kerja</span></div>
+</div>
+<div class="w-11 h-11 rounded-2xl bg-tertiary-fixed flex items-center justify-center text-tertiary">
+<span class="material-symbols-outlined text-2xl">work_history</span>
+</div>
+</div>
+<div class="mt-5 pt-4 flex items-center justify-between">
+<div class="flex items-center gap-1.5 text-primary font-body-sm font-semibold">
+<span class="material-symbols-outlined text-base">group</span>
+<span class="">Tim Workshop</span>
+</div>
+<span class="text-on-surface-variant font-body-sm">Efektif Jan 2026</span>
+</div>
+</div>
+</section>
+<!-- Filter Controls -->
+
+<!-- Attendance Log Table Section -->
+<section class="bg-surface-container-lowest rounded-3xl shadow-sm overflow-hidden flex flex-col">
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-surface-container-low text-secondary font-label-sm uppercase tracking-wider">
+<th class="py-4.5 px-6 font-semibold">Tanggal &amp; Hari</th>
+<th class="py-4.5 px-6 font-semibold">Nama Karyawan</th>
+<th class="py-4.5 px-6 font-semibold">Shift Ditugaskan</th>
+<th class="py-4.5 px-6 font-semibold">Jam Masuk</th>
+<th class="py-4.5 px-6 font-semibold">Jam Pulang</th>
+<th class="py-4.5 px-6 font-semibold">Total Durasi</th>
+<th class="py-4.5 px-6 font-semibold text-right">Status Kehadiran</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-surface-container">
+<!-- Row 1: Rian Hidayat -->
+<tr class="hover:bg-surface-container-low/40 transition-colors">
+<td class="py-4 px-6 font-body-md text-on-surface whitespace-nowrap">
+<div class="font-semibold text-primary">Sen, 27 Jan 2026</div>
+<div class="text-outline font-body-sm">Hari Kerja Reguler</div>
+</td>
+<td class="py-4 px-6 whitespace-nowrap">
+<div class="flex items-center gap-3">
+<div class="w-9 h-9 rounded-full bg-primary-fixed flex items-center justify-center text-primary font-bold font-label-md">
+                  RH
+                </div>
+<div>
+<div class="font-title-sm text-primary">Rian Hidayat</div>
+<div class="text-outline font-body-sm">EMP-001 • Senior Technician</div>
+</div>
+</div>
+</td>
+<td class="py-4 px-6 whitespace-nowrap">
+<div class="font-body-md text-on-surface">Pagi (09:00 - 17:00)</div>
+<div class="text-outline font-body-sm">Workshop Utama</div>
+</td>
+<td class="py-4 px-6 whitespace-nowrap">
+<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-surface-container font-label-sm text-primary font-semibold">
+<span class="material-symbols-outlined text-sm text-secondary">login</span>
+                08:42 WIB
+              </span>
+</td>
+<td class="py-4 px-6 whitespace-nowrap font-body-md text-on-surface">
+<span class="text-outline">--:-- WIB</span>
+</td>
+<td class="py-4 px-6 whitespace-nowrap font-body-md text-primary font-semibold">
+              Sedang Berjalan
+            </td>
+<td class="py-4 px-6 whitespace-nowrap text-right">
+<span class="inline-flex items-center gap-1 px-3.5 py-1.5 rounded-full font-label-sm bg-primary-container text-on-primary">
+<span class="material-symbols-outlined text-xs">sync</span>
+                Sedang Bertugas
+              </span>
+</td>
+</tr>
+<!-- Row 2: Dimas Saputra -->
+<tr class="hover:bg-surface-container-low/40 transition-colors">
+<td class="py-4 px-6 font-body-md text-on-surface whitespace-nowrap">
+<div class="font-semibold text-primary">Sen, 27 Jan 2026</div>
+<div class="text-outline font-body-sm">Hari Kerja Reguler</div>
+</td>
+<td class="py-4 px-6 whitespace-nowrap">
+<div class="flex items-center gap-3">
+<div class="w-9 h-9 rounded-full bg-secondary-container flex items-center justify-center text-primary font-bold font-label-md">
+                  DS
+                </div>
+<div>
+<div class="font-title-sm text-primary">Dimas Saputra</div>
+<div class="text-outline font-body-sm">EMP-002 • Deep Clean Specialist</div>
+</div>
+</div>
+</td>
+<td class="py-4 px-6 whitespace-nowrap">
+<div class="font-body-md text-on-surface">Workshop (10:00 - 19:00)</div>
+<div class="text-outline font-body-sm">Cuci &amp; Treatment</div>
+</td>
+<td class="py-4 px-6 whitespace-nowrap">
+<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-error-container/70 font-label-sm text-error font-semibold">
+<span class="material-symbols-outlined text-sm">schedule</span>
+                10:08 WIB
+              </span>
+</td>
+<td class="py-4 px-6 whitespace-nowrap font-body-md text-on-surface">
+<span class="text-outline">--:-- WIB</span>
+</td>
+<td class="py-4 px-6 whitespace-nowrap font-body-md text-primary font-semibold">
+              Sedang Berjalan
+            </td>
+<td class="py-4 px-6 whitespace-nowrap text-right">
+<span class="inline-flex items-center gap-1 px-3.5 py-1.5 rounded-full font-label-sm bg-secondary-container text-on-secondary-container font-semibold">
+<span class="material-symbols-outlined text-xs">history_toggle_off</span>
+                Terlambat (+8 mnt)
+              </span>
+</td>
+</tr>
+<!-- Row 3: Siti Nurhaliza -->
+<tr class="hover:bg-surface-container-low/40 transition-colors">
+<td class="py-4 px-6 font-body-md text-on-surface whitespace-nowrap">
+<div class="font-semibold text-primary">Min, 26 Jan 2026</div>
+<div class="text-outline font-body-sm">Weekend Shift</div>
+</td>
+<td class="py-4 px-6 whitespace-nowrap">
+<div class="flex items-center gap-3">
+<div class="w-9 h-9 rounded-full bg-tertiary-fixed flex items-center justify-center text-tertiary font-bold font-label-md">
+                  SN
+                </div>
+<div>
+<div class="font-title-sm text-primary">Siti Nurhaliza</div>
+<div class="text-outline font-body-sm">EMP-003 • Front Desk &amp; Cashier</div>
+</div>
+</div>
+</td>
+<td class="py-4 px-6 whitespace-nowrap">
+<div class="font-body-md text-on-surface">Pagi (09:00 - 17:00)</div>
+<div class="text-outline font-body-sm">Front Service</div>
+</td>
+<td class="py-4 px-6 whitespace-nowrap">
+<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-surface-container font-label-sm text-primary font-semibold">
+<span class="material-symbols-outlined text-sm text-secondary">login</span>
+                08:50 WIB
+              </span>
+</td>
+<td class="py-4 px-6 whitespace-nowrap font-body-md text-on-surface">
+              17:05 WIB
+            </td>
+<td class="py-4 px-6 whitespace-nowrap font-body-md text-on-surface">
+              8 Jam 15 Mnt
+            </td>
+<td class="py-4 px-6 whitespace-nowrap text-right">
+<span class="inline-flex items-center gap-1 px-3.5 py-1.5 rounded-full font-label-sm bg-primary text-on-primary">
+<span class="material-symbols-outlined text-xs">check</span>
+                Tepat Waktu
+              </span>
+</td>
+</tr>
+<!-- Row 4: Fajar Ramadhan -->
+<tr class="hover:bg-surface-container-low/40 transition-colors">
+<td class="py-4 px-6 font-body-md text-on-surface whitespace-nowrap">
+<div class="font-semibold text-primary">Min, 26 Jan 2026</div>
+<div class="text-outline font-body-sm">Weekend Shift</div>
+</td>
+<td class="py-4 px-6 whitespace-nowrap">
+<div class="flex items-center gap-3">
+<div class="w-9 h-9 rounded-full bg-secondary-fixed flex items-center justify-center text-primary font-bold font-label-md">
+                  FR
+                </div>
+<div>
+<div class="font-title-sm text-primary">Fajar Ramadhan</div>
+<div class="text-outline font-body-sm">EMP-004 • Repaint &amp; Unyellowing</div>
+</div>
+</div>
+</td>
+<td class="py-4 px-6 whitespace-nowrap">
+<div class="font-body-md text-on-surface">Sore (13:00 - 21:00)</div>
+<div class="text-outline font-body-sm">Workshop Malam</div>
+</td>
+<td class="py-4 px-6 whitespace-nowrap">
+<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-surface-container font-label-sm text-primary font-semibold">
+<span class="material-symbols-outlined text-sm text-secondary">login</span>
+                12:54 WIB
+              </span>
+</td>
+<td class="py-4 px-6 whitespace-nowrap font-body-md text-on-surface">
+              21:04 WIB
+            </td>
+<td class="py-4 px-6 whitespace-nowrap font-body-md text-on-surface">
+              8 Jam 10 Mnt
+            </td>
+<td class="py-4 px-6 whitespace-nowrap text-right">
+<span class="inline-flex items-center gap-1 px-3.5 py-1.5 rounded-full font-label-sm bg-primary text-on-primary">
+<span class="material-symbols-outlined text-xs">check</span>
+                Tepat Waktu
+              </span>
+</td>
+</tr>
+<!-- Row 5: Bagas Pratama (Cuti) -->
+<tr class="hover:bg-surface-container-low/40 transition-colors">
+<td class="py-4 px-6 font-body-md text-on-surface whitespace-nowrap">
+<div class="font-semibold text-primary">Sab, 25 Jan 2026</div>
+<div class="text-outline font-body-sm">Hari Kerja Reguler</div>
+</td>
+<td class="py-4 px-6 whitespace-nowrap">
+<div class="flex items-center gap-3">
+<div class="w-9 h-9 rounded-full bg-surface-container-high flex items-center justify-center text-secondary font-bold font-label-md">
+                  BP
+                </div>
+<div>
+<div class="font-title-sm text-primary">Bagas Pratama</div>
+<div class="text-outline font-body-sm">EMP-005 • Junior Technician</div>
+</div>
+</div>
+</td>
+<td class="py-4 px-6 whitespace-nowrap">
+<div class="font-body-md text-secondary">Libur Jadwal</div>
+<div class="text-outline font-body-sm">Shift Off Bergilir</div>
+</td>
+<td class="py-4 px-6 whitespace-nowrap font-body-md text-outline">
+              --:--
+            </td>
+<td class="py-4 px-6 whitespace-nowrap font-body-md text-outline">
+              --:--
+            </td>
+<td class="py-4 px-6 whitespace-nowrap font-body-md text-outline">
+              0 Jam
+            </td>
+<td class="py-4 px-6 whitespace-nowrap text-right">
+<span class="inline-flex items-center gap-1 px-3.5 py-1.5 rounded-full font-label-sm bg-surface-container-high text-secondary font-semibold">
+<span class="material-symbols-outlined text-xs">beach_access</span>
+                Libur Shift
+              </span>
+</td>
+</tr>
+<!-- Row 6: Rian Hidayat (Sabtu) -->
+<tr class="hover:bg-surface-container-low/40 transition-colors">
+<td class="py-4 px-6 font-body-md text-on-surface whitespace-nowrap">
+<div class="font-semibold text-primary">Sab, 25 Jan 2026</div>
+<div class="text-outline font-body-sm">Hari Kerja Reguler</div>
+</td>
+<td class="py-4 px-6 whitespace-nowrap">
+<div class="flex items-center gap-3">
+<div class="w-9 h-9 rounded-full bg-primary-fixed flex items-center justify-center text-primary font-bold font-label-md">
+                  RH
+                </div>
+<div>
+<div class="font-title-sm text-primary">Rian Hidayat</div>
+<div class="text-outline font-body-sm">EMP-001 • Senior Technician</div>
+</div>
+</div>
+</td>
+<td class="py-4 px-6 whitespace-nowrap">
+<div class="font-body-md text-on-surface">Pagi (09:00 - 17:00)</div>
+<div class="text-outline font-body-sm">Workshop Utama</div>
+</td>
+<td class="py-4 px-6 whitespace-nowrap">
+<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-surface-container font-label-sm text-primary font-semibold">
+<span class="material-symbols-outlined text-sm text-secondary">login</span>
+                08:52 WIB
+              </span>
+</td>
+<td class="py-4 px-6 whitespace-nowrap font-body-md text-on-surface">
+              17:15 WIB
+            </td>
+<td class="py-4 px-6 whitespace-nowrap font-body-md text-on-surface">
+              8 Jam 23 Mnt
+            </td>
+<td class="py-4 px-6 whitespace-nowrap text-right">
+<span class="inline-flex items-center gap-1 px-3.5 py-1.5 rounded-full font-label-sm bg-primary text-on-primary">
+<span class="material-symbols-outlined text-xs">check</span>
+                Tepat Waktu
+              </span>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- Clean Pagination Footer -->
+<div class="px-6 py-4 bg-surface-container-low flex flex-col sm:flex-row items-center justify-between gap-4">
+<span class="text-on-surface-variant font-body-sm">
+        Menampilkan <strong class="font-semibold text-primary">1 - 6</strong> dari <strong class="font-semibold text-primary">119</strong> catatan presensi
+      </span>
+<div class="flex items-center gap-1.5">
+<button class="w-8 h-8 rounded-full flex items-center justify-center text-outline hover:text-primary hover:bg-surface-container transition-colors disabled:opacity-40" disabled="" type="button">
+<span class="material-symbols-outlined text-lg">chevron_left</span>
+</button>
+<button class="w-8 h-8 rounded-full bg-primary-container text-on-primary font-label-md flex items-center justify-center shadow-sm" type="button">
+          1
+        </button>
+<button class="w-8 h-8 rounded-full text-secondary font-label-md flex items-center justify-center hover:bg-surface-container transition-colors" type="button">
+          2
+        </button>
+<button class="w-8 h-8 rounded-full text-secondary font-label-md flex items-center justify-center hover:bg-surface-container transition-colors" type="button">
+          3
+        </button>
+<span class="text-outline px-1">...</span>
+<button class="w-8 h-8 rounded-full text-secondary font-label-md flex items-center justify-center hover:bg-surface-container transition-colors" type="button">
+          20
+        </button>
+<button class="w-8 h-8 rounded-full flex items-center justify-center text-secondary hover:text-primary hover:bg-surface-container transition-colors" type="button">
+<span class="material-symbols-outlined text-lg">chevron_right</span>
+</button>
+</div>
+</div>
+</section>
+</div></main>
+<!-- END: MainContent -->
+</div>
+<!-- END: MainContainer -->
+
+
+</body></html>

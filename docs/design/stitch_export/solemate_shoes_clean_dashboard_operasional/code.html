@@ -1,0 +1,767 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Solemate Shoes Clean - Dashboard Analytics</title>
+<!-- Tailwind CSS CDN with forms and container queries -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "surface-dim": "#dfd9d1",
+            "on-surface": "#1d1b16",
+            "secondary-fixed-dim": "#cdc6b9",
+            "on-secondary-fixed-variant": "#4b463d",
+            "tertiary": "#002544",
+            "secondary-container": "#e7dfd2",
+            "surface-container-high": "#ede7de",
+            "surface-variant": "#e7e2d9",
+            "inverse-primary": "#a6c9f9",
+            "surface-container": "#f3ede4",
+            "on-background": "#1d1b16",
+            "surface-container-highest": "#e7e2d9",
+            "outline": "#73777f",
+            "on-secondary-container": "#676258",
+            "tertiary-fixed": "#d2e4ff",
+            "surface-container-lowest": "#ffffff",
+            "inverse-surface": "#32302a",
+            "on-primary-container": "#83a6d4",
+            "on-primary": "#ffffff",
+            "on-error": "#ffffff",
+            "on-primary-fixed-variant": "#244871",
+            "inverse-on-surface": "#f6f0e7",
+            "on-surface-variant": "#43474e",
+            "on-tertiary": "#ffffff",
+            "background": "#fff9ef",
+            "primary-fixed-dim": "#a6c9f9",
+            "primary-container": "#133b63",
+            "tertiary-fixed-dim": "#a3c9fa",
+            "surface-bright": "#fff9ef",
+            "tertiary-container": "#0c3b64",
+            "error-container": "#ffdad6",
+            "on-tertiary-container": "#80a6d5",
+            "surface-tint": "#3d608a",
+            "on-tertiary-fixed": "#001c37",
+            "error": "#ba1a1a",
+            "surface": "#fff9ef",
+            "surface-container-low": "#f9f3ea",
+            "primary": "#002546",
+            "on-secondary": "#ffffff",
+            "on-primary-fixed": "#001c38",
+            "secondary-fixed": "#e9e1d5",
+            "primary-fixed": "#d3e4ff",
+            "outline-variant": "#c3c6cf",
+            "on-secondary-fixed": "#1e1b13",
+            "secondary": "#635e54",
+            "on-tertiary-fixed-variant": "#1f4972",
+            "on-error-container": "#93000a"
+          },
+          fontFamily: {
+            sans: ['Plus Jakarta Sans', 'Inter', 'system-ui', '-apple-system', 'sans-serif'],
+            outfit: ['Outfit', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800&amp;family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style data-purpose="custom-layout">
+    body {
+      background-color: #ded6c9;
+      font-family: 'Plus Jakarta Sans', 'Inter', system-ui, -apple-system, sans-serif;
+      color: #1a2430;
+    }
+    /* Subtle scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #c7beaf;
+      border-radius: 9999px;
+    }
+    .custom-shadow {
+      box-shadow: 0 10px 30px -10px rgba(19, 59, 99, 0.08), 0 4px 12px -2px rgba(19, 59, 99, 0.04);
+    }
+    .navy-card-glow {
+      box-shadow: 0 14px 34px -8px rgba(0, 37, 70, 0.35), 0 4px 12px -2px rgba(19, 59, 99, 0.2);
+    }
+  </style>
+<meta content="web_dashboard" name="shell-type"/></head>
+<body class="min-h-screen p-3 md:p-6 lg:p-8 flex items-center justify-center">
+<!-- BEGIN: MainContainer -->
+<!-- Outer Rounded Shell with warm artisanal craft tone -->
+<div class="w-full max-w-[1520px] bg-[#ebe3d7] rounded-[42px] p-4 lg:p-7 shadow-2xl border border-[#faf6ee] flex flex-col xl:flex-row gap-6 lg:gap-8 min-h-[920px]">
+<!-- BEGIN: Sidebar -->
+<aside class="w-full xl:w-64 flex-shrink-0 flex flex-col justify-between select-none py-2 px-1">
+<div>
+<!-- Logo -->
+<div class="flex items-center gap-3 px-3 py-2 mb-7 cursor-pointer" data-purpose="brand-logo">
+<img alt="Solemate Shoes Clean" class="w-11 h-11 rounded-full object-cover shadow-sm ring-2 ring-[#002546]/20 bg-white" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDqatKEz-WB5XeuXIgWwK8VRGxRPe4sICiJpfsWcKgY1yAgkRCDMH43ImYzanChqjeaYjXL0CMA01SEvS9S99449hCyOhdoVxipsbYcMlZoQCp_50c8ElMQ_DHw0lTUQTxlbOrNdAD9pmXGrWl9wzzXEFi_dok8XL2uFLS7Hs0zlIQtw0c5qK2jp5jUiP0IDLBni9UntpgRj7AsuM_8-al-Xg8_WfHI7UD9ak1-tjZ566Tb4D--iSiy"/>
+<div class="flex flex-col">
+<span class="font-extrabold text-xl tracking-tight text-[#002546] font-outfit leading-none">Solemate</span>
+<span class="text-[10px] font-bold tracking-[0.22em] text-[#526071] uppercase mt-0.5">Shoes Clean</span>
+</div>
+</div>
+<!-- Navigation Links - EXACT MATCH PRD Section 6 for Owner -->
+<nav aria-label="Sidebar Menu" class="space-y-1.5">
+<!-- 1. Dashboard (Active) -->
+<a class="flex items-center gap-3.5 px-4.5 py-3.5 rounded-2xl bg-[#002546] text-white font-semibold shadow-md hover:bg-[#0c3b64] transition-all" href="#">
+<span class="material-symbols-outlined text-xl text-[#d3e4ff]">dashboard</span>
+<span class="text-[15px] font-medium tracking-tight">Dashboard</span>
+</a>
+<!-- 2. Daftar Tiket (Daftar Tiket Pesanan) -->
+<a class="flex items-center gap-3.5 px-4.5 py-3 rounded-2xl text-[#526071] hover:bg-white/70 hover:text-[#002546] transition-all font-medium group" href="#">
+<span class="material-symbols-outlined text-xl text-[#73777f] group-hover:text-[#002546]">confirmation_number</span>
+<span class="text-[15px]">Daftar Tiket</span>
+</a>
+<!-- 3. Laporan Harian (Laporan Harian Operasional) -->
+<a class="flex items-center gap-3.5 px-4.5 py-3 rounded-2xl text-[#526071] hover:bg-white/70 hover:text-[#002546] transition-all font-medium group" href="#">
+<span class="material-symbols-outlined text-xl text-[#73777f] group-hover:text-[#002546]">event_note</span>
+<span class="text-[15px]">Laporan Harian</span>
+</a>
+<!-- 4. Rekap Bulanan -->
+<a class="flex items-center gap-3.5 px-4.5 py-3 rounded-2xl text-[#526071] hover:bg-white/70 hover:text-[#002546] transition-all font-medium group" href="#">
+<span class="material-symbols-outlined text-xl text-[#73777f] group-hover:text-[#002546]">calendar_month</span>
+<span class="text-[15px]">Rekap Bulanan</span>
+</a>
+<!-- 5. Katalog (Katalog Layanan & Harga) -->
+<a class="flex items-center gap-3.5 px-4.5 py-3 rounded-2xl text-[#526071] hover:bg-white/70 hover:text-[#002546] transition-all font-medium group" href="#">
+<span class="material-symbols-outlined text-xl text-[#73777f] group-hover:text-[#002546]">style</span>
+<span class="text-[15px]">Katalog Layanan</span>
+</a>
+<!-- 6. Karyawan -->
+<a class="flex items-center gap-3.5 px-4.5 py-3 rounded-2xl text-[#526071] hover:bg-white/70 hover:text-[#002546] transition-all font-medium group" href="#">
+<span class="material-symbols-outlined text-xl text-[#73777f] group-hover:text-[#002546]">badge</span>
+<span class="text-[15px]">Karyawan</span>
+</a>
+<!-- 7. Rekap Absensi -->
+<a class="flex items-center gap-3.5 px-4.5 py-3 rounded-2xl text-[#526071] hover:bg-white/70 hover:text-[#002546] transition-all font-medium group" href="#">
+<span class="material-symbols-outlined text-xl text-[#73777f] group-hover:text-[#002546]">fact_check</span>
+<span class="text-[15px]">Rekap Absensi</span>
+</a>
+</nav>
+</div>
+<!-- 8. Keluar (Logout) at bottom according to PRD -->
+<div class="pt-4 border-t border-[#d8cfbf]">
+<a class="flex items-center gap-3.5 px-4.5 py-3 rounded-2xl text-[#8a3333] hover:bg-[#ffdad6]/60 transition-all font-medium group" href="#">
+<span class="material-symbols-outlined text-xl text-[#ba1a1a] group-hover:translate-x-0.5 transition-transform">logout</span>
+<span class="text-[15px] font-semibold">Keluar</span>
+</a>
+</div>
+</aside>
+<!-- END: Sidebar -->
+<!-- BEGIN: MainContent -->
+<main class="flex-1 flex flex-col min-w-0"><div class="flex flex-col w-full space-y-6">
+<!-- TOP CONTEXT BAR: GREETING & OUTLET STATUS -->
+<section class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-white/95 backdrop-blur p-6 rounded-2xl border border-[#002546]/10 shadow-sm">
+<div class="flex items-center gap-4">
+<div class="relative w-14 h-14 rounded-full overflow-hidden bg-surface-container flex-shrink-0 ring-2 ring-[#002546]/20">
+<img alt="Solemate Official Logo" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDqatKEz-WB5XeuXIgWwK8VRGxRPe4sICiJpfsWcKgY1yAgkRCDMH43ImYzanChqjeaYjXL0CMA01SEvS9S99449hCyOhdoVxipsbYcMlZoQCp_50c8ElMQ_DHw0lTUQTxlbOrNdAD9pmXGrWl9wzzXEFi_dok8XL2uFLS7Hs0zlIQtw0c5qK2jp5jUiP0IDLBni9UntpgRj7AsuM_8-al-Xg8_WfHI7UD9ak1-tjZ566Tb4D--iSiy"/>
+</div>
+<div>
+<div class="flex items-center gap-2">
+<h1 class="font-outfit font-bold text-2xl text-[#002546] tracking-tight">Halo, Josiah (Owner)</h1>
+<span class="text-xl">👋</span>
+<span class="px-2.5 py-0.5 rounded-full bg-[#002546] text-[#d3e4ff] text-[11px] font-bold tracking-wider uppercase">OWNER VIEW</span>
+</div>
+<div class="flex flex-wrap items-center gap-3 mt-1 text-[#526071] text-sm">
+<span class="flex items-center gap-1.5 font-medium text-[#002546]">
+<span class="material-symbols-outlined text-sm text-[#133b63]">calendar_today</span>
+            Kamis, 15 Januari 2026
+          </span>
+<span class="text-[#c3c6cf]">•</span>
+<span class="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#eef3f9] text-[#133b63] font-semibold text-xs border border-[#133b63]/15">
+<span class="w-2 h-2 rounded-full bg-emerald-600 animate-pulse"></span>
+            Outlet Bojongsoang • Buka 09.00 - 21.00
+          </span>
+<span class="text-[#c3c6cf]">•</span>
+<span class="text-[#635e54] text-xs font-medium">Shift Siang Aktif (Rian &amp; Dita)</span>
+</div>
+</div>
+</div>
+<!-- ACTION BUTTONS -->
+<div class="flex items-center gap-3 self-start lg:self-center">
+<button class="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white border border-[#002546]/20 text-[#002546] font-semibold text-sm hover:bg-[#f3ede4] transition-colors shadow-sm" type="button">
+<span class="material-symbols-outlined text-lg text-[#133b63]">swap_horiz</span>
+        Switch ke Kasir
+      </button>
+<button class="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#002546] hover:bg-[#0c3b64] text-white font-semibold text-sm transition-all shadow-md hover:shadow-lg" type="button">
+<span class="material-symbols-outlined text-lg text-[#d3e4ff]">add_circle</span>
+        + Buat Tiket Baru
+      </button>
+</div>
+</section>
+<!-- OPERATIONAL SUMMARY METRICS CARDS (TODAY) - REDESIGNED WITH PROMINENT NAVY ACCENTS -->
+<section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+<!-- Card 1: Total Masuk (PRIMARY HERO CARD - RICH NAVY BLUE) -->
+<div class="bg-gradient-to-br from-[#002546] to-[#0c3b64] text-white p-5 rounded-2xl navy-card-glow relative overflow-hidden flex flex-col justify-between border border-[#133b63]">
+<!-- Subtle decorative watermark accent -->
+<div class="absolute -right-3 -bottom-3 opacity-10 text-white select-none pointer-events-none">
+<span class="material-symbols-outlined text-8xl">footprint</span>
+</div>
+<div class="relative z-10">
+<div class="flex items-center justify-between">
+<span class="text-[11px] font-bold uppercase tracking-wider text-[#d3e4ff]">Total Masuk Hari Ini</span>
+<div class="w-10 h-10 rounded-xl bg-white/15 backdrop-blur flex items-center justify-center text-[#d3e4ff] border border-white/20">
+<span class="material-symbols-outlined text-xl">footprint</span>
+</div>
+</div>
+<div class="mt-4">
+<div class="flex items-baseline gap-2">
+<span class="font-outfit font-extrabold text-4xl text-white leading-none">28</span>
+<span class="text-sm font-medium text-[#d3e4ff]">Pasang Sepatu</span>
+</div>
+<div class="flex items-center gap-2 mt-3">
+<span class="px-2 py-0.5 rounded-full bg-emerald-400/20 text-emerald-300 font-bold text-xs flex items-center gap-0.5 border border-emerald-400/30">
+<span class="material-symbols-outlined text-xs">trending_up</span> +14%
+            </span>
+<span class="text-xs text-[#a6c9f9]">vs Rabu kemarin (24 pasang)</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Card 2: Belum Bayar (Alert Kasir) - NAVY THEMED WITH AMBER / RED EMPHASIS -->
+<div class="bg-white p-5 rounded-2xl shadow-sm border-t-4 border-t-[#ba1a1a] border border-[#002546]/10 flex flex-col justify-between relative">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2">
+<span class="text-[11px] font-bold uppercase tracking-wider text-[#002546]">Belum Bayar (Kasir)</span>
+</div>
+<div class="w-10 h-10 rounded-xl bg-[#002546] flex items-center justify-center text-white shadow-sm">
+<span class="material-symbols-outlined text-xl">payments</span>
+</div>
+</div>
+<div class="mt-4">
+<div class="flex items-baseline gap-2">
+<span class="font-outfit font-extrabold text-4xl text-[#ba1a1a] leading-none">6</span>
+<span class="text-sm font-medium text-[#635e54]">Tiket Tertunda</span>
+</div>
+<div class="flex items-center justify-between mt-3 pt-2 border-t border-[#ede7de]">
+<span class="text-sm font-bold text-[#002546]">Rp 310.000</span>
+<span class="px-2.5 py-0.5 rounded-full bg-[#ffdad6] text-[#93000a] text-xs font-bold">
+            Butuh Follow-Up
+          </span>
+</div>
+</div>
+</div>
+<!-- Card 3: Sedang Dicuci / Diproses - CRISP WHITE WITH PROMINENT NAVY DETAILS -->
+<div class="bg-white p-5 rounded-2xl shadow-sm border-t-4 border-t-[#002546] border border-[#002546]/10 flex flex-col justify-between">
+<div class="flex items-center justify-between">
+<span class="text-[11px] font-bold uppercase tracking-wider text-[#002546]">Sedang Diproses</span>
+<div class="w-10 h-10 rounded-xl bg-[#002546] flex items-center justify-center text-white shadow-sm">
+<span class="material-symbols-outlined text-xl">water_drop</span>
+</div>
+</div>
+<div class="mt-4">
+<div class="flex items-baseline gap-2">
+<span class="font-outfit font-extrabold text-4xl text-[#002546] leading-none">14</span>
+<span class="text-sm font-medium text-[#635e54]">Pasang di Workshop</span>
+</div>
+<div class="w-full bg-[#e7e2d9] rounded-full h-2 mt-3 overflow-hidden">
+<div class="bg-[#002546] h-full rounded-full" style="width: 50%;"></div>
+</div>
+<div class="flex justify-between items-center mt-2 text-xs text-[#526071]">
+<span class="font-semibold text-[#002546]">8 Deep Clean</span>
+<span class="text-[#635e54]">6 Treatment Khusus</span>
+</div>
+</div>
+</div>
+<!-- Card 4: Siap Diambil - CRISP WHITE WITH PROMINENT NAVY ACCENT -->
+<div class="bg-white p-5 rounded-2xl shadow-sm border-t-4 border-t-[#133b63] border border-[#002546]/10 flex flex-col justify-between">
+<div class="flex items-center justify-between">
+<span class="text-[11px] font-bold uppercase tracking-wider text-[#002546]">Siap Diambil</span>
+<div class="w-10 h-10 rounded-xl bg-[#002546] flex items-center justify-center text-white shadow-sm">
+<span class="material-symbols-outlined text-xl">inventory_2</span>
+</div>
+</div>
+<div class="mt-4">
+<div class="flex items-baseline gap-2">
+<span class="font-outfit font-extrabold text-4xl text-[#002546] leading-none">8</span>
+<span class="text-sm font-medium text-[#635e54]">Pasang di Rak Pick-Up</span>
+</div>
+<div class="flex items-center gap-1.5 mt-3 pt-2 border-t border-[#ede7de] text-xs text-[#526071]">
+<span class="material-symbols-outlined text-emerald-700 text-sm">mark_chat_read</span>
+<span class="text-[#002546] font-semibold">8 notifikasi WA terkirim otomatis</span>
+</div>
+</div>
+</div>
+</section>
+<!-- MID SECTION: TREN 7 HARI & QUICK WIDGETS -->
+<section class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+<!-- GRAPH: 7-DAY ORDER TREND (OWNER SPECIFIC - PRD FR-31) -->
+<div class="lg:col-span-2 bg-white p-6 rounded-2xl shadow-sm border border-[#002546]/10 flex flex-col justify-between">
+<div>
+<!-- Chart Header with Navy Badge -->
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[#ede7de]">
+<div>
+<div class="flex items-center gap-2.5">
+<span class="w-3 h-3 rounded-md bg-[#002546]"></span>
+<h2 class="font-outfit font-bold text-lg text-[#002546]">Tren Pesanan 7 Hari Terakhir</h2>
+<span class="px-2 py-0.5 rounded-full bg-[#002546]/10 text-[#002546] text-[11px] font-bold">FR-31</span>
+</div>
+<p class="text-xs text-[#73777f] mt-0.5">
+              (Bukan Laporan Penutupan Harian — Rekapitulasi Alur Workshop)
+            </p>
+</div>
+<div class="flex items-center gap-3">
+<div class="flex items-center gap-1.5 text-xs text-[#002546] font-medium bg-[#eef3f9] px-2.5 py-1 rounded-lg border border-[#133b63]/15">
+<span class="w-3 h-3 rounded-sm bg-[#002546] inline-block"></span>
+<span>Sepatu Masuk</span>
+</div>
+<div class="flex items-center gap-1.5 text-xs text-[#635e54] font-medium bg-[#f3ede4] px-2.5 py-1 rounded-lg">
+<span class="w-3 h-3 rounded-sm bg-[#cdc6b9] inline-block"></span>
+<span>Selesai Dicuci</span>
+</div>
+</div>
+</div>
+<!-- SVG CHART COMPONENT -->
+<div class="mt-6 w-full">
+<svg class="w-full h-48 overflow-visible select-none" preserveaspectratio="none" viewbox="0 0 700 220">
+<!-- Grid Lines -->
+<line stroke="#ede7de" stroke-dasharray="3 3" stroke-width="1" x1="40" x2="680" y1="20" y2="20"></line>
+<line stroke="#ede7de" stroke-dasharray="3 3" stroke-width="1" x1="40" x2="680" y1="70" y2="70"></line>
+<line stroke="#ede7de" stroke-dasharray="3 3" stroke-width="1" x1="40" x2="680" y1="120" y2="120"></line>
+<line stroke="#ede7de" stroke-dasharray="3 3" stroke-width="1" x1="40" x2="680" y1="170" y2="170"></line>
+<!-- Y Axis Labels -->
+<text fill="#73777f" font-family="Plus Jakarta Sans" font-size="10" font-weight="600" text-anchor="end" x="28" y="24">40</text>
+<text fill="#73777f" font-family="Plus Jakarta Sans" font-size="10" font-weight="600" text-anchor="end" x="28" y="74">30</text>
+<text fill="#73777f" font-family="Plus Jakarta Sans" font-size="10" font-weight="600" text-anchor="end" x="28" y="124">20</text>
+<text fill="#73777f" font-family="Plus Jakarta Sans" font-size="10" font-weight="600" text-anchor="end" x="28" y="174">10</text>
+<!-- BARS FOR 7 DAYS (Jum, Sab, Min, Sen, Sel, Rab, Kam) -->
+<!-- Jum (09 Jan): Masuk 22, Selesai 18 -->
+<g transform="translate(65, 0)">
+<rect fill="#002546" height="85" rx="5" width="22" x="0" y="85"></rect>
+<rect fill="#cdc6b9" height="65" rx="5" width="22" x="26" y="105"></rect>
+<text fill="#635e54" font-family="Outfit" font-size="11" font-weight="600" text-anchor="middle" x="24" y="195">Jum (9)</text>
+</g>
+<!-- Sab (10 Jan): Masuk 34, Selesai 26 -->
+<g transform="translate(155, 0)">
+<rect fill="#002546" height="145" rx="5" width="22" x="0" y="25"></rect>
+<rect fill="#cdc6b9" height="105" rx="5" width="22" x="26" y="65"></rect>
+<text fill="#635e54" font-family="Outfit" font-size="11" font-weight="600" text-anchor="middle" x="24" y="195">Sab (10)</text>
+</g>
+<!-- Min (11 Jan): Masuk 38, Selesai 30 -->
+<g transform="translate(245, 0)">
+<rect fill="#002546" height="165" rx="5" width="22" x="0" y="5"></rect>
+<rect fill="#cdc6b9" height="125" rx="5" width="22" x="26" y="45"></rect>
+<text fill="#635e54" font-family="Outfit" font-size="11" font-weight="600" text-anchor="middle" x="24" y="195">Min (11)</text>
+</g>
+<!-- Sen (12 Jan): Masuk 18, Selesai 24 -->
+<g transform="translate(335, 0)">
+<rect fill="#002546" height="65" rx="5" width="22" x="0" y="105"></rect>
+<rect fill="#cdc6b9" height="95" rx="5" width="22" x="26" y="75"></rect>
+<text fill="#635e54" font-family="Outfit" font-size="11" font-weight="600" text-anchor="middle" x="24" y="195">Sen (12)</text>
+</g>
+<!-- Sel (13 Jan): Masuk 20, Selesai 21 -->
+<g transform="translate(425, 0)">
+<rect fill="#002546" height="75" rx="5" width="22" x="0" y="95"></rect>
+<rect fill="#cdc6b9" height="80" rx="5" width="22" x="26" y="90"></rect>
+<text fill="#635e54" font-family="Outfit" font-size="11" font-weight="600" text-anchor="middle" x="24" y="195">Sel (13)</text>
+</g>
+<!-- Rab (14 Jan): Masuk 24, Selesai 22 -->
+<g transform="translate(515, 0)">
+<rect fill="#002546" height="95" rx="5" width="22" x="0" y="75"></rect>
+<rect fill="#cdc6b9" height="85" rx="5" width="22" x="26" y="85"></rect>
+<text fill="#635e54" font-family="Outfit" font-size="11" font-weight="600" text-anchor="middle" x="24" y="195">Rab (14)</text>
+</g>
+<!-- Kam (15 Jan - Hari Ini): Masuk 28, Selesai 16 (Highlighted with navy tag) -->
+<g transform="translate(605, 0)">
+<rect fill="#133b63" height="115" rx="5" width="22" x="0" y="55"></rect>
+<rect fill="#cdc6b9" height="55" rx="5" width="22" x="26" y="115"></rect>
+<rect fill="#002546" height="18" rx="4" width="46" x="1" y="182"></rect>
+<text fill="#ffffff" font-family="Outfit" font-size="10" font-weight="700" text-anchor="middle" x="24" y="195">Kam (15)*</text>
+</g>
+</svg>
+</div>
+</div>
+<!-- Chart Footer -->
+<div class="mt-4 pt-3 flex flex-wrap items-center justify-between gap-3 bg-[#eef3f9] px-4 py-3 rounded-xl border border-[#002546]/10">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[#002546] text-lg">insights</span>
+<span class="text-xs text-[#1a2430]">
+            Rata-rata Workshop: <strong class="text-[#002546] font-bold text-sm">26 Pasang / Hari</strong>
+</span>
+</div>
+<span class="text-xs text-[#526071] font-medium">Kapasitas harian maksimal Bojongsoang: <strong class="text-[#002546]">45 pasang</strong></span>
+</div>
+</div>
+<!-- QUICK SUPPORTING WIDGETS -->
+<div class="flex flex-col gap-4">
+<!-- Widget: Antrian Kurir Pickup -->
+<div class="bg-white p-5 rounded-2xl shadow-sm border border-[#002546]/10 flex-1 flex flex-col justify-between">
+<div>
+<div class="flex items-center justify-between pb-2 border-b border-[#ede7de]">
+<div class="flex items-center gap-2">
+<div class="w-8 h-8 rounded-lg bg-[#002546] text-white flex items-center justify-center">
+<span class="material-symbols-outlined text-base">local_shipping</span>
+</div>
+<h3 class="font-outfit font-bold text-sm text-[#002546]">Jadwal Kurir Pick-Up</h3>
+</div>
+<span class="px-2 py-0.5 rounded-full bg-[#002546] text-white text-[10px] font-bold">
+              HARI INI
+            </span>
+</div>
+<div class="mt-3 p-3 rounded-xl bg-[#eef3f9] border border-[#002546]/10 flex items-center justify-between">
+<div>
+<div class="font-bold text-xs text-[#002546]">16:00 WIB (Sore)</div>
+<div class="text-[11px] text-[#526071]">Kurir Internal (Budi Setiawan)</div>
+</div>
+<span class="px-2.5 py-1 rounded-full bg-[#002546] text-[#d3e4ff] text-[11px] font-bold">
+              5 Titik Siap
+            </span>
+</div>
+<div class="mt-3 space-y-1.5 text-xs text-[#526071]">
+<div class="flex justify-between items-center py-1">
+<span>• Buah Batu (Kost D'Green)</span>
+<span class="font-mono text-[#002546] font-bold text-xs">2 Pasang</span>
+</div>
+<div class="flex justify-between items-center py-1">
+<span>• Podomoro Park Cluster Anargya</span>
+<span class="font-mono text-[#002546] font-bold text-xs">1 Pasang</span>
+</div>
+<div class="flex justify-between items-center py-1">
+<span>• Asrama Telkom University</span>
+<span class="font-mono text-[#002546] font-bold text-xs">2 Pasang</span>
+</div>
+</div>
+</div>
+<button class="mt-3 w-full py-2.5 rounded-xl bg-[#002546] hover:bg-[#0c3b64] text-white font-semibold text-xs transition-colors flex items-center justify-center gap-1.5 shadow-sm" type="button">
+<span class="material-symbols-outlined text-base text-[#d3e4ff]">map</span>
+          Buka Rute Pengantaran (5)
+        </button>
+</div>
+<!-- Widget: Layanan Terpopuler Hari Ini -->
+<div class="bg-white p-5 rounded-2xl shadow-sm border border-[#002546]/10 flex-1 flex flex-col justify-between">
+<div>
+<div class="flex items-center justify-between pb-2 border-b border-[#ede7de]">
+<div class="flex items-center gap-2">
+<div class="w-8 h-8 rounded-lg bg-[#002546] text-[#d3e4ff] flex items-center justify-center">
+<span class="material-symbols-outlined text-base">star</span>
+</div>
+<h3 class="font-outfit font-bold text-sm text-[#002546]">Layanan Terpopuler Hari Ini</h3>
+</div>
+<span class="text-[11px] font-bold text-[#635e54]">15 Jan</span>
+</div>
+<div class="mt-3 space-y-2.5">
+<div>
+<div class="flex justify-between text-xs mb-1">
+<span class="font-medium text-[#1d1b16]">Deep Clean Standard</span>
+<span class="font-bold text-[#002546]">15 pasang (53%)</span>
+</div>
+<div class="w-full bg-[#f3ede4] h-2.5 rounded-full overflow-hidden">
+<div class="bg-[#002546] h-full rounded-full" style="width: 53%;"></div>
+</div>
+</div>
+<div>
+<div class="flex justify-between text-xs mb-1">
+<span class="font-medium text-[#1d1b16]">Unyellowing Sole Treatment</span>
+<span class="font-bold text-[#002546]">7 pasang (25%)</span>
+</div>
+<div class="w-full bg-[#f3ede4] h-2.5 rounded-full overflow-hidden">
+<div class="bg-[#133b63] h-full rounded-full" style="width: 25%;"></div>
+</div>
+</div>
+<div>
+<div class="flex justify-between text-xs mb-1">
+<span class="font-medium text-[#1d1b16]">Repaint &amp; Leather Care</span>
+<span class="font-bold text-[#002546]">6 pasang (22%)</span>
+</div>
+<div class="w-full bg-[#f3ede4] h-2.5 rounded-full overflow-hidden">
+<div class="bg-[#5c6c7d] h-full rounded-full" style="width: 22%;"></div>
+</div>
+</div>
+</div>
+</div>
+<div class="mt-3 flex items-center justify-between text-xs text-[#526071] pt-2 border-t border-[#ede7de]">
+<span>Nilai Rata-rata: <strong class="text-[#002546]">Rp 42.500 / pasang</strong></span>
+</div>
+</div>
+</div>
+</section>
+<!-- TABLE: 5 TIKET TERBARU (PRD FR-30 MUST) - RICH NAVY HEADER ACCENT -->
+<section class="bg-white rounded-2xl shadow-sm border border-[#002546]/10 overflow-hidden">
+<!-- Table Header Bar -->
+<div class="bg-gradient-to-r from-[#002546] to-[#0c3b64] p-5 text-white flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+<div>
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[#d3e4ff] text-2xl">confirmation_number</span>
+<h2 class="font-outfit font-bold text-lg text-white">5 Tiket Terbaru Masuk</h2>
+<span class="px-2.5 py-0.5 rounded-full bg-white/20 text-[#d3e4ff] text-[10px] font-bold uppercase tracking-wider">FR-30 LIVE</span>
+</div>
+<p class="text-xs text-[#d3e4ff]/80 mt-0.5">
+          Pesanan live terkini dari integrasi Walk-in Kasir dan WhatsApp Auto-bot
+        </p>
+</div>
+<div class="flex items-center gap-2">
+<span class="px-3 py-1 rounded-full bg-white/10 backdrop-blur text-[#d3e4ff] text-xs font-medium flex items-center gap-1.5 border border-white/15">
+<span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+          Live sync tiap 30 detik
+        </span>
+</div>
+</div>
+<!-- RESPONSIVE TABLE WRAPPER -->
+<div class="overflow-x-auto p-4 lg:p-6">
+<table class="w-full text-left font-body-md text-sm">
+<thead>
+<tr class="bg-[#eef3f9] text-[#002546] text-[11px] font-bold uppercase tracking-wider rounded-lg border-b border-[#002546]/10">
+<th class="py-3 px-3.5 rounded-l-lg">Kode Tiket</th>
+<th class="py-3 px-3">Pelanggan &amp; Kontak</th>
+<th class="py-3 px-3">Sumber</th>
+<th class="py-3 px-3">Layanan &amp; Qty</th>
+<th class="py-3 px-3">Status Workshop</th>
+<th class="py-3 px-3">Pembayaran</th>
+<th class="py-3 px-3">Waktu</th>
+<th class="py-3 px-3 text-right rounded-r-lg">Aksi Cepat</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-[#ede7de]">
+<!-- Row 1: Dimas Pratama (#SM-2601-042) -->
+<tr class="hover:bg-[#f9f5ef] transition-colors">
+<td class="py-3.5 px-3.5">
+<span class="font-mono font-bold text-[#002546] text-xs px-2 py-1 rounded-md bg-[#eef3f9] border border-[#133b63]/20">#SM-2601-042</span>
+</td>
+<td class="py-3.5 px-3">
+<div class="font-bold text-xs text-[#1d1b16]">Dimas Pratama</div>
+<div class="text-[11px] text-[#526071]">0812-8821-9012</div>
+</td>
+<td class="py-3.5 px-3">
+<span class="px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 text-[11px] font-bold inline-flex items-center gap-1">
+<span class="material-symbols-outlined text-xs">chat</span> WA Bot
+              </span>
+</td>
+<td class="py-3.5 px-3">
+<div class="font-semibold text-xs text-[#1d1b16]">2 Pasang</div>
+<div class="text-[11px] text-[#635e54]">Deep Clean + Unyellowing</div>
+</td>
+<td class="py-3.5 px-3">
+<!-- PRD Status: Belum dicuci (abu-abu netral) -->
+<span class="px-2.5 py-1 rounded-full bg-[#e7e2d9] text-[#43474e] text-xs font-semibold inline-block">
+                Belum Dicuci
+              </span>
+</td>
+<td class="py-3.5 px-3">
+<span class="px-2.5 py-1 rounded-full bg-[#ffdad6] text-[#93000a] text-xs font-bold inline-block">
+                Belum Bayar (Rp 90k)
+              </span>
+</td>
+<td class="py-3.5 px-3 font-mono text-xs text-[#526071]">
+              14:20 WIB
+            </td>
+<td class="py-3.5 px-3 text-right">
+<div class="inline-flex items-center gap-1.5">
+<a class="p-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 transition-colors border border-emerald-200" href="https://wa.me/6281288219012" rel="noopener noreferrer" target="_blank" title="Chat Pelanggan di WhatsApp">
+<span class="material-symbols-outlined text-base">chat</span>
+</a>
+<button class="px-3 py-1.5 rounded-lg bg-[#002546] hover:bg-[#0c3b64] text-white text-xs font-semibold transition-colors" type="button">
+                  Detail
+                </button>
+</div>
+</td>
+</tr>
+<!-- Row 2: Sarah N (#SM-2601-041) -->
+<tr class="hover:bg-[#f9f5ef] transition-colors">
+<td class="py-3.5 px-3.5">
+<span class="font-mono font-bold text-[#002546] text-xs px-2 py-1 rounded-md bg-[#eef3f9] border border-[#133b63]/20">#SM-2601-041</span>
+</td>
+<td class="py-3.5 px-3">
+<div class="font-bold text-xs text-[#1d1b16]">Sarah Novita</div>
+<div class="text-[11px] text-[#526071]">0857-3310-4491</div>
+</td>
+<td class="py-3.5 px-3">
+<span class="px-2.5 py-1 rounded-full bg-[#ede7de] text-[#002546] text-[11px] font-bold inline-flex items-center gap-1">
+<span class="material-symbols-outlined text-xs">storefront</span> Walk-in Toko
+              </span>
+</td>
+<td class="py-3.5 px-3">
+<div class="font-semibold text-xs text-[#1d1b16]">1 Pasang</div>
+<div class="text-[11px] text-[#635e54]">Fast Clean Express (1 Hari)</div>
+</td>
+<td class="py-3.5 px-3">
+<!-- PRD Status: Diproses (navy fixed) -->
+<span class="px-2.5 py-1 rounded-full bg-[#d3e4ff] text-[#002546] text-xs font-bold inline-block border border-[#002546]/15">
+                Diproses
+              </span>
+</td>
+<td class="py-3.5 px-3">
+<span class="px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 text-xs font-bold inline-block">
+                Lunas (QRIS)
+              </span>
+</td>
+<td class="py-3.5 px-3 font-mono text-xs text-[#526071]">
+              13:05 WIB
+            </td>
+<td class="py-3.5 px-3 text-right">
+<div class="inline-flex items-center gap-1.5">
+<a class="p-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 transition-colors border border-emerald-200" href="https://wa.me/6285733104491" rel="noopener noreferrer" target="_blank" title="Chat WhatsApp">
+<span class="material-symbols-outlined text-base">chat</span>
+</a>
+<button class="px-3 py-1.5 rounded-lg bg-[#002546] hover:bg-[#0c3b64] text-white text-xs font-semibold transition-colors" type="button">
+                  Detail
+                </button>
+</div>
+</td>
+</tr>
+<!-- Row 3: Hendra Wijaya (#SM-2601-040) -->
+<tr class="hover:bg-[#f9f5ef] transition-colors">
+<td class="py-3.5 px-3.5">
+<span class="font-mono font-bold text-[#002546] text-xs px-2 py-1 rounded-md bg-[#eef3f9] border border-[#133b63]/20">#SM-2601-040</span>
+</td>
+<td class="py-3.5 px-3">
+<div class="font-bold text-xs text-[#1d1b16]">Hendra Wijaya</div>
+<div class="text-[11px] text-[#526071]">0819-0211-7788</div>
+</td>
+<td class="py-3.5 px-3">
+<span class="px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 text-[11px] font-bold inline-flex items-center gap-1">
+<span class="material-symbols-outlined text-xs">chat</span> WA Bot
+              </span>
+</td>
+<td class="py-3.5 px-3">
+<div class="font-semibold text-xs text-[#1d1b16]">3 Pasang</div>
+<div class="text-[11px] text-[#635e54]">Paket Mahasiswa 3 Pasang</div>
+</td>
+<td class="py-3.5 px-3">
+<!-- PRD Status: Diproses (navy fixed) -->
+<span class="px-2.5 py-1 rounded-full bg-[#d3e4ff] text-[#002546] text-xs font-bold inline-block border border-[#002546]/15">
+                Diproses
+              </span>
+</td>
+<td class="py-3.5 px-3">
+<span class="px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 text-xs font-bold inline-block">
+                Lunas (Transfer)
+              </span>
+</td>
+<td class="py-3.5 px-3 font-mono text-xs text-[#526071]">
+              11:45 WIB
+            </td>
+<td class="py-3.5 px-3 text-right">
+<div class="inline-flex items-center gap-1.5">
+<a class="p-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 transition-colors border border-emerald-200" href="https://wa.me/6281902117788" rel="noopener noreferrer" target="_blank" title="Chat WhatsApp">
+<span class="material-symbols-outlined text-base">chat</span>
+</a>
+<button class="px-3 py-1.5 rounded-lg bg-[#002546] hover:bg-[#0c3b64] text-white text-xs font-semibold transition-colors" type="button">
+                  Detail
+                </button>
+</div>
+</td>
+</tr>
+<!-- Row 4: Aisyah Putri (#SM-2601-039) -->
+<tr class="hover:bg-[#f9f5ef] transition-colors">
+<td class="py-3.5 px-3.5">
+<span class="font-mono font-bold text-[#002546] text-xs px-2 py-1 rounded-md bg-[#eef3f9] border border-[#133b63]/20">#SM-2601-039</span>
+</td>
+<td class="py-3.5 px-3">
+<div class="font-bold text-xs text-[#1d1b16]">Aisyah Putri</div>
+<div class="text-[11px] text-[#526071]">0813-9877-1234</div>
+</td>
+<td class="py-3.5 px-3">
+<span class="px-2.5 py-1 rounded-full bg-[#ede7de] text-[#002546] text-[11px] font-bold inline-flex items-center gap-1">
+<span class="material-symbols-outlined text-xs">storefront</span> Walk-in Toko
+              </span>
+</td>
+<td class="py-3.5 px-3">
+<div class="font-semibold text-xs text-[#1d1b16]">1 Pasang</div>
+<div class="text-[11px] text-[#635e54]">Leather Polish &amp; Conditioning</div>
+</td>
+<td class="py-3.5 px-3">
+<!-- PRD Status: Siap Diambil (oranye/amber) -->
+<span class="px-2.5 py-1 rounded-full bg-amber-100 text-amber-900 text-xs font-bold inline-block border border-amber-300">
+                Siap Diambil
+              </span>
+</td>
+<td class="py-3.5 px-3">
+<span class="px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 text-xs font-bold inline-block">
+                Lunas (Cash)
+              </span>
+</td>
+<td class="py-3.5 px-3 font-mono text-xs text-[#526071]">
+              10:15 WIB
+            </td>
+<td class="py-3.5 px-3 text-right">
+<div class="inline-flex items-center gap-1.5">
+<a class="p-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 transition-colors border border-emerald-200" href="https://wa.me/6281398771234" rel="noopener noreferrer" target="_blank" title="Chat WhatsApp">
+<span class="material-symbols-outlined text-base">chat</span>
+</a>
+<button class="px-3 py-1.5 rounded-lg bg-[#002546] hover:bg-[#0c3b64] text-white text-xs font-semibold transition-colors" type="button">
+                  Detail
+                </button>
+</div>
+</td>
+</tr>
+<!-- Row 5: Kevin Pratama (#SM-2601-038) -->
+<tr class="hover:bg-[#f9f5ef] transition-colors">
+<td class="py-3.5 px-3.5">
+<span class="font-mono font-bold text-[#002546] text-xs px-2 py-1 rounded-md bg-[#eef3f9] border border-[#133b63]/20">#SM-2601-038</span>
+</td>
+<td class="py-3.5 px-3">
+<div class="font-bold text-xs text-[#1d1b16]">Kevin Pratama</div>
+<div class="text-[11px] text-[#526071]">0878-5544-2201</div>
+</td>
+<td class="py-3.5 px-3">
+<span class="px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 text-[11px] font-bold inline-flex items-center gap-1">
+<span class="material-symbols-outlined text-xs">chat</span> WA Bot
+              </span>
+</td>
+<td class="py-3.5 px-3">
+<div class="font-semibold text-xs text-[#1d1b16]">1 Pasang</div>
+<div class="text-[11px] text-[#635e54]">Deep Clean + Water Repellent</div>
+</td>
+<td class="py-3.5 px-3">
+<!-- PRD Status: Sudah Diambil (hijau) -->
+<span class="px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 text-xs font-bold inline-block">
+                Sudah Diambil
+              </span>
+</td>
+<td class="py-3.5 px-3">
+<span class="px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 text-xs font-bold inline-block">
+                Lunas (QRIS)
+              </span>
+</td>
+<td class="py-3.5 px-3 font-mono text-xs text-[#526071]">
+              09:30 WIB
+            </td>
+<td class="py-3.5 px-3 text-right">
+<div class="inline-flex items-center gap-1.5">
+<a class="p-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 transition-colors border border-emerald-200" href="https://wa.me/6287855442201" rel="noopener noreferrer" target="_blank" title="Chat WhatsApp">
+<span class="material-symbols-outlined text-base">chat</span>
+</a>
+<button class="px-3 py-1.5 rounded-lg bg-[#002546] hover:bg-[#0c3b64] text-white text-xs font-semibold transition-colors" type="button">
+                  Detail
+                </button>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- TABLE BOTTOM FOOTER / NAVIGATION LINK -->
+<div class="p-4 lg:px-6 bg-[#f9f5ef] border-t border-[#ede7de] flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-[#526071]">
+<div class="text-xs">
+        Menampilkan 5 tiket terbaru dari total <strong class="text-[#002546]">28 tiket hari ini</strong>
+</div>
+<a class="inline-flex items-center gap-2 px-5 py-2 rounded-xl bg-[#002546] hover:bg-[#0c3b64] text-white text-xs font-semibold transition-all self-start sm:self-center shadow-sm" href="#">
+<span>Lihat Semua Tiket (28)</span>
+<span class="material-symbols-outlined text-sm text-[#d3e4ff]">arrow_forward</span>
+</a>
+</div>
+</section>
+</div>
+<script>
+  // Simple micro-interaction for button feedback
+  document.querySelectorAll('button').forEach(btn => {
+    btn.addEventListener('click', function(e) {
+      if(!this.classList.contains('scale-95')) {
+        this.classList.add('scale-95');
+        setTimeout(() => this.classList.remove('scale-95'), 120);
+      }
+    });
+  });
+</script></main>
+<!-- END: MainContent -->
+</div>
+<!-- END: MainContainer -->
+</body></html>

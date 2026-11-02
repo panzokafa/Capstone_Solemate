@@ -1,0 +1,673 @@
+<!DOCTYPE html><html lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Solemate Shoes Clean - Dashboard Analytics</title>
+<!-- Tailwind CSS CDN with forms and container queries -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "surface-dim": "#dfd9d1",
+            "on-surface": "#1d1b16",
+            "secondary-fixed-dim": "#cdc6b9",
+            "on-secondary-fixed-variant": "#4b463d",
+            "tertiary": "#002544",
+            "secondary-container": "#e7dfd2",
+            "surface-container-high": "#ede7de",
+            "surface-variant": "#e7e2d9",
+            "inverse-primary": "#a6c9f9",
+            "surface-container": "#f3ede4",
+            "on-background": "#1d1b16",
+            "surface-container-highest": "#e7e2d9",
+            "outline": "#73777f",
+            "on-secondary-container": "#676258",
+            "tertiary-fixed": "#d2e4ff",
+            "surface-container-lowest": "#ffffff",
+            "inverse-surface": "#32302a",
+            "on-primary-container": "#83a6d4",
+            "on-primary": "#ffffff",
+            "on-error": "#ffffff",
+            "on-primary-fixed-variant": "#244871",
+            "inverse-on-surface": "#f6f0e7",
+            "on-surface-variant": "#43474e",
+            "on-tertiary": "#ffffff",
+            "background": "#fff9ef",
+            "primary-fixed-dim": "#a6c9f9",
+            "primary-container": "#133b63",
+            "tertiary-fixed-dim": "#a3c9fa",
+            "surface-bright": "#fff9ef",
+            "tertiary-container": "#0c3b64",
+            "error-container": "#ffdad6",
+            "on-tertiary-container": "#80a6d5",
+            "surface-tint": "#3d608a",
+            "on-tertiary-fixed": "#001c37",
+            "error": "#ba1a1a",
+            "surface": "#fff9ef",
+            "surface-container-low": "#f9f3ea",
+            "primary": "#002546",
+            "on-secondary": "#ffffff",
+            "on-primary-fixed": "#001c38",
+            "secondary-fixed": "#e9e1d5",
+            "primary-fixed": "#d3e4ff",
+            "outline-variant": "#c3c6cf",
+            "on-secondary-fixed": "#1e1b13",
+            "secondary": "#635e54",
+            "on-tertiary-fixed-variant": "#1f4972",
+            "on-error-container": "#93000a"
+          },
+          fontFamily: {
+            sans: ['Plus Jakarta Sans', 'Inter', 'system-ui', '-apple-system', 'sans-serif'],
+            outfit: ['Outfit', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800&amp;family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<style data-purpose="custom-layout">
+    body {
+      background-color: #ded6c9;
+      font-family: 'Plus Jakarta Sans', 'Inter', system-ui, -apple-system, sans-serif;
+      color: #1a2430;
+    }
+    /* Subtle scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #c7beaf;
+      border-radius: 9999px;
+    }
+    .custom-shadow {
+      box-shadow: 0 10px 30px -10px rgba(19, 59, 99, 0.08), 0 4px 12px -2px rgba(19, 59, 99, 0.04);
+    }
+    .navy-card-glow {
+      box-shadow: 0 14px 34px -8px rgba(0, 37, 70, 0.35), 0 4px 12px -2px rgba(19, 59, 99, 0.2);
+    }
+  </style>
+<meta content="web_dashboard" name="shell-type"></head>
+<body class="min-h-screen p-3 md:p-6 lg:p-8 flex items-center justify-center">
+<!-- BEGIN: MainContainer -->
+<!-- Outer Rounded Shell with warm artisanal craft tone -->
+<div class="w-full max-w-[1520px] bg-[#ebe3d7] rounded-[42px] p-4 lg:p-7 shadow-2xl border border-[#faf6ee] flex flex-col xl:flex-row gap-6 lg:gap-8 min-h-[920px]">
+<!-- BEGIN: Sidebar -->
+<aside class="w-full xl:w-64 flex-shrink-0 flex flex-col justify-between select-none py-2 px-1">
+<div>
+<!-- Logo -->
+<div class="flex items-center gap-3 px-3 py-2 mb-7 cursor-pointer" data-purpose="brand-logo">
+<img alt="Solemate Shoes Clean" class="w-11 h-11 rounded-full object-cover shadow-sm ring-2 ring-[#002546]/20 bg-white" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDqatKEz-WB5XeuXIgWwK8VRGxRPe4sICiJpfsWcKgY1yAgkRCDMH43ImYzanChqjeaYjXL0CMA01SEvS9S99449hCyOhdoVxipsbYcMlZoQCp_50c8ElMQ_DHw0lTUQTxlbOrNdAD9pmXGrWl9wzzXEFi_dok8XL2uFLS7Hs0zlIQtw0c5qK2jp5jUiP0IDLBni9UntpgRj7AsuM_8-al-Xg8_WfHI7UD9ak1-tjZ566Tb4D--iSiy">
+<div class="flex flex-col">
+<span class="font-extrabold text-xl tracking-tight text-[#002546] font-outfit leading-none">Solemate</span>
+<span class="text-[10px] font-bold tracking-[0.22em] text-[#526071] uppercase mt-0.5">Shoes Clean</span>
+</div>
+</div>
+<!-- Navigation Links -->
+<nav aria-label="Sidebar Menu" class="space-y-1.5">
+<!-- 1. Dashboard (Active) -->
+<a class="flex items-center gap-3.5 px-4.5 py-3 rounded-2xl bg-[#133b63] text-white font-semibold shadow-sm transition-all" href="#">
+<span class="material-symbols-outlined text-xl text-[#d3e4ff]">dashboard</span>
+<span class="text-[15px] font-medium tracking-tight">Dashboard</span>
+</a>
+<!-- 2. Daftar Tiket -->
+<a class="flex items-center gap-3.5 px-4.5 py-3 rounded-2xl text-[#526071] hover:bg-white/70 hover:text-[#002546] transition-all font-medium group" href="#">
+<span class="material-symbols-outlined text-xl text-[#73777f] group-hover:text-[#002546]">confirmation_number</span>
+<span class="text-[15px]">Daftar Tiket</span>
+</a>
+<!-- 3. Laporan Harian -->
+<a class="flex items-center gap-3.5 px-4.5 py-3 rounded-2xl text-[#526071] hover:bg-white/70 hover:text-[#002546] transition-all font-medium group" href="#">
+<span class="material-symbols-outlined text-xl text-[#73777f] group-hover:text-[#002546]">event_note</span>
+<span class="text-[15px]">Laporan Harian</span>
+</a>
+<!-- 4. Rekap Bulanan -->
+<a class="flex items-center gap-3.5 px-4.5 py-3 rounded-2xl text-[#526071] hover:bg-white/70 hover:text-[#002546] transition-all font-medium group" href="#">
+<span class="material-symbols-outlined text-xl text-[#73777f] group-hover:text-[#002546]">calendar_month</span>
+<span class="text-[15px]">Rekap Bulanan</span>
+</a>
+<!-- 5. Katalog Layanan -->
+<a class="flex items-center gap-3.5 px-4.5 py-3 rounded-2xl text-[#526071] hover:bg-white/70 hover:text-[#002546] transition-all font-medium group" href="#">
+<span class="material-symbols-outlined text-xl text-[#73777f] group-hover:text-[#002546]">style</span>
+<span class="text-[15px]">Katalog Layanan</span>
+</a>
+<!-- 6. Karyawan -->
+<a class="flex items-center gap-3.5 px-4.5 py-3 rounded-2xl text-[#526071] hover:bg-white/70 hover:text-[#002546] transition-all font-medium group" href="#">
+<span class="material-symbols-outlined text-xl text-[#73777f] group-hover:text-[#002546]">badge</span>
+<span class="text-[15px]">Karyawan</span>
+</a>
+<!-- 7. Rekap Absensi -->
+<a class="flex items-center gap-3.5 px-4.5 py-3 rounded-2xl text-[#526071] hover:bg-white/70 hover:text-[#002546] transition-all font-medium group" href="#">
+<span class="material-symbols-outlined text-xl text-[#73777f] group-hover:text-[#002546]">fact_check</span>
+<span class="text-[15px]">Rekap Absensi</span>
+</a>
+</nav>
+</div>
+<!-- Logout Section -->
+<div class="pt-4 border-t border-[#d8cfbf]">
+<a class="flex items-center gap-3.5 px-4.5 py-3 rounded-2xl text-[#ba1a1a] hover:bg-[#ffdad6]/60 transition-all font-medium group" href="#">
+<span class="material-symbols-outlined text-xl text-[#ba1a1a] group-hover:translate-x-0.5 transition-transform">logout</span>
+<span class="text-[15px] font-semibold">Keluar</span>
+</a>
+</div>
+</aside>
+<!-- END: Sidebar -->
+<!-- BEGIN: MainContent -->
+<main class="flex-1 flex flex-col min-w-0"><div class="flex flex-col w-full">
+<!-- BEGIN: Top Breadcrumb & Page Header -->
+<header class="flex flex-col gap-3 pb-6">
+<div class="flex flex-wrap items-center justify-between gap-3">
+<nav aria-label="Breadcrumb" class="flex items-center gap-2 text-on-surface-variant font-body-sm text-body-sm">
+<a class="hover:text-primary transition-colors flex items-center gap-1.5 font-medium" href="#">
+<span class="material-symbols-outlined text-[17px]">confirmation_number</span>
+<span class="">Tiket Pesanan</span>
+</a>
+<span class="material-symbols-outlined text-outline-variant text-[15px]">chevron_right</span>
+<span class="text-primary font-title-sm font-semibold">Buat Tiket Baru (Kasir Walk-in &amp; Manual)</span>
+</nav>
+<!-- Auto Generated Ticket ID Badge -->
+<div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-secondary-container text-on-secondary-container shadow-sm">
+<span class="inline-block w-2 h-2 rounded-full bg-primary animate-pulse"></span>
+<span class="font-label-sm text-label-sm uppercase tracking-wider">No. Tiket Otomatis:</span>
+<span class="font-headline-md text-[15px] font-extrabold text-primary tracking-tight font-outfit">#SM-2601-043</span>
+</div>
+</div>
+<div class="flex flex-col md:flex-row md:items-end justify-between gap-2">
+<div>
+<h1 class="font-headline-lg text-headline-lg text-primary tracking-tight font-outfit">
+          Buat Tiket Baru
+        </h1>
+<p class="font-body-md text-body-md text-on-surface-variant mt-0.5">
+          Input data pelanggan, pilihan layanan sepatu dari katalog resmi, serta estimasi pengerjaan workshop Bojongsoang.
+        </p>
+</div>
+<div class="flex items-center gap-2 text-on-secondary-container font-label-sm text-label-sm bg-surface-container px-3 py-1.5 rounded-full self-start md:self-auto">
+<span class="material-symbols-outlined text-[16px] text-primary">store</span>
+<span class="">Kasir Cabang Bojongsoang • Reguler Shift</span>
+</div>
+</div>
+</header>
+<!-- END: Top Breadcrumb & Page Header -->
+<!-- BEGIN: Form & Summary Two-Column Layout -->
+<form class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start" id="ticketForm" onsubmit="event.preventDefault();">
+<!-- ==================== KOLOM KIRI (Data Input - 65%) ==================== -->
+<div class="lg:col-span-8 flex flex-col gap-6">
+<!-- SECTION A: Data Pelanggan (PRD FR-25) -->
+<section class="bg-surface-container-lowest rounded-3xl p-6 shadow-sm flex flex-col gap-5">
+<div class="flex flex-wrap items-center justify-between gap-3 pb-2">
+<div class="flex items-center gap-2.5">
+<span class="w-8 h-8 rounded-full bg-primary-fixed text-primary flex items-center justify-center font-outfit font-bold text-sm">A</span>
+<div>
+<h2 class="font-title-lg text-title-lg text-primary font-outfit">Informasi Pelanggan</h2>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Data kontak untuk pengiriman resi nota otomatis (PRD FR-25)</p>
+</div>
+</div>
+<!-- Quick Search Button -->
+<button class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-surface-container hover:bg-secondary-container text-primary font-label-sm text-label-sm transition-all shadow-sm" type="button">
+<span class="material-symbols-outlined text-[16px]">person_search</span>
+<span class="">Cari Pelanggan Terdaftar</span>
+</button>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+<!-- Nama Pelanggan -->
+<div class="flex flex-col gap-1.5">
+<label class="font-title-sm text-title-sm text-on-surface flex items-center gap-1" for="customerName">
+<span class="">Nama Lengkap Pelanggan</span>
+<span class="text-error font-bold">*</span>
+</label>
+<div class="relative">
+<span class="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-outline text-[20px]">person</span>
+<input class="w-full pl-10 pr-4 py-3 rounded-xl bg-surface-container-low text-on-surface font-body-md text-body-md focus:bg-surface-container-lowest transition-all" id="customerName" name="customerName" placeholder="Contoh: Dimas Pratama" required="" type="text" value="Dimas Pratama">
+</div>
+</div>
+<!-- Nomor WhatsApp -->
+<div class="flex flex-col gap-1.5">
+<div class="flex items-center justify-between">
+<label class="font-title-sm text-title-sm text-on-surface flex items-center gap-1" for="customerPhone">
+<span class="">Nomor WhatsApp</span>
+<span class="text-error font-bold">*</span>
+</label>
+<span class="font-body-sm text-[11px] text-primary flex items-center gap-0.5">
+<span class="material-symbols-outlined text-[13px]">verified</span> Notif Bot Otomatis
+              </span>
+</div>
+<div class="relative">
+<span class="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-primary text-[20px]">chat</span>
+<input class="w-full pl-10 pr-4 py-3 rounded-xl bg-surface-container-low text-on-surface font-body-md text-body-md focus:bg-surface-container-lowest transition-all" id="customerPhone" name="customerPhone" placeholder="08xxxxxxxxxx" required="" type="tel" value="0812-8821-9012">
+</div>
+<p class="font-body-sm text-[11px] text-on-surface-variant flex items-center gap-1 mt-0.5">
+<span class="material-symbols-outlined text-[13px] text-outline">info</span>
+              Resi digital PDF &amp; update status pencucian akan dikirim langsung ke nomor ini.
+            </p>
+</div>
+</div>
+<!-- Sumber Tiket Radio Toggle -->
+<div class="pt-2 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-surface-container-low p-3.5 rounded-2xl">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-outline text-[18px]">cell_tower</span>
+<span class="font-title-sm text-title-sm text-primary">Kanal / Sumber Kedatangan:</span>
+</div>
+<div class="inline-flex p-1 bg-surface-container-high rounded-full gap-1">
+<label class="cursor-pointer">
+<input checked="" class="peer sr-only" name="orderSource" type="radio" value="walkin">
+<span class="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full font-label-sm text-label-sm text-on-surface-variant peer-checked:bg-primary-container peer-checked:text-on-primary shadow-none peer-checked:shadow-sm transition-all">
+<span class="material-symbols-outlined text-[15px]">storefront</span>
+<span class="">Walk-in Toko (Dipilih)</span>
+</span>
+</label>
+<label class="cursor-pointer">
+<input class="peer sr-only" name="orderSource" type="radio" value="whatsapp">
+<span class="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full font-label-sm text-label-sm text-on-surface-variant peer-checked:bg-primary-container peer-checked:text-on-primary shadow-none peer-checked:shadow-sm transition-all">
+<span class="material-symbols-outlined text-[15px]">forum</span>
+<span class="">WhatsApp (Manual)</span>
+</span>
+</label>
+</div>
+</div>
+</section>
+<!-- SECTION B: Barang & Layanan (PRD FR-10, FR-11, FR-60, FR-61) -->
+<section class="bg-surface-container-lowest rounded-3xl p-6 shadow-sm flex flex-col gap-5">
+<div class="flex flex-wrap items-center justify-between gap-3 pb-1">
+<div class="flex items-center gap-2.5">
+<span class="w-8 h-8 rounded-full bg-primary-fixed text-primary flex items-center justify-center font-outfit font-bold text-sm">B</span>
+<div>
+<h2 class="font-title-lg text-title-lg text-primary font-outfit">Daftar Barang &amp; Layanan Sepatu</h2>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Katalog tarif resmi Januari 2026 (PRD FR-10, FR-11)</p>
+</div>
+</div>
+<button class="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-primary-container text-on-primary hover:bg-tertiary-container font-label-md text-label-md transition-all shadow-sm" id="addItemBtn" type="button">
+<span class="material-symbols-outlined text-[18px]">add_circle</span>
+<span class="">+ Tambah Barang / Sepatu</span>
+</button>
+</div>
+<!-- Item Cards Container -->
+<div class="flex flex-col gap-4" id="itemList">
+<!-- ITEM 1 -->
+<article class="p-4 sm:p-5 rounded-2xl bg-surface-container-low flex flex-col gap-4 hover:shadow-sm transition-all relative">
+<div class="flex items-center justify-between gap-2">
+<div class="flex items-center gap-2">
+<span class="px-2.5 py-0.5 rounded-full bg-surface-container-highest text-primary font-label-sm text-[10px] uppercase font-bold tracking-wider">
+                  Item #1
+                </span>
+<span class="font-title-sm text-title-sm text-on-surface font-semibold">Sneakers Low</span>
+</div>
+<button class="p-1.5 rounded-xl hover:bg-error-container text-outline hover:text-error transition-all flex items-center justify-center" title="Hapus Item" type="button">
+<span class="material-symbols-outlined text-[19px]">delete</span>
+</button>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-12 gap-3.5 items-end">
+<!-- Deskripsi Sepatu -->
+<div class="md:col-span-5 flex flex-col gap-1">
+<label class="font-label-sm text-label-sm text-on-surface-variant">Deskripsi Barang / Merk &amp; Warna</label>
+<input class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-lowest text-on-surface font-body-md text-body-md" placeholder="Merk, model, warna sepatu" type="text" value="Nike Air Jordan 1 Low - White Cement">
+</div>
+<!-- Pilihan Layanan Katalog -->
+<div class="md:col-span-4 flex flex-col gap-1">
+<label class="font-label-sm text-label-sm text-on-surface-variant">Pilihan Layanan Katalog</label>
+<div class="relative">
+<select class="w-full appearance-none px-3.5 py-2.5 pr-8 rounded-xl bg-surface-container-lowest text-on-surface font-body-md text-body-md">
+<option selected="">Deep Clean Standard (Rp 30.000)</option>
+<option>Unyellowing + Cleaning (Rp 75.000)</option>
+<option>Insole + Outsole (Rp 50.000)</option>
+<option>Suede Treatment (Rp 55.000)</option>
+<option>Kids Shoes Clean (Rp 25.000)</option>
+</select>
+<span class="material-symbols-outlined absolute right-2.5 top-1/2 -translate-y-1/2 text-outline pointer-events-none text-[18px]">expand_more</span>
+</div>
+</div>
+<!-- Durasi Estimasi -->
+<div class="md:col-span-3 flex flex-col gap-1">
+<label class="font-label-sm text-label-sm text-on-surface-variant">Estimasi Durasi</label>
+<div class="px-3.5 py-2.5 rounded-xl bg-surface-container text-on-secondary-container font-title-sm text-[13px] flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[16px] text-primary">timelapse</span>
+<span class="">2-3 Hari</span>
+</div>
+</div>
+</div>
+<!-- Qty & Subtotal Foot -->
+<div class="flex flex-wrap items-center justify-between pt-2">
+<div class="flex items-center gap-2">
+<span class="font-body-sm text-body-sm text-on-surface-variant">Jumlah:</span>
+<div class="inline-flex items-center bg-surface-container-lowest rounded-lg p-0.5">
+<button class="w-7 h-7 flex items-center justify-center rounded text-on-surface hover:bg-surface-container font-bold" type="button">-</button>
+<span class="px-3 font-title-sm text-title-sm text-primary font-semibold">1</span>
+<button class="w-7 h-7 flex items-center justify-center rounded text-on-surface hover:bg-surface-container font-bold" type="button">+</button>
+</div>
+<span class="font-body-sm text-body-sm text-on-surface-variant">Pasang</span>
+</div>
+<div class="flex items-baseline gap-2">
+<span class="font-body-sm text-body-sm text-on-surface-variant">Subtotal:</span>
+<span class="font-headline-md text-headline-md text-primary font-outfit">Rp 30.000</span>
+</div>
+</div>
+</article>
+<!-- ITEM 2 -->
+<article class="p-4 sm:p-5 rounded-2xl bg-surface-container-low flex flex-col gap-4 hover:shadow-sm transition-all relative">
+<div class="flex items-center justify-between gap-2">
+<div class="flex items-center gap-2">
+<span class="px-2.5 py-0.5 rounded-full bg-secondary-container text-on-secondary-container font-label-sm text-[10px] uppercase font-bold tracking-wider">
+                  Item #2
+                </span>
+<span class="font-title-sm text-title-sm text-on-surface font-semibold">Sneakers Leather/Suede</span>
+</div>
+<button class="p-1.5 rounded-xl hover:bg-error-container text-outline hover:text-error transition-all flex items-center justify-center" title="Hapus Item" type="button">
+<span class="material-symbols-outlined text-[19px]">delete</span>
+</button>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-12 gap-3.5 items-end">
+<!-- Deskripsi Sepatu -->
+<div class="md:col-span-5 flex flex-col gap-1">
+<label class="font-label-sm text-label-sm text-on-surface-variant">Deskripsi Barang / Merk &amp; Warna</label>
+<input class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-lowest text-on-surface font-body-md text-body-md" placeholder="Merk, model, warna sepatu" type="text" value="Adidas Samba OG - White Green">
+</div>
+<!-- Pilihan Layanan Katalog -->
+<div class="md:col-span-4 flex flex-col gap-1">
+<label class="font-label-sm text-label-sm text-on-surface-variant">Pilihan Layanan Katalog</label>
+<div class="relative">
+<select class="w-full appearance-none px-3.5 py-2.5 pr-8 rounded-xl bg-surface-container-lowest text-on-surface font-body-md text-body-md">
+<option>Deep Clean Standard (Rp 30.000)</option>
+<option selected="">Unyellowing + Cleaning (Rp 75.000)</option>
+<option>Insole + Outsole (Rp 50.000)</option>
+<option>Suede Treatment (Rp 55.000)</option>
+<option>Kids Shoes Clean (Rp 25.000)</option>
+</select>
+<span class="material-symbols-outlined absolute right-2.5 top-1/2 -translate-y-1/2 text-outline pointer-events-none text-[18px]">expand_more</span>
+</div>
+</div>
+<!-- Durasi Estimasi -->
+<div class="md:col-span-3 flex flex-col gap-1">
+<label class="font-label-sm text-label-sm text-on-surface-variant">Estimasi Durasi</label>
+<div class="px-3.5 py-2.5 rounded-xl bg-surface-container text-on-secondary-container font-title-sm text-[13px] flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[16px] text-primary">timelapse</span>
+<span class="">5-6 Hari</span>
+</div>
+</div>
+</div>
+<!-- Qty & Subtotal Foot -->
+<div class="flex flex-wrap items-center justify-between pt-2">
+<div class="flex items-center gap-2">
+<span class="font-body-sm text-body-sm text-on-surface-variant">Jumlah:</span>
+<div class="inline-flex items-center bg-surface-container-lowest rounded-lg p-0.5">
+<button class="w-7 h-7 flex items-center justify-center rounded text-on-surface hover:bg-surface-container font-bold" type="button">-</button>
+<span class="px-3 font-title-sm text-title-sm text-primary font-semibold">1</span>
+<button class="w-7 h-7 flex items-center justify-center rounded text-on-surface hover:bg-surface-container font-bold" type="button">+</button>
+</div>
+<span class="font-body-sm text-body-sm text-on-surface-variant">Pasang</span>
+</div>
+<div class="flex items-baseline gap-2">
+<span class="font-body-sm text-body-sm text-on-surface-variant">Subtotal:</span>
+<span class="font-headline-md text-headline-md text-primary font-outfit">Rp 75.000</span>
+</div>
+</div>
+</article>
+</div>
+<!-- PRD FR-61 Disclaimer Lock Price -->
+<div class="flex items-start gap-2.5 p-3 rounded-2xl bg-secondary-container/50 text-on-secondary-container text-[12px] font-body-sm">
+<span class="material-symbols-outlined text-primary text-[18px] flex-shrink-0 mt-0.5">lock</span>
+<span class="">
+<strong>Kebijakan Proteksi Nilai (PRD FR-61):</strong> Harga dikunci secara permanen saat tiket dibuat. Perubahan harga di katalog masa mendatang tidak akan mempengaruhi nilai transaksi tiket ini.
+          </span>
+</div>
+</section>
+<!-- SECTION C: Jadwal & Estimasi Selesai Workshop -->
+<section class="bg-surface-container-lowest rounded-3xl p-6 shadow-sm flex flex-col gap-5">
+<div class="flex items-center gap-2.5 pb-1">
+<span class="w-8 h-8 rounded-full bg-primary-fixed text-primary flex items-center justify-center font-outfit font-bold text-sm">C</span>
+<div>
+<h2 class="font-title-lg text-title-lg text-primary font-outfit">Jadwal &amp; Instruksi Khusus Workshop</h2>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Estimasi timeline pengerjaan dan detail kondisi fisik sepatu</p>
+</div>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+<!-- Tanggal Masuk (Terkunci) -->
+<div class="flex flex-col gap-1.5">
+<label class="font-title-sm text-title-sm text-on-surface flex items-center gap-1.5">
+<span class="">Tanggal Masuk (Drop-off)</span>
+<span class="material-symbols-outlined text-[15px] text-outline">lock</span>
+</label>
+<div class="flex items-center gap-2.5 px-4 py-3 rounded-xl bg-surface-container text-on-surface font-body-md text-body-md select-none">
+<span class="material-symbols-outlined text-primary text-[20px]">calendar_today</span>
+<span class="font-semibold text-primary">Kamis, 15 Januari 2026</span>
+<span class="text-on-surface-variant text-[12px] ml-auto">(Hari Ini)</span>
+</div>
+</div>
+<!-- Estimasi Selesai Otomatis -->
+<div class="flex flex-col gap-1.5">
+<div class="flex items-center justify-between">
+<label class="font-title-sm text-title-sm text-on-surface">Target Estimasi Selesai</label>
+<button class="text-primary hover:underline font-label-sm text-[11px] font-semibold" type="button">Ubah Manual (Express)</button>
+</div>
+<div class="flex items-center gap-2.5 px-4 py-3 rounded-xl bg-surface-container-low text-on-surface font-body-md text-body-md">
+<span class="material-symbols-outlined text-primary text-[20px]">event_available</span>
+<span class="font-bold text-primary font-outfit text-[15px]">Rabu, 21 Januari 2026</span>
+<span class="px-2 py-0.5 rounded-full bg-surface-container text-[10px] font-label-sm text-on-surface-variant ml-auto">6 Hari (Maksimal)</span>
+</div>
+<p class="font-body-sm text-[11px] text-on-surface-variant">
+              *Diambil otomatis dari durasi layanan terpanjang: Unyellowing (5-6 hari kerja).
+            </p>
+</div>
+</div>
+<!-- Catatan Khusus untuk Teknisi/Workshop -->
+<div class="flex flex-col gap-1.5">
+<label class="font-title-sm text-title-sm text-on-surface flex items-center gap-1.5" for="technicianNotes">
+<span class="">Catatan Khusus untuk Teknisi Workshop</span>
+<span class="text-on-surface-variant font-normal font-body-sm text-[12px]">(Kondisi cacat awal, keluhan sol, dll)</span>
+</label>
+<div class="relative">
+<textarea class="w-full p-4 rounded-xl bg-surface-container-low text-on-surface font-body-md text-body-md focus:bg-surface-container-lowest transition-all resize-none" id="technicianNotes" placeholder="Tuliskan catatan kondisi sepatu saat diterima..." rows="3">Sol bagian samping kanan agak getas, hindari sikat kawat kasar. Bagian toe box Jordan ada creasing ringan.</textarea>
+</div>
+</div>
+</section>
+</div>
+<!-- ==================== KOLOM KANAN (Sticky Summary & Checkout Kasir - 35%) ==================== -->
+<div class="lg:col-span-4 flex flex-col gap-6 lg:sticky lg:top-4">
+<!-- SUMMARY CARD -->
+<aside aria-label="Ringkasan Pesanan" class="bg-surface-container-lowest rounded-3xl p-6 shadow-md flex flex-col gap-5">
+<!-- Header Ringkasan -->
+<div class="flex items-center justify-between pb-3">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-[22px]">receipt_long</span>
+<h2 class="font-title-lg text-title-lg text-primary font-outfit">Ringkasan Tiket</h2>
+</div>
+<span class="font-label-sm text-[11px] px-2.5 py-1 rounded-full bg-surface-container text-on-surface-variant font-mono">
+            #SM-2601-043
+          </span>
+</div>
+<!-- Info Cepat Pelanggan -->
+<div class="flex items-center gap-3 p-3 rounded-2xl bg-surface-container-low">
+<div class="w-10 h-10 rounded-full bg-primary-container text-on-primary flex items-center justify-center font-outfit font-bold text-sm">
+            DP
+          </div>
+<div class="flex flex-col min-w-0">
+<span class="font-title-sm text-title-sm text-on-surface truncate">Dimas Pratama</span>
+<span class="font-body-sm text-[12px] text-on-surface-variant flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px] text-primary">call</span>
+              0812-8821-9012
+            </span>
+</div>
+<span class="ml-auto px-2 py-0.5 rounded-full bg-secondary-container text-on-secondary-container font-label-sm text-[10px] uppercase font-bold">
+            Walk-in
+          </span>
+</div>
+<!-- Breakdown Item -->
+<div class="flex flex-col gap-3 py-1">
+<div class="flex items-center justify-between text-on-surface-variant font-body-sm text-body-sm">
+<span class="">Total Kuantitas:</span>
+<span class="font-semibold text-primary">2 Pasang Sepatu</span>
+</div>
+<div class="flex flex-col gap-2.5">
+<!-- Row 1 -->
+<div class="flex items-start justify-between gap-2 text-[13px]">
+<div class="flex flex-col">
+<span class="font-medium text-on-surface">Deep Clean Standard</span>
+<span class="text-on-surface-variant text-[11px]">Nike AJ1 Low • 1 pasang</span>
+</div>
+<span class="font-semibold text-on-surface font-outfit">Rp 30.000</span>
+</div>
+<!-- Row 2 -->
+<div class="flex items-start justify-between gap-2 text-[13px]">
+<div class="flex flex-col">
+<span class="font-medium text-on-surface">Unyellowing + Cleaning</span>
+<span class="text-on-surface-variant text-[11px]">Adidas Samba OG • 1 pasang</span>
+</div>
+<span class="font-semibold text-on-surface font-outfit">Rp 75.000</span>
+</div>
+</div>
+</div>
+<!-- Receipt-like Divider SVG -->
+<div aria-hidden="true" class="relative py-1 flex items-center justify-center">
+<svg class="w-full text-secondary-container" fill="none" height="4" xmlns="http://www.w3.org/2000/svg">
+<line stroke="currentColor" stroke-dasharray="6 6" stroke-width="2" x1="0" x2="100%" y1="2" y2="2"></line>
+</svg>
+</div>
+<!-- Grand Total Block -->
+<div class="flex flex-col gap-1 p-4 rounded-2xl bg-surface-container">
+<div class="flex items-center justify-between">
+<span class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">Total Tagihan</span>
+<span class="font-label-sm text-[11px] text-primary font-semibold">2 Item</span>
+</div>
+<div class="flex items-baseline justify-between mt-1">
+<span class="font-headline-xl text-headline-xl text-primary font-outfit font-extrabold tracking-tight">
+              Rp 105.000
+            </span>
+</div>
+</div>
+<!-- SECTION: Status Pembayaran (PRD FR-80, FR-81) -->
+<div class="flex flex-col gap-3.5 pt-1">
+<label class="font-title-sm text-title-sm text-primary flex items-center justify-between">
+<span class="">Status Pembayaran (FR-80):</span>
+<span class="font-body-sm text-[11px] text-on-surface-variant">Pilih saat kasir</span>
+</label>
+<!-- Toggle Pills -->
+<div class="grid grid-cols-2 gap-2 p-1 bg-surface-container rounded-2xl">
+<label class="cursor-pointer">
+<input class="peer sr-only" name="paymentStatus" type="radio" value="unpaid">
+<span class="flex items-center justify-center gap-1.5 py-2.5 rounded-xl font-label-md text-label-md text-on-surface-variant peer-checked:bg-surface-container-lowest peer-checked:text-primary peer-checked:shadow-sm transition-all text-center">
+<span class="material-symbols-outlined text-[16px]">pending_actions</span>
+<span class="">Belum Bayar</span>
+</span>
+</label>
+<label class="cursor-pointer">
+<input checked="" class="peer sr-only" name="paymentStatus" type="radio" value="paid">
+<span class="flex items-center justify-center gap-1.5 py-2.5 rounded-xl font-label-md text-label-md text-on-surface-variant peer-checked:bg-primary peer-checked:text-on-primary peer-checked:shadow-sm transition-all text-center">
+<span class="material-symbols-outlined text-[16px]">check_circle</span>
+<span class="">Lunas</span>
+</span>
+</label>
+</div>
+<!-- Pilihan Metode Bayar (Tampil jika Lunas) -->
+<div class="flex flex-col gap-2 p-3.5 rounded-2xl bg-surface-container-low transition-all" id="paymentMethodGroup">
+<span class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">Metode Pembayaran (FR-81)</span>
+<div class="grid grid-cols-3 gap-2">
+<label class="cursor-pointer">
+<input checked="" class="peer sr-only" name="paymentMethod" type="radio" value="cash">
+<div class="flex flex-col items-center justify-center p-2.5 rounded-xl bg-surface-container-lowest peer-checked:bg-primary-container peer-checked:text-on-primary text-on-surface transition-all gap-1 shadow-sm">
+<span class="material-symbols-outlined text-[20px]">payments</span>
+<span class="font-label-sm text-[11px] font-bold">Tunai</span>
+</div>
+</label>
+<label class="cursor-pointer">
+<input class="peer sr-only" name="paymentMethod" type="radio" value="qris">
+<div class="flex flex-col items-center justify-center p-2.5 rounded-xl bg-surface-container-lowest peer-checked:bg-primary-container peer-checked:text-on-primary text-on-surface transition-all gap-1 shadow-sm">
+<span class="material-symbols-outlined text-[20px]">qr_code_scanner</span>
+<span class="font-label-sm text-[11px] font-bold">QRIS Toko</span>
+</div>
+</label>
+<label class="cursor-pointer">
+<input class="peer sr-only" name="paymentMethod" type="radio" value="transfer">
+<div class="flex flex-col items-center justify-center p-2.5 rounded-xl bg-surface-container-lowest peer-checked:bg-primary-container peer-checked:text-on-primary text-on-surface transition-all gap-1 shadow-sm">
+<span class="material-symbols-outlined text-[20px]">account_balance</span>
+<span class="font-label-sm text-[11px] font-bold">Transfer</span>
+</div>
+</label>
+</div>
+</div>
+</div>
+<!-- ACTION BUTTONS -->
+<div class="flex flex-col gap-2.5 pt-2">
+<!-- Primary Submit -->
+<button class="w-full py-3.5 px-6 rounded-full bg-primary hover:bg-tertiary-container text-on-primary font-headline-md text-[16px] font-semibold tracking-tight shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 group" type="submit">
+<span class="material-symbols-outlined text-[20px] group-hover:scale-110 transition-transform">check</span>
+<span class="">Simpan Tiket Pesanan</span>
+</button>
+<!-- Secondary Print -->
+<button class="w-full py-3 px-6 rounded-full bg-surface-container hover:bg-secondary-container text-primary font-title-sm text-title-sm font-semibold transition-all flex items-center justify-center gap-2" type="button">
+<span class="material-symbols-outlined text-[19px]">print</span>
+<span class="">Simpan &amp; Cetak Struk Resi</span>
+</button>
+<!-- Cancel / Return Link -->
+
+</div>
+<!-- Audit Log Note (PRD FR-16) -->
+<div class="flex items-start gap-2 pt-2 text-[11px] text-outline font-body-sm">
+
+
+</div>
+</aside>
+<!-- KARTU INFORMASI KATALOG RINGKAS (Acuan Kasir) -->
+<section class="bg-surface-container-lowest rounded-3xl p-5 shadow-sm flex flex-col gap-3">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-[18px]">verified_user</span>
+<span class="font-title-sm text-title-sm text-primary">Katalog Layanan Cepat</span>
+</div>
+<span class="font-label-sm text-[10px] text-on-surface-variant">Januari 2026</span>
+</div>
+<div class="grid grid-cols-2 gap-2 text-[12px] font-body-sm">
+<div class="flex items-center justify-between p-2 rounded-xl bg-surface-container-low">
+<span class="text-on-surface">Outsole Clean</span>
+<span class="font-bold text-primary font-outfit">30K</span>
+</div>
+<div class="flex items-center justify-between p-2 rounded-xl bg-surface-container-low">
+<span class="text-on-surface">Insole + Outsole</span>
+<span class="font-bold text-primary font-outfit">50K</span>
+</div>
+<div class="flex items-center justify-between p-2 rounded-xl bg-surface-container-low">
+<span class="text-on-surface">Suede Treatment</span>
+<span class="font-bold text-primary font-outfit">55K</span>
+</div>
+<div class="flex items-center justify-between p-2 rounded-xl bg-surface-container-low">
+<span class="text-on-surface">Unyellowing</span>
+<span class="font-bold text-primary font-outfit">75K</span>
+</div>
+</div>
+</section>
+</div>
+</form>
+<!-- END: Form & Summary Two-Column Layout -->
+<!-- Client-side Interactive Logic -->
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const paymentStatusRadios = document.querySelectorAll('input[name="paymentStatus"]');
+      const paymentMethodGroup = document.getElementById('paymentMethodGroup');
+
+      // Toggle Payment Method Visibility
+      paymentStatusRadios.forEach(radio => {
+        radio.addEventListener('change', (e) => {
+          if (e.target.value === 'unpaid') {
+            paymentMethodGroup.classList.add('opacity-40', 'pointer-events-none');
+          } else {
+            paymentMethodGroup.classList.remove('opacity-40', 'pointer-events-none');
+          }
+        });
+      });
+
+      // Quick toast micro-feedback on form submission
+      const ticketForm = document.getElementById('ticketForm');
+      ticketForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const customerName = document.getElementById('customerName').value;
+        alert('Tiket #SM-2601-043 atas nama ' + customerName + ' berhasil disimpan dan masuk antrean workshop!');
+      });
+    });
+  </script>
+</div></main>
+<!-- END: MainContent -->
+</div>
+<!-- END: MainContainer -->
+
+
+</body></html>

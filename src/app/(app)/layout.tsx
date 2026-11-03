@@ -9,10 +9,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const menu = sesi.peran === "owner" ? MENU_OWNER : MENU_KASIR;
 
   return (
-    <div className="min-h-screen bg-[#e5ded4]">
+    <div className="min-h-screen bg-surface-app flex flex-col font-jakarta">
       <Sidebar menu={menu} nama={sesi.nama} peran={sesi.peran} />
-      <div className="pl-64">
-        <main className="p-6">{children}</main>
+      <div className="lg:pl-64 flex-1 flex flex-col min-w-0">
+        <main className="flex-1 p-4 sm:p-6 lg:p-8 min-w-0 max-w-7xl w-full mx-auto">{children}</main>
       </div>
     </div>
   );

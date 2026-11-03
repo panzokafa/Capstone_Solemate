@@ -1,28 +1,39 @@
 // Dashboard — owner dan kasir (FR-30).
 import { requireAuth } from "@/lib/auth";
+import { PageHeader } from "@/components/ui/page-header";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Placeholder } from "./placeholder";
 
 export default async function DashboardPage() {
   const sesi = await requireAuth();
 
   return (
-    <div>
-      <div className="bg-white rounded-3xl border border-[#ede5d8] p-6 flex items-center justify-between">
-        <div>
-          <h1 className="font-[Outfit] text-2xl font-bold text-[#002546]">
-            Halo, {sesi.nama} ({sesi.peran === "owner" ? "Owner" : "Kasir"})
-          </h1>
-          <p className="text-sm text-[#635E54] mt-1">
-            Outlet Bojongsoang · Buka 09.00 – 21.00 WIB
-          </p>
-        </div>
-        <span className="px-3 py-1 rounded-full bg-[#002546] text-[#d3e4ff] text-xs font-bold uppercase tracking-wider">
-          {sesi.peran} view
-        </span>
-      </div>
-      <div className="mt-6">
-        <Placeholder judul="Dashboard" catatan="Kartu ringkasan, tren 7 hari, dan 5 tiket terbaru akan dibangun di fase dashboard." />
-      </div>
+    <div className="flex flex-col gap-6">
+      <PageHeader
+        title={`Halo, ${sesi.nama}`}
+        description="Outlet Bojongsoang · Buka 09.00 – 21.00 WIB"
+        badge={
+          <Badge variant="primary">
+            {sesi.peran === "owner" ? "Owner View" : "Kasir View"}
+          </Badge>
+        }
+      />
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Ringkasan Operasional</CardTitle>
+          <CardDescription>
+            Selamat datang di sistem manajemen operasional laundry sepatu Solemate.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Placeholder
+            judul="Dashboard Operasional"
+            catatan="Kartu metrik hari ini, tren pesanan, dan tiket terbaru akan aktif pada Fase 7."
+          />
+        </CardContent>
+      </Card>
     </div>
   );
 }

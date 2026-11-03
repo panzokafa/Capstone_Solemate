@@ -1,26 +1,62 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+@theme {
+  --color-primary: #133b63;
+  --color-primary-dark: #002546;
+  --color-primary-hover: #0c3b64;
+  --color-primary-light: #d3e4ff;
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+  --color-surface-canvas: #fff9ef;
+  --color-surface-app: #e5ded4;
+  --color-surface-card: #faf4eb;
+  --color-surface-subtle: #efebe4;
+  --color-surface-hover: #ede5d8;
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --color-text-main: #002546;
+  --color-text-body: #1d1b16;
+  --color-text-muted: #524c42;
+
+  --color-border-warm: #ece4d6;
+  --color-border-card: #e5ded3;
+
+  --color-danger: #ba1a1a;
+  --color-danger-hover: #93000a;
+  --color-danger-light: #ffdad6;
+
+  --color-status-belum-dicuci-bg: #efebe4;
+  --color-status-belum-dicuci-text: #3e3a33;
+  --color-status-belum-dicuci-border: #e0d9cf;
+
+  --color-status-diproses-bg: #d3e4ff;
+  --color-status-diproses-text: #002546;
+  --color-status-diproses-border: #b9d7fe;
+
+  --color-status-siap-diambil-bg: #fef3c7;
+  --color-status-siap-diambil-text: #78350f;
+  --color-status-siap-diambil-border: #fde68a;
+
+  --color-status-sudah-diambil-bg: #dcfce7;
+  --color-status-sudah-diambil-text: #14532d;
+  --color-status-sudah-diambil-border: #bbf7d0;
+
+  --color-status-dibatalkan-bg: #fee2e2;
+  --color-status-dibatalkan-text: #991b1b;
+  --color-status-dibatalkan-border: #fecaca;
+
+  --color-status-belum-bayar-bg: #ffedd5;
+  --color-status-belum-bayar-text: #9a3412;
+  --color-status-belum-bayar-border: #fed7aa;
+
+  --color-status-lunas-bg: #dcfce7;
+  --color-status-lunas-text: #14532d;
+  --color-status-lunas-border: #bbf7d0;
+
+  --font-outfit: var(--font-outfit), sans-serif;
+  --font-jakarta: var(--font-jakarta), sans-serif;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: var(--color-surface-app);
+  color: var(--color-text-body);
+  font-family: var(--font-jakarta);
 }

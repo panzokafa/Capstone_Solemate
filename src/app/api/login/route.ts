@@ -9,6 +9,10 @@ export async function POST(req: NextRequest) {
   if (!username || !pin) {
     return NextResponse.json({ error: "Field tidak boleh kosong." }, { status: 400 });
   }
+  // PIN selalu tepat 6 digit angka (aturan pemilik). Ditolak di server, bukan hanya di keypad.
+  if (typeof pin !== "string" || !/^\d{6}$/.test(pin)) {
+    return NextResponse.json({ error: "PIN harus tepat 6 digit angka." }, { status: 400 });
+  }
 
   const ip = ambilIp(req);
   const hasil = await cobaLogin(username, pin, ip);

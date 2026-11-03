@@ -33,6 +33,14 @@ Next.js (App Router), TypeScript, Tailwind CSS, PostgreSQL dengan migrasi SQL, W
 
 ## Aturan kerja
 
+- Semua perintah `npm`, `node`, dan `npx` harus dieksekusi dengan prefix:
+  ```bash
+  source ~/.nvm/nvm.sh && nvm use >/dev/null && <perintah>
+  ```
+  sehingga versi Node yang terpasang via nvm (misalnya Node 22.23.4) dipakai konsisten.
+- Kerjakan satu fase dari master prompt per sesi, lalu berhenti dan laporkan: file yang dibuat atau diubah, perintah yang dijalankan, hasil tes yang sebenarnya, kendala, dan langkah berikutnya.
+- Jangan membuat fitur di luar PRD. ...
+
 - Kerjakan satu fase dari master prompt per sesi, lalu berhenti dan laporkan: file yang dibuat atau diubah, perintah yang dijalankan, hasil tes yang sebenarnya, kendala, dan langkah berikutnya.
 - Jangan membuat fitur di luar PRD. Fitur yang masuk daftar "tidak masuk ruang lingkup" tidak boleh dibangun.
 - Jangan mengarang data bisnis (harga, nomor owner, pengeluaran, PIN). Pakai placeholder yang bisa diatur dan beri tahu di mana mengisinya.
@@ -42,6 +50,11 @@ Next.js (App Router), TypeScript, Tailwind CSS, PostgreSQL dengan migrasi SQL, W
 - Jangan mengklaim sesuatu berhasil kalau belum benar-benar dijalankan dan dicek.
 - Tanyakan dulu sebelum menginstal dependensi besar, mengubah struktur folder, atau menjalankan perintah yang menghapus file.
 - Bahasa antarmuka: Indonesia. Mata uang Rupiah (`Rp 25.000`). Zona waktu Asia/Jakarta.
+- Sistem desain tunggal diatur di `docs/UI_GUIDE.md`.
+- Halaman dan komponen baru wajib menggunakan komponen bersama dari `src/components/ui`.
+- Dilarang menulis kode warna hex hardcode atau ukuran sembarangan di halaman.
+- Gunakan token semantik Tailwind dan helper `formatRupiah` serta `formatTanggal` dari `src/lib/format.ts`.
+- Pastikan ukuran tap target tombol minimal 44px untuk tablet kasir.
 
 ## Urutan fase
 

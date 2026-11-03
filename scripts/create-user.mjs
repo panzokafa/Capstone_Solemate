@@ -4,7 +4,7 @@ import { createInterface } from "node:readline/promises";
 import { stdin, stdout } from "node:process";
 import pg from "pg";
 import argon2 from "argon2";
-import { cekPINLemah } from "./pin-policy.mjs";
+import { cekPINValid } from "./pin-policy.mjs";
 
 const { Pool } = pg;
 
@@ -81,22 +81,11 @@ async function main() {
     process.exit(1);
   }
 
-  const minPin = peran === "owner" ? 6 : 4;
-  const pin = await tanyaRahasia(`PIN (${minPin}–8 digit, tidak terlihat saat diketik): `);
+  const pin = await tanyaRahasia("PIN (6 digit, tidak terlihat saat diketik): ");
   rl.close();
 
-  if (!/^\d+$/.test(pin)) {
-    console.error("PIN hanya boleh angka.");
-    process.exit(1);
-  }
-  if (pin.length < minPin || pin.length > 8) {
-    console.error(`PIN harus ${minPin}–8 digit.`);
-    process.exit(1);
-  }
-  if (cekPINLemah(pin)) {
-    console.error(
-      "PIN terlalu lemah (tidak boleh 0000, 1234, angka berulang, atau urut). Coba lagi."
-    );
+  if (!cekPINValid(pin)) {
+    console.error("PIN harus tepat 6 digit angka.");
     process.exit(1);
   }
 

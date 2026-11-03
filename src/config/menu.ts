@@ -1,5 +1,7 @@
+import type { NamaIkon } from "./icons";
+
 // Daftar menu sidebar per peran (sumber tunggal, dipakai layout).
-export type ItemMenu = { href: string; label: string; ikon: string };
+export type ItemMenu = { href: string; label: string; ikon: NamaIkon };
 
 export const MENU_OWNER: ItemMenu[] = [
   { href: "/", label: "Dashboard", ikon: "dashboard" },

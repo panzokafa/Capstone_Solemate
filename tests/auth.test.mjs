@@ -12,10 +12,12 @@ import { Pool } from "pg";
 const BASE = process.env.BASE_URL ?? "http://localhost:3000";
 
 // Kredensial tes (acak per run). Tidak disimpan di kode.
+// PIN selalu tepat 6 digit (aturan pemilik toko).
+const pin6 = () => String(Math.floor(Math.random() * 900000) + 100000);
 const OWNER_NAMA = `Owner Tes ${Date.now()}`;
-const OWNER_PIN = `9${Math.floor(Math.random() * 900000)}`; // 6 digit
+const OWNER_PIN = pin6();
 const KASIR_NAMA = `Kasir Tes ${Date.now()}`;
-const KASIR_PIN = String(Math.floor(Math.random() * 9000) + 1000); // 4 digit
+const KASIR_PIN = pin6();
 
 // Ambil body JSON dari response.
 async function json(res) {
@@ -29,7 +31,7 @@ async function json(res) {
 let ownerId;
 
 const RATE_OWNER_NAMA = `Owner Rate ${Date.now()}`;
-const RATE_OWNER_PIN = `8${Math.floor(Math.random() * 900000)}`;
+const RATE_OWNER_PIN = pin6();
 
 before(async () => {
   ownerId = await buatAkunUji(OWNER_NAMA, "owner", OWNER_PIN);
@@ -186,7 +188,7 @@ test("kunci berakhir sesuai masa kunci (counter direset setelah jendela lewat)",
 test("10 percobaan serentak tidak melewati batas 5", async () => {
   // Akun baru khusus tes serentak.
   const NAMA = `Owner Serentak ${Date.now()}`;
-  const PIN = `7${Math.floor(Math.random() * 900000)}`;
+  const PIN = pin6();
   await buatAkunUji(NAMA, "owner", PIN);
 
   // 10 request salah dikirim bersamaan.

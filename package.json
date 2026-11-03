@@ -12,12 +12,17 @@
     "migrate:status": "node --env-file=.env scripts/migrate-status.mjs",
     "seed": "node --env-file=.env scripts/seed.js",
     "create-user": "node --env-file=.env scripts/create-user.mjs",
+    "reset-pin": "node --env-file=.env scripts/reset-pin.mjs",
+    "test:ui": "node --experimental-strip-types --test 'tests/ui-icons.test.mjs' 'tests/ui-design-system.test.mjs'",
+    "test:icons": "node --experimental-strip-types --test 'tests/ui-icons.test.mjs'",
     "test:db": "node --env-file=.env scripts/with-test-db.mjs --experimental-strip-types --test 'tests/db-constraints.test.mjs'",
     "test:auth": "START_TEST_SERVER=1 node --env-file=.env scripts/with-test-db.mjs --experimental-strip-types --test 'tests/auth.test.mjs' 'tests/auth-extra.test.mjs'",
-    "test": "npm run test:db && npm run test:auth"
+    "test": "npm run test:ui; a=$?; npm run test:db; b=$?; npm run test:auth; c=$?; exit $((a || b || c))"
+
   },
   "dependencies": {
     "argon2": "^0.45.1",
+    "lucide-react": "1.67.0",
     "next": "16.4.3",
     "react": "19.3.0",
     "react-dom": "19.3.0"

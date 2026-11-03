@@ -3,7 +3,9 @@
 //   - sesi kedaluwarsa ditolak
 //   - halaman owner (bukan hanya API) menolak kasir
 //   - /absensi bisa dibuka tanpa login
-//   - skrip create-user menolak PIN lemah
+//   - aturan PIN baru: tepat 6 digit (000000 diterima; 5/7 digit dan huruf ditolak)
+//   - skrip create-user dan reset-pin menolak PIN bukan 6 digit
+//   - form login tidak mengirim sebelum 6 digit
 //   - IP tidak diketahui tidak mengunci semua pengguna
 //   - X-Forwarded-For diabaikan saat TRUST_PROXY=false, dipakai saat true
 //
@@ -13,16 +15,17 @@ import { test, before } from "node:test";
 import assert from "node:assert/strict";
 import { buatAkunUji } from "./helpers/akun.mjs";
 import { Pool } from "pg";
-import { cekPINLemah } from "../scripts/pin-policy.mjs";
+import { cekPINValid } from "../scripts/pin-policy.mjs";
 
 const BASE = process.env.BASE_URL ?? "http://localhost:3000";
 
+const pin6 = () => String(Math.floor(Math.random() * 900000) + 100000);
 const OWNER_NAMA = `Owner Extra ${Date.now()}`;
-const OWNER_PIN = `6${Math.floor(Math.random() * 900000)}`;
+const OWNER_PIN = pin6();
 const KASIR_NAMA = `Kasir Extra ${Date.now()}`;
-const KASIR_PIN = String(Math.floor(Math.random() * 9000) + 1000);
+const KASIR_PIN = pin6();
 const NONAKTIF_NAMA = `Nonaktif ${Date.now()}`;
-const NONAKTIF_PIN = `5${Math.floor(Math.random() * 900000)}`;
+const NONAKTIF_PIN = pin6();
 
 let nonaktifId;
 
@@ -245,53 +248,187 @@ test("/absensi bisa dibuka tanpa login", async () => {
   );
 });
 
-// ---------- PIN lemah ditolak oleh skrip create-user ----------
+// ---------- Aturan PIN baru: tepat 6 digit angka (keputusan pemilik toko) ----------
 
-test("aturan PIN lemah menolak 1234, 0000, 123456, berulang, dan berurutan", () => {
-  const lemah = [
-    "0000",
-    "111111",
-    "1234",
-    "123456",
-    "0123",
-    "9876",
-    "456789",
-    "6789",
-  ];
-  for (const pin of lemah) {
-    assert.equal(cekPINLemah(pin), true, `PIN ${pin} harus dianggap lemah`);
+test("aturan PIN: 000000 diterima; 5/7 digit dan huruf ditolak", () => {
+  // Kekuatan bebas — 000000, 123456, angka berulang/berurutan sah (keputusan pemilik).
+  for (const pin of ["000000", "123456", "111111", "654321", "888888"]) {
+    assert.equal(cekPINValid(pin), true, `PIN ${pin} harus diterima (6 digit)`);
   }
-  const kuat = ["472913", "830274", "918273", "524183", "739162", "9037"];
-  for (const pin of kuat) {
-    assert.equal(cekPINLemah(pin), false, `PIN ${pin} seharusnya tidak lemah`);
+  // Panjang salah dan non-digit ditolak.
+  for (const pin of ["12345", "1234567", "", "12345a", "abcdef", "12345678", "1234"]) {
+    assert.equal(cekPINValid(pin), false, `PIN "${pin}" harus ditolak`);
   }
 });
 
-test("skrip create-user menolak PIN lemah dan tidak membuat akun", async () => {
+test("API menolak PIN yang bukan tepat 6 digit angka", async () => {
+  const { res: loginRes } = await login(OWNER_NAMA, OWNER_PIN);
+  assert.equal(loginRes.status, 200);
+
+  for (const pin of ["12345", "1234567", "12345a"]) {
+    const res = await fetch(`${BASE}/api/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username: OWNER_NAMA, pin }),
+    });
+    assert.equal(res.status, 400, `PIN "${pin}" harus ditolak server (400)`);
+    const data = await json(res);
+    assert.ok(/6 digit/i.test(data.error ?? ""), `pesan: ${data.error}`);
+  }
+});
+
+test("skrip create-user menolak PIN bukan 6 digit dan tidak membuat akun", async () => {
   const { spawnSync } = await import("node:child_process");
   const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-  const namaUji = `PIN Lemah ${Date.now()}`;
-  try {
+  for (const pinUji of ["12345", "1234567", "abcdef"]) {
+    const namaUji = `PIN Panjang ${Date.now()} ${pinUji}`;
     // Skrip membaca nama, peran, lalu PIN dari stdin. DATABASE_URL diwariskan
     // dari proses tes (database solemate_test), BUKAN dari .env.
     const r = spawnSync(process.execPath, ["scripts/create-user.mjs"], {
-      input: `${namaUji}\nowner\n123456\n`,
+      input: `${namaUji}\nowner\n${pinUji}\n`,
       encoding: "utf8",
       timeout: 30_000,
       env: process.env,
     });
     const keluaran = `${r.stdout ?? ""}${r.stderr ?? ""}`;
-    assert.notEqual(r.status, 0, "skrip harus gagal untuk PIN lemah");
+    assert.notEqual(r.status, 0, `skrip harus gagal untuk PIN "${pinUji}"`);
     assert.ok(
-      /lemah/i.test(keluaran),
-      `keluaran harus menyebut PIN lemah, dapat: ${keluaran.slice(0, 400)}`
+      /6 digit/i.test(keluaran),
+      `keluaran harus menyebut 6 digit, dapat: ${keluaran.slice(0, 400)}`
     );
 
     const r2 = await pool.query(
       `SELECT count(*)::int n FROM users WHERE nama = $1`,
       [namaUji]
     );
-    assert.equal(r2.rows[0].n, 0, "skrip tidak boleh membuat akun saat PIN lemah");
+    assert.equal(r2.rows[0].n, 0, "skrip tidak boleh membuat akun saat PIN invalid");
+  }
+  await pool.end();
+});
+
+test("skrip create-user menerima PIN 000000 dan membuat akun", async () => {
+  const { spawnSync } = await import("node:child_process");
+  const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+  const namaUji = `PIN Nol ${Date.now()}`;
+  try {
+    const r = spawnSync(process.execPath, ["scripts/create-user.mjs"], {
+      input: `${namaUji}\nkasir\n000000\n`,
+      encoding: "utf8",
+      timeout: 30_000,
+      env: process.env,
+    });
+    assert.equal(r.status, 0, `skrip harus sukses, keluaran: ${(r.stdout ?? "") + (r.stderr ?? "")}`);
+    const r2 = await pool.query(
+      `SELECT count(*)::int n FROM users WHERE nama = $1`,
+      [namaUji]
+    );
+    assert.equal(r2.rows[0].n, 1, "akun dengan PIN 000000 harus terbuat");
+  } finally {
+    await pool.end();
+  }
+});
+
+// ---------- Form login tidak mengirim sebelum 6 digit ----------
+
+test("form login tidak mengirim sebelum 6 digit terisi", async () => {
+  // Uji logika form di level kode: batas pin di login-form harus 6 digit,
+  // tidak ada pengiriman otomatis saat digit ke-4. Dipastikan lewat sumber:
+  const { readFileSync } = await import("node:fs");
+  const src = readFileSync("src/app/login/login-form.tsx", "utf8");
+
+  // Tidak ada pemanggilan kirim otomatis di dalam tekan().
+  const bagianTekan = src.slice(src.indexOf("function tekan"), src.indexOf("// Keyboard"));
+  assert.ok(
+    !bagianTekan.includes("kirim"),
+    "tekan() tidak boleh memanggil kirim() (pengiriman hanya via tombol/Enter)"
+  );
+  // Tombol Masuk hanya aktif saat tepat 6 digit.
+  assert.ok(
+    src.includes("pin.length !== 6") || src.includes("pin.length !==6"),
+    "tombol Masuk harus disabled sampai tepat 6 digit"
+  );
+  // Enter hanya mengirim saat 6 digit.
+  assert.ok(
+    src.includes("pin.length === 6"),
+    "Enter hanya boleh mengirim saat PIN 6 digit"
+  );
+  // Tampilan 6 titik, bukan 8.
+  assert.ok(
+    src.includes("Array.from({ length: 6 })"),
+    "PIN display harus 6 titik"
+  );
+});
+
+// ---------- Skrip reset-pin: ganti PIN + buka kunci ----------
+
+test("skrip reset-pin mengganti PIN dan membuka kunci akun", async () => {
+  const { spawnSync } = await import("node:child_process");
+  const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+  const namaUji = `Reset Pin ${Date.now()}`;
+  const pinLama = pin6();
+  const pinBaru = pin6();
+  try {
+    await buatAkunUji(namaUji, "kasir", pinLama);
+
+    // Kunci akunnya dulu: 5 percobaan salah.
+    for (let i = 0; i < 5; i++) {
+      await fetch(`${BASE}/api/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: namaUji, pin: "000000" }),
+      });
+    }
+    const terkunci = await pool.query(
+      `SELECT 1 FROM login_rate_limit WHERE tipe = 'akun' AND kunci = $1`,
+      [namaUji]
+    );
+    assert.ok(terkunci.rowCount === 1, "akun harus terkunci dulu sebelum reset");
+
+    // PIN lama ditolak (akun terkunci).
+    const resLama = await fetch(`${BASE}/api/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username: namaUji, pin: pinLama }),
+    });
+    assert.equal(resLama.status, 403, "akun terkunci harus ditolak");
+
+    // Jalankan reset-pin lewat stdin pipe.
+    const r = spawnSync(process.execPath, ["scripts/reset-pin.mjs"], {
+      input: `${namaUji}\n${pinBaru}\n`,
+      encoding: "utf8",
+      timeout: 30_000,
+      env: process.env,
+    });
+    const keluaran = `${r.stdout ?? ""}${r.stderr ?? ""}`;
+    assert.equal(r.status, 0, `skrip harus sukses, keluaran: ${keluaran.slice(0, 400)}`);
+
+    // Kunci terbuka.
+    const kunci = await pool.query(
+      `SELECT count(*)::int n FROM login_rate_limit WHERE tipe = 'akun' AND kunci = $1`,
+      [namaUji]
+    );
+    assert.equal(kunci.rows[0].n, 0, "kunci rate-limit harus terhapus");
+
+    // PIN baru diterima, PIN lama ditolak.
+    const resBaru = await fetch(`${BASE}/api/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username: namaUji, pin: pinBaru }),
+    });
+    assert.equal(resBaru.status, 200, "PIN baru harus bisa login");
+
+    const resLama2 = await fetch(`${BASE}/api/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username: namaUji, pin: pinLama }),
+    });
+    assert.equal(resLama2.status, 403, "PIN lama harus ditolak setelah reset");
+
+    // PIN tidak boleh bocor ke keluaran skrip.
+    assert.ok(
+      !keluaran.includes(pinBaru) && !keluaran.includes(pinLama),
+      "PIN tidak boleh muncul di keluaran skrip"
+    );
   } finally {
     await pool.end();
   }
@@ -303,8 +440,8 @@ test("IP tidak diketahui: batas per-IP dilewati, akun lain tidak ikut terkunci",
   const pool = new Pool({ connectionString: process.env.DATABASE_URL });
   const akunA = `TanpaIP A ${Date.now()}`;
   const akunB = `TanpaIP B ${Date.now()}`;
-  const pinA = `4${Math.floor(Math.random() * 900000)}`;
-  const pinB = `3${Math.floor(Math.random() * 900000)}`;
+  const pinA = pin6();
+  const pinB = pin6();
   await buatAkunUji(akunA, "owner", pinA);
   await buatAkunUji(akunB, "owner", pinB);
   try {

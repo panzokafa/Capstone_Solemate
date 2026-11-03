@@ -2,6 +2,7 @@
 import { redirect } from "next/navigation";
 import { getPool } from "@/lib/db";
 import { getSesi } from "@/lib/auth";
+import { Card } from "@/components/ui/card";
 import { LoginForm } from "./login-form";
 
 // Halaman ini membaca cookie & database per request, jangan di-prerender statis.
@@ -22,33 +23,42 @@ export default async function LoginPage() {
   }));
 
   return (
-    <div className="min-h-screen bg-[#fff9ef] flex flex-col">
-      <header className="w-full py-6 px-4">
-        <div className="flex items-center gap-2">
-          <div className="w-10 h-10 rounded-full bg-[#133B63] text-white flex items-center justify-center font-bold">
+    <div className="min-h-screen bg-surface-canvas flex flex-col">
+      <header className="w-full py-6 px-6">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-full bg-primary text-white flex items-center justify-center font-bold font-outfit shadow-xs">
             S
           </div>
-          <span className="font-[Outfit] font-bold text-[#002546]">Solemate Shoes Clean</span>
+          <div className="flex flex-col">
+            <span className="font-outfit font-extrabold text-lg text-primary-dark leading-none">
+              Solemate
+            </span>
+            <span className="font-outfit text-[10px] font-bold tracking-[0.2em] text-text-muted uppercase mt-0.5">
+              Shoes Clean
+            </span>
+          </div>
         </div>
       </header>
 
       <main className="flex-1 flex items-center justify-center px-4 pb-12">
-        <div className="w-full max-w-md bg-[#f9f3ea] rounded-3xl p-6 sm:p-10 shadow-xl">
+        <Card className="w-full max-w-md p-6 sm:p-10 shadow-md">
           <div className="text-center mb-6">
-            <h1 className="font-[Outfit] text-2xl font-bold text-[#002546]">Masuk ke Sistem</h1>
-            <p className="text-sm text-[#635E54] mt-1">
+            <h1 className="font-outfit text-2xl font-bold text-text-main">
+              Masuk ke Sistem
+            </h1>
+            <p className="font-jakarta text-sm text-text-muted mt-1">
               Masuk untuk mengelola pesanan &amp; operasional laundry sepatu.
             </p>
           </div>
 
           {pengguna.length === 0 ? (
-            <p className="text-center text-sm text-[#635E54]">
+            <p className="text-center text-sm text-text-muted">
               Belum ada akun. Hubungi Owner untuk membuat akun.
             </p>
           ) : (
             <LoginForm pengguna={pengguna} />
           )}
-        </div>
+        </Card>
       </main>
     </div>
   );

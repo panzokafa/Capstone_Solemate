@@ -12,9 +12,10 @@ Dokumen serah-terima. Sesi Claude Code sebelumnya terlalu panjang dan rusak, jad
 ## Syarat (sudah disetujui)
 
 ### PIN dan akun
-- Hash PIN dengan argon2id (bcrypt jika argon2 gagal dipasang). Owner minimal 6 digit, kasir minimal 4 digit. Keypad menerima 4 sampai 8 digit.
-- Tolak PIN mudah di skrip pembuatan akun: 1234, 0000, 123456, angka berulang atau berurutan.
-- Skrip buat akun: PIN diminta lewat prompt tersembunyi, tidak lewat argumen, tidak ditulis ke log atau layar.
+- Hash PIN dengan argon2id (bcrypt jika argon2 gagal dipasang).
+- **[Diubah 2026-11-03, keputusan pemilik toko]** Semua PIN (owner, kasir, dan absensi karyawan) **persis 6 digit angka**. Aturan lama (owner minimal 6, kasir minimal 4, rentang 4–8 digit, dan tolak PIN mudah seperti 1234/0000/berulang/berurutan) DIHAPUS — 000000, 123456, angka berulang atau berurutan sekarang sah. Yang tetap ditolak: input yang bukan tepat 6 digit angka (5 digit, 7 digit, berisi huruf), dicek di server (API login), skrip create-user/reset-pin, dan keypad.
+- Keypad login: 6 titik, tidak mengirim otomatis; login hanya saat tombol Masuk ditekan atau Enter, dan tombol Masuk nonaktif sampai 6 digit terisi.
+- Skrip buat akun dan reset PIN: PIN diminta lewat prompt tersembunyi, tidak lewat argumen, tidak ditulis ke log atau layar. `npm run reset-pin` juga membuka kunci akun.
 
 ### Pembatasan login
 - Per akun dan per IP, hitungan disimpan di DATABASE (bukan memori), dan update-nya ATOMIK (satu perintah SQL yang menaikkan counter), bukan baca dulu lalu tulis.

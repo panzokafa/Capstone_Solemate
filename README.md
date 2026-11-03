@@ -67,6 +67,7 @@ Data PostgreSQL disimpan di volume Docker `solemate_pgdata`, jadi tidak hilang s
 | `src/config/auth.ts` | Batas login per akun/IP dan batas pencatatan audit |
 | `migrations/` | Migrasi SQL (node-pg-migrate), punya bagian Up dan Down |
 | `scripts/create-user.mjs` | Skrip buat akun owner/kasir (PIN lewat prompt) |
+| `scripts/reset-pin.mjs` | Skrip ganti PIN akun + buka kunci (PIN lewat prompt) |
 | `scripts/seed.js` | Data contoh palsu (tanpa users/PIN), hanya jalan saat `NODE_ENV=development` |
 | `tests/db-constraints.test.mjs` | Tes aturan database (transaksi di-ROLLBACK, tidak meninggalkan data) |
 | `tests/auth.test.mjs`, `tests/auth-extra.test.mjs` | Tes login, peran, sesi, otorisasi |
@@ -113,12 +114,20 @@ npm run create-user
 ```
 
 Skrip meminta nama, peran (owner/kasir), dan PIN:
-- **Owner**: PIN 6–8 digit.
-- **Kasir**: PIN 4–8 digit.
+- **Semua peran**: PIN tepat **6 digit angka**. Contoh `000000`, `123456`, `472913` semuanya diterima.
+- Input yang bukan tepat 6 digit angka (5 digit, 7 digit, atau berisi huruf) ditolak.
 
-PIN diminta lewat prompt interaktif (tidak terlihat saat diketik). Dilarang PIN lemah: angka semua sama (0000, 1111), urut (1234, 456789), atau deret standar (123456).
+PIN diminta lewat prompt interaktif (tidak terlihat saat diketik).
 
 PIN disimpan sebagai hash argon2id di database. Kode tidak pernah mencatat PIN di log atau file.
+
+### Mengganti PIN akun yang sudah ada
+
+```bash
+npm run reset-pin
+```
+
+Skrip meminta nama akun dan PIN baru (6 digit, prompt tersembunyi). Skrip juga **membuka kunci** percobaan login akun tersebut, jadi akun yang terlanjur terkunci bisa dipakai lagi langsung. Berguna untuk memindahkan akun lama ke PIN 6 digit.
 
 ### Halaman login
 
@@ -179,7 +188,7 @@ npm run test:db
 - Unique constraints pada kode tiket dan nomor WA.
 - Pembatalan wajib alasan.
 
-### Tes autentikasi dan otorisasi (25 butir)
+### Tes autentikasi dan otorisasi (29 butir)
 
 ```bash
 npm run test:auth
@@ -196,7 +205,8 @@ Tes login, pembatasan percobaan, peran, sesi:
 - Halaman dan API terlindungi mengarahkan ke login tanpa sesi.
 - PIN tidak bocor ke log aplikasi atau audit_logs.
 - Batas audit per (akun, IP), bukan global.
-- Skrip create-user menolak PIN lemah.
+- Aturan PIN: tepat 6 digit angka — 000000 diterima, 5/7 digit dan huruf ditolak (server, skrip create-user, dan form).
+- Form login tidak mengirim sebelum 6 digit terisi.
 - X-Forwarded-For dipakai saat TRUST_PROXY=true, diabaikan saat false.
 - User database `solemate_app` ditolak DELETE/TRUNCATE orders dan UPDATE/DELETE audit_logs.
 

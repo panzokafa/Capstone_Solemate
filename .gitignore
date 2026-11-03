@@ -17,6 +17,9 @@
 /.next/
 /out/
 
+# build server tes (distDir terpisah)
+/.next-test/
+
 # production
 /build
 

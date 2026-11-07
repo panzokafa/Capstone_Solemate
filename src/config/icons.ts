@@ -14,6 +14,18 @@ import {
   Ban,
   Menu,
   X,
+  Search,
+  Trash2,
+  ChevronLeft,
+  ChevronRight,
+  ArrowLeft,
+  MessageCircle,
+  CheckCircle2,
+  AlertTriangle,
+  Inbox,
+  History,
+  User,
+  Eye,
   type LucideIcon,
 } from "lucide-react";
 
@@ -31,6 +43,18 @@ export const PEMETAAN_IKON: Record<string, LucideIcon> = {
   block: Ban,
   menu: Menu,
   close: X,
+  search: Search,
+  trash: Trash2,
+  chevron_left: ChevronLeft,
+  chevron_right: ChevronRight,
+  arrow_left: ArrowLeft,
+  message_circle: MessageCircle,
+  check_circle: CheckCircle2,
+  alert_triangle: AlertTriangle,
+  inbox: Inbox,
+  history: History,
+  user: User,
+  eye: Eye,
 };
 
 export type NamaIkon = keyof typeof PEMETAAN_IKON;

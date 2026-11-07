@@ -104,6 +104,68 @@ import { Badge } from "@/components/ui/badge";
 <Badge variant="bayar" statusBayar="Belum bayar" />
 ```
 
+### Dialog
+```tsx
+import { Dialog } from "@/components/ui/dialog";
+
+<Dialog
+  open={terbuka}
+  onClose={() => setTerbuka(false)}
+  title="Konfirmasi Aksi"
+  description="Penjelasan singkat sebelum melanjutkan."
+>
+  {/* Isi dialog */}
+</Dialog>
+```
+
+### DataTable, EmptyState & Skeleton
+Gunakan `DataTable` untuk menampilkan tabel semantik di tablet/desktop sekaligus kartu responsif di ponsel (`renderMobileCard`), lengkap dengan keadaan memuat (`loading` berbasis `Skeleton`) dan kosong (`EmptyState`):
+```tsx
+import { DataTable, EmptyState, Skeleton } from "@/components/ui";
+
+<DataTable
+  columns={[
+    { key: "kode", header: "Kode Tiket", render: (row) => row.kode_tiket },
+    { key: "total", header: "Total", render: (row) => formatRupiah(row.total) },
+  ]}
+  data={daftar}
+  rowKey={(row) => row.id}
+  loading={sedangMemuat}
+  emptyState={
+    <EmptyState
+      icon="inbox"
+      title="Belum Ada Data"
+      description="Data yang tercatat akan tampil di halaman ini."
+    />
+  }
+/>
+```
+
+### FilterBar, FilterChip & Pagination
+Gunakan `FilterBar` bersama `FilterChip` (semua tombol memiliki target sentuh `min-h-[44px]`) serta `Pagination` berbasis query string yang divalidasi di server:
+```tsx
+import { FilterBar, FilterChip, Pagination } from "@/components/ui";
+
+<FilterBar>
+  <div className="flex flex-wrap gap-2">
+    <FilterChip active={periode === "hari_ini"} onClick={() => pilih("hari_ini")}>
+      Hari ini
+    </FilterChip>
+    <FilterChip active={periode === "7_hari"} onClick={() => pilih("7_hari")}>
+      7 hari terakhir
+    </FilterChip>
+  </div>
+</FilterBar>
+
+<Pagination
+  halaman={paginasi.halaman}
+  totalHalaman={paginasi.total_halaman}
+  totalData={paginasi.total_data}
+  ukuran={paginasi.ukuran}
+  buatHref={(target) => `/tiket?halaman=${target}`}
+/>
+```
+
 ---
 
 ## 4. Helper Format Terpusat (`@/lib/format`)
@@ -116,4 +178,12 @@ formatTanggal("2026-05-10T20:00:00.000Z"); // "11 Mei 2026" (konversi ke WIB oto
 formatTanggal("2026-05-10T20:00:00.000Z", { denganWaktu: true }); // "11 Mei 2026, 03.00 WIB"
 formatWaktu("2026-05-10T20:00:00.000Z"); // "03.00 WIB"
 ```
+
+---
+
+## 5. Catatan Asumsi & Aturan Modul Tiket (Phase 5A)
+- **Asumsi segmen filter `"7 hari terakhir"` (`periode=7_hari`):** PRD bagian 7.3 dan FR-13 menyebut filter *"beberapa hari lalu"* tanpa angka pasti. Untuk sementara antarmuka dan server menggunakan **7 hari terakhir** dalam zona waktu `Asia/Jakarta` (dikonfigurasi terpusat di `src/config/tiket.ts` agar mudah disesuaikan setelah konfirmasi pemilik toko).
+- **Tanggal pada `kode_tiket` (`SM-YYYYMMDD-NNN`):** menggunakan **tanggal terbit tiket** di server pada zona waktu `Asia/Jakarta`, bukan `tanggal_masuk` yang diisi kasir, supaya penomoran resi harian selalu maju berurutan dan bebas bentrok.
+- **Keamanan tautan & teks:** seluruh teks pengguna dirender sebagai teks biasa (tanpa `dangerouslySetInnerHTML`), dan seluruh tautan `wa.me` wajib meng-encode pesan dengan `encodeURIComponent` serta memakai `rel="noopener noreferrer"`.
+
 

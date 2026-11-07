@@ -55,3 +55,29 @@ export function buatUrlWaMe(nomorWa: string, pesan?: string): string {
   if (!pesan || pesan.length === 0) return dasar;
   return `${dasar}?text=${encodeURIComponent(pesan)}`;
 }
+
+/**
+ * Menyusun pesan awal click-to-chat WhatsApp sesuai status tiket (PRD 7.3 / FR-23).
+ */
+export function buatPesanWaTiket(param: {
+  kodeTiket: string;
+  namaPelanggan: string;
+  statusPesanan: string;
+  statusBayar: string;
+  totalRupiah: string;
+}): string {
+  const { kodeTiket, namaPelanggan, statusPesanan, statusBayar, totalRupiah } = param;
+  if (statusPesanan === "Siap diambil") {
+    return `Halo ${namaPelanggan}, pesanan cucian sepatu Anda di Solemate dengan kode tiket ${kodeTiket} sudah selesai dan siap diambil. Total: ${totalRupiah} (${statusBayar}). Terima kasih.`;
+  }
+  if (statusPesanan === "Diproses") {
+    return `Halo ${namaPelanggan}, pesanan cucian sepatu Anda di Solemate (${kodeTiket}) saat ini sedang diproses. Total: ${totalRupiah} (${statusBayar}).`;
+  }
+  if (statusPesanan === "Sudah diambil") {
+    return `Halo ${namaPelanggan}, terima kasih telah mempercayakan cucian sepatu Anda (${kodeTiket}) di Solemate Shoes Clean.`;
+  }
+  if (statusPesanan === "Dibatalkan") {
+    return `Halo ${namaPelanggan}, menginformasikan bahwa tiket pesanan ${kodeTiket} di Solemate berstatus Dibatalkan.`;
+  }
+  return `Halo ${namaPelanggan}, pesanan cucian sepatu Anda di Solemate telah tercatat dengan kode tiket ${kodeTiket}. Total: ${totalRupiah} (${statusBayar}). Terima kasih.`;
+}

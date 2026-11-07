@@ -7,6 +7,7 @@
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
+import path from "node:path";
 import pg from "pg";
 import { buatAkunUji } from "./helpers/akun.mjs";
 import { normalisasiNomorWa, buatUrlWaMe } from "../src/lib/nomor-wa.ts";
@@ -1082,5 +1083,278 @@ test("unit murni: normalisasiNomorWa, validasiIdTiket, validasiCekPelanggan, val
     assert.equal(qOk.data.belum_bayar_di_atas, true);
     assert.equal(qOk.data.halaman, 2);
     assert.equal(qOk.data.ukuran, 50);
+  }
+});
+
+// ---------- 16. SSR / HTML Halaman UI Phase 5A ----------
+
+test("SSR /buat-tiket: kasir bisa membuka form, owner ditolak (Akses Ditolak), tanpa login diarahkan ke /login, tidak ada elemen di luar PRD", async () => {
+  const tanpaLogin = await fetch(`${BASE}/buat-tiket`, { redirect: "manual" });
+  assert.ok([302, 307].includes(tanpaLogin.status));
+  assert.ok((tanpaLogin.headers.get("location") ?? "").includes("/login"));
+
+  const resOwner = await fetch(`${BASE}/buat-tiket`, {
+    headers: { Cookie: ownerCookie },
+  });
+  assert.equal(resOwner.status, 200);
+  const htmlOwner = await resOwner.text();
+  assert.match(htmlOwner, /Akses Ditolak/i, "owner harus melihat Akses Ditolak di /buat-tiket");
+  assert.doesNotMatch(htmlOwner, /Simpan Tiket/i, "form buat tiket tidak boleh tampil untuk owner");
+
+  const resKasir = await fetch(`${BASE}/buat-tiket`, {
+    headers: { Cookie: kasirCookie },
+  });
+  assert.equal(resKasir.status, 200);
+  const htmlKasir = await resKasir.text();
+  assert.match(htmlKasir, /Buat Tiket Baru/);
+  assert.match(htmlKasir, /Data Pelanggan/);
+  assert.match(htmlKasir, /Cek Nomor/);
+  assert.match(htmlKasir, /Barang &amp; Layanan/);
+  assert.match(htmlKasir, /Perkiraan/);
+  assert.match(htmlKasir, /Simpan Tiket/);
+  assert.ok(
+    htmlKasir.includes(layananA.nama),
+    "pilihan layanan aktif harus tampil di halaman /buat-tiket"
+  );
+  assert.ok(
+    !htmlKasir.includes(layananNonaktif.nama),
+    "layanan nonaktif tidak boleh tampil sebagai opsi di /buat-tiket"
+  );
+
+  // Pastikan tidak ada elemen di luar PRD / Phase 5B
+  for (const polaTerlarang of [
+    /QRIS/i,
+    /alamat\s*jemput/i,
+    /kurir/i,
+    /ekspor/i,
+    /cetak\s*resi/i,
+    /batalkan\s*tiket/i,
+  ]) {
+    assert.doesNotMatch(
+      htmlKasir,
+      polaTerlarang,
+      `halaman /buat-tiket tidak boleh memuat kontrol di luar PRD (${polaTerlarang})`
+    );
+  }
+});
+
+test("SSR /tiket dan /tiket/[id]: kasir vs owner (owner hanya lihat tanpa kontrol ubah atau wa.me), wa.me memakai encodeURIComponent & rel=noopener noreferrer, tidak ada tombol di luar PRD", async () => {
+  const namaKhusus = `Rina & Dito ${Date.now()}`;
+  const buat = await api(kasirCookie, "POST", "/api/tiket", {
+    nama_pelanggan: namaKhusus,
+    nomor_wa: waUnik08(),
+    items: [{ service_id: layananA.id, deskripsi_barang: "Loafers Cokelat", jumlah: 2 }],
+    status_bayar: "Lunas",
+    metode_bayar: "Cash",
+  });
+  assert.equal(buat.res.status, 201);
+  const tiket = buat.data.data;
+
+  // 1. Kasir membuka Daftar Tiket (/tiket) dengan filter cari
+  const daftarKasir = await fetch(
+    `${BASE}/tiket?cari=${encodeURIComponent(tiket.kode_tiket)}`,
+    { headers: { Cookie: kasirCookie } }
+  );
+  assert.equal(daftarKasir.status, 200);
+  const htmlDaftarKasir = await daftarKasir.text();
+  assert.ok(htmlDaftarKasir.includes(tiket.kode_tiket), "kode tiket harus tampil di /tiket");
+  assert.ok(htmlDaftarKasir.includes("Rp 60.000"), "total berformat Rupiah harus tampil");
+  assert.ok(htmlDaftarKasir.includes("Buat Tiket Baru"), "kasir melihat tombol Buat Tiket Baru");
+  assert.ok(htmlDaftarKasir.includes("https://wa.me/"), "kasir melihat tautan wa.me");
+  assert.ok(
+    htmlDaftarKasir.includes(encodeURIComponent("Rina & Dito")),
+    "pesan wa.me harus di-encode dengan encodeURIComponent"
+  );
+  assert.ok(
+    htmlDaftarKasir.includes('rel="noopener noreferrer"'),
+    "tautan wa.me wajib memakai rel=\"noopener noreferrer\""
+  );
+  assert.doesNotMatch(
+    htmlDaftarKasir,
+    /<select\b/i,
+    "daftar tiket Phase 5A hanya menampilkan badge status hanya-baca tanpa dropdown ubah status"
+  );
+
+  // 2. Owner membuka Daftar Tiket (/tiket): hanya lihat, tidak ada Buat Tiket Baru / wa.me / kontrol ubah
+  const daftarOwner = await fetch(
+    `${BASE}/tiket?cari=${encodeURIComponent(tiket.kode_tiket)}`,
+    { headers: { Cookie: ownerCookie } }
+  );
+  assert.equal(daftarOwner.status, 200);
+  const htmlDaftarOwner = await daftarOwner.text();
+  assert.ok(htmlDaftarOwner.includes(tiket.kode_tiket), "owner dapat melihat daftar tiket");
+  assert.ok(htmlDaftarOwner.includes("Hanya lihat"), "owner melihat penanda Hanya lihat");
+  assert.ok(
+    !htmlDaftarOwner.includes("https://wa.me/"),
+    "owner tidak boleh melihat tombol aksi wa.me"
+  );
+  assert.ok(
+    !htmlDaftarOwner.includes("Buat Tiket Baru"),
+    "owner tidak boleh melihat tombol Buat Tiket Baru"
+  );
+  assert.doesNotMatch(htmlDaftarOwner, /<select\b/i);
+
+  // 3. Query tidak valid di /tiket menampilkan keadaan galat yang rapi
+  const daftarGalat = await fetch(`${BASE}/tiket?periode=bulanan`, {
+    headers: { Cookie: kasirCookie },
+  });
+  assert.equal(daftarGalat.status, 200);
+  const htmlDaftarGalat = await daftarGalat.text();
+  assert.match(htmlDaftarGalat, /Filter Tidak Dapat Diproses/);
+  assert.match(htmlDaftarGalat, /Parameter periode tidak valid/);
+
+  // 4. Kasir & Owner membuka Detail Tiket (/tiket/[id])
+  const detailKasir = await fetch(`${BASE}/tiket/${tiket.id}`, {
+    headers: { Cookie: kasirCookie },
+  });
+  assert.equal(detailKasir.status, 200);
+  const htmlDetailKasir = await detailKasir.text();
+  assert.ok(htmlDetailKasir.includes(tiket.kode_tiket));
+  assert.ok(htmlDetailKasir.includes("Loafers Cokelat"));
+  assert.ok(htmlDetailKasir.includes("Rp 30.000"));
+  assert.ok(htmlDetailKasir.includes("Rp 60.000"));
+  assert.ok(htmlDetailKasir.includes("Riwayat Perubahan (Log Audit)"));
+  assert.ok(htmlDetailKasir.includes("Tiket dibuat"));
+  assert.ok(htmlDetailKasir.includes("https://wa.me/"));
+  assert.ok(htmlDetailKasir.includes('rel="noopener noreferrer"'));
+
+  const detailOwner = await fetch(`${BASE}/tiket/${tiket.id}`, {
+    headers: { Cookie: ownerCookie },
+  });
+  assert.equal(detailOwner.status, 200);
+  const htmlDetailOwner = await detailOwner.text();
+  assert.ok(htmlDetailOwner.includes(tiket.kode_tiket));
+  assert.ok(htmlDetailOwner.includes("Hanya lihat"));
+  assert.ok(htmlDetailOwner.includes("Riwayat Perubahan (Log Audit)"));
+  assert.ok(
+    !htmlDetailOwner.includes("https://wa.me/"),
+    "owner hanya lihat di detail tiket tanpa tombol wa.me"
+  );
+
+  // Tidak ada elemen di luar PRD di Daftar maupun Detail Tiket
+  for (const htmlUji of [
+    htmlDaftarKasir,
+    htmlDaftarOwner,
+    htmlDetailKasir,
+    htmlDetailOwner,
+  ]) {
+    for (const polaTerlarang of [
+      /QRIS/i,
+      /alamat\s*jemput/i,
+      /kurir/i,
+      /ekspor/i,
+      /cetak\s*resi/i,
+      /batalkan\s*tiket/i,
+      /hapus\s*tiket/i,
+    ]) {
+      assert.doesNotMatch(htmlUji, polaTerlarang);
+    }
+  }
+});
+
+test("SSR /tiket/[id] dengan ID tidak valid atau tidak ada menghasilkan 404 rapi; /detail-tiket mengalihkan dengan benar", async () => {
+  const tanpaLogin = await fetch(`${BASE}/tiket/1`, { redirect: "manual" });
+  assert.ok([302, 307].includes(tanpaLogin.status));
+  assert.ok((tanpaLogin.headers.get("location") ?? "").includes("/login"));
+
+  for (const idBuruk of ["0", "-3", "abc", "1.5", "01", "999999"]) {
+    const res404 = await fetch(`${BASE}/tiket/${idBuruk}`, {
+      headers: { Cookie: kasirCookie },
+    });
+    assert.equal(res404.status, 404, `/tiket/${idBuruk} harus menghasilkan HTTP 404`);
+    const html404 = await res404.text();
+    assert.match(html404, /Tiket Tidak Ditemukan/);
+    assert.match(html404, /Kembali ke Daftar Tiket/);
+  }
+
+  // Pengalihan stub /detail-tiket
+  const stubTanpaLogin = await fetch(`${BASE}/detail-tiket`, { redirect: "manual" });
+  assert.ok([302, 307].includes(stubTanpaLogin.status));
+  assert.ok((stubTanpaLogin.headers.get("location") ?? "").includes("/login"));
+
+  const stubKeDaftar = await fetch(`${BASE}/detail-tiket`, {
+    headers: { Cookie: kasirCookie },
+    redirect: "manual",
+  });
+  assert.ok([302, 307, 308].includes(stubKeDaftar.status));
+  assert.ok((stubKeDaftar.headers.get("location") ?? "").endsWith("/tiket"));
+
+  const stubKeId = await fetch(`${BASE}/detail-tiket?id=12`, {
+    headers: { Cookie: kasirCookie },
+    redirect: "manual",
+  });
+  assert.ok([302, 307, 308].includes(stubKeId.status));
+  assert.ok((stubKeId.headers.get("location") ?? "").endsWith("/tiket/12"));
+});
+
+test("SSR keamanan XSS & komponen UI baru: teks <script> tampil sebagai teks ter-escape dan tidak ada dangerouslySetInnerHTML", async () => {
+  const muatanXssPelanggan = "<script>alert('xss-pelanggan')</script>";
+  const muatanXssBarang = "<script>alert('xss-barang')</script>";
+
+  const buat = await api(kasirCookie, "POST", "/api/tiket", {
+    nama_pelanggan: `${muatanXssPelanggan} Uji`,
+    nomor_wa: waUnik08(),
+    items: [{ service_id: layananA.id, deskripsi_barang: muatanXssBarang, jumlah: 1 }],
+    status_bayar: "Belum bayar",
+  });
+  assert.equal(buat.res.status, 201);
+  const tiket = buat.data.data;
+
+  const resDaftar = await fetch(
+    `${BASE}/tiket?cari=${encodeURIComponent(tiket.kode_tiket)}`,
+    { headers: { Cookie: kasirCookie } }
+  );
+  assert.equal(resDaftar.status, 200);
+  const htmlDaftar = await resDaftar.text();
+  assert.ok(
+    htmlDaftar.includes("&lt;script&gt;alert(&#x27;xss-pelanggan&#x27;)&lt;/script&gt;") ||
+      htmlDaftar.includes("&lt;script&gt;alert('xss-pelanggan')&lt;/script&gt;"),
+    "nama pelanggan berisi <script> harus ter-escape di halaman /tiket"
+  );
+  assert.ok(!htmlDaftar.includes(muatanXssPelanggan), "tag <script> mentah tidak boleh ada di /tiket");
+
+  const resDetail = await fetch(`${BASE}/tiket/${tiket.id}`, {
+    headers: { Cookie: kasirCookie },
+  });
+  assert.equal(resDetail.status, 200);
+  const htmlDetail = await resDetail.text();
+  assert.ok(
+    htmlDetail.includes("&lt;script&gt;alert(&#x27;xss-pelanggan&#x27;)&lt;/script&gt;") ||
+      htmlDetail.includes("&lt;script&gt;alert('xss-pelanggan')&lt;/script&gt;"),
+    "nama pelanggan berisi <script> harus ter-escape di halaman /tiket/[id]"
+  );
+  assert.ok(
+    htmlDetail.includes("&lt;script&gt;alert(&#x27;xss-barang&#x27;)&lt;/script&gt;") ||
+      htmlDetail.includes("&lt;script&gt;alert('xss-barang')&lt;/script&gt;"),
+    "deskripsi barang berisi <script> harus ter-escape di halaman /tiket/[id]"
+  );
+  assert.ok(!htmlDetail.includes(muatanXssPelanggan));
+  assert.ok(!htmlDetail.includes(muatanXssBarang));
+
+  // Pastikan seluruh file UI baru ada dan tidak memakai dangerouslySetInnerHTML
+  const berkasUiBaru = [
+    "src/components/ui/skeleton.tsx",
+    "src/components/ui/empty-state.tsx",
+    "src/components/ui/data-table.tsx",
+    "src/components/ui/filter-bar.tsx",
+    "src/components/ui/pagination.tsx",
+    "src/app/(app)/buat-tiket/page.tsx",
+    "src/app/(app)/buat-tiket/buat-tiket-client.tsx",
+    "src/app/(app)/tiket/page.tsx",
+    "src/app/(app)/tiket/daftar-tiket-client.tsx",
+    "src/app/(app)/tiket/[id]/page.tsx",
+    "src/app/(app)/tiket/[id]/not-found.tsx",
+    "src/app/(app)/detail-tiket/page.tsx",
+  ];
+
+  for (const rel of berkasUiBaru) {
+    const abs = path.resolve(process.cwd(), rel);
+    assert.ok(fs.existsSync(abs), `berkas ${rel} harus tersedia`);
+    const isi = fs.readFileSync(abs, "utf8");
+    assert.doesNotMatch(
+      isi,
+      /dangerouslySetInnerHTML/,
+      `${rel} dilarang memakai dangerouslySetInnerHTML`
+    );
   }
 });

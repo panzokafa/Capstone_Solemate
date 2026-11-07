@@ -10,13 +10,16 @@ import { STATUS_PESANAN, STATUS_BAYAR, METODE_BAYAR } from "../src/config/order-
 
 const { Pool } = pg;
 let pool;
+let appPool;
 
 before(() => {
   pool = new Pool({ connectionString: process.env.DATABASE_URL });
+  appPool = new Pool({ connectionString: process.env.DATABASE_URL_APP });
 });
 
 after(async () => {
   await pool.end();
+  await appPool.end();
 });
 
 // Jalankan fn di dalam transaksi lalu selalu ROLLBACK.
@@ -295,4 +298,169 @@ test("order_items harga_saat_transaksi disalin dari katalog (bukan referensi)", 
     );
     assert.equal(item.rows[0].harga_saat_transaksi, 50000);
   });
+});
+
+test("migrasi 0006: tabel baru dengan kolom serial buatan admin tidak memberi hak apa pun pada tabel dan sequence barunya ke solemate_app; izin lama tetap utuh", async () => {
+  await pool.query(`DROP TABLE IF EXISTS public._uji_hak_default_0006`);
+  await pool.query(
+    `CREATE TABLE public._uji_hak_default_0006 (id serial PRIMARY KEY, ket text)`
+  );
+  try {
+    // 1. Cek katalog hak PostgreSQL untuk seluruh jenis hak tabel pada tabel baru.
+    const hakBaru = await pool.query(
+      `SELECT priv, has_table_privilege('solemate_app', 'public._uji_hak_default_0006', priv) AS punya
+         FROM unnest(ARRAY['SELECT','INSERT','UPDATE','DELETE','TRUNCATE','REFERENCES','TRIGGER']) AS priv`
+    );
+    for (const baris of hakBaru.rows) {
+      assert.equal(
+        baris.punya,
+        false,
+        `solemate_app tidak boleh punya hak ${baris.priv} pada tabel baru`
+      );
+    }
+
+    // 2. Cek katalog hak PostgreSQL untuk seluruh jenis hak sequence pada sequence kolom serial baru.
+    const hakSeqBaru = await pool.query(
+      `SELECT priv, has_sequence_privilege('solemate_app', 'public._uji_hak_default_0006_id_seq', priv) AS punya
+         FROM unnest(ARRAY['USAGE','SELECT','UPDATE']) AS priv`
+    );
+    for (const baris of hakSeqBaru.rows) {
+      assert.equal(
+        baris.punya,
+        false,
+        `solemate_app tidak boleh punya hak ${baris.priv} pada sequence baru`
+      );
+    }
+
+    // 3. Buktikan langsung sebagai solemate_app: setiap operasi tabel & sequence ditolak permission denied.
+    await assert.rejects(
+      appPool.query(`SELECT * FROM public._uji_hak_default_0006`),
+      /permission denied/i
+    );
+    await assert.rejects(
+      appPool.query(`INSERT INTO public._uji_hak_default_0006 (ket) VALUES ('uji')`),
+      /permission denied/i
+    );
+    await assert.rejects(
+      appPool.query(`UPDATE public._uji_hak_default_0006 SET ket = 'ubah'`),
+      /permission denied/i
+    );
+    await assert.rejects(
+      appPool.query(`DELETE FROM public._uji_hak_default_0006`),
+      /permission denied/i
+    );
+    await assert.rejects(
+      appPool.query(`TRUNCATE public._uji_hak_default_0006`),
+      /permission denied/i
+    );
+    await assert.rejects(
+      appPool.query(`SELECT nextval('public._uji_hak_default_0006_id_seq')`),
+      /permission denied/i
+    );
+    await assert.rejects(
+      appPool.query(`SELECT last_value FROM public._uji_hak_default_0006_id_seq`),
+      /permission denied/i
+    );
+  } finally {
+    await pool.query(`DROP TABLE IF EXISTS public._uji_hak_default_0006`);
+  }
+
+  // 4. Pastikan izin ke seluruh tabel yang sudah ada tetap persis seperti semula.
+  const ekspektasi = [
+    ["users", ["SELECT", "INSERT", "UPDATE"]],
+    ["employees", ["SELECT", "INSERT", "UPDATE"]],
+    ["customers", ["SELECT", "INSERT", "UPDATE"]],
+    ["services", ["SELECT", "INSERT", "UPDATE"]],
+    ["orders", ["SELECT", "INSERT", "UPDATE"]],
+    ["order_items", ["SELECT", "INSERT", "UPDATE"]],
+    ["audit_logs", ["SELECT", "INSERT"]],
+    ["attendance", ["SELECT", "INSERT", "UPDATE"]],
+    ["wa_messages", ["SELECT", "INSERT", "UPDATE"]],
+    ["sessions", ["SELECT", "INSERT", "UPDATE", "DELETE"]],
+    ["login_attempts", ["SELECT", "INSERT", "DELETE"]],
+    ["login_rate_limit", ["SELECT", "INSERT", "UPDATE", "DELETE"]],
+  ];
+
+  for (const [tabel, diizinkan] of ekspektasi) {
+    const r = await pool.query(
+      `SELECT priv, has_table_privilege('solemate_app', $1, priv) AS punya
+         FROM unnest(ARRAY['SELECT','INSERT','UPDATE','DELETE']) AS priv`,
+      [`public.${tabel}`]
+    );
+    for (const baris of r.rows) {
+      const harus = diizinkan.includes(baris.priv);
+      assert.equal(
+        baris.punya,
+        harus,
+        `hak ${baris.priv} pada ${tabel} seharusnya ${harus}, dapat ${baris.punya}`
+      );
+    }
+  }
+
+  // 5. Pastikan izin USAGE dan SELECT pada seluruh sequence yang sudah ada tetap utuh.
+  const sequenceLama = [
+    "users_id_seq",
+    "employees_id_seq",
+    "customers_id_seq",
+    "services_id_seq",
+    "orders_id_seq",
+    "order_items_id_seq",
+    "audit_logs_id_seq",
+    "attendance_id_seq",
+    "wa_messages_id_seq",
+    "login_attempts_id_seq",
+    "login_rate_limit_id_seq",
+  ];
+
+  for (const seq of sequenceLama) {
+    const r = await pool.query(
+      `SELECT priv, has_sequence_privilege('solemate_app', $1, priv) AS punya
+         FROM unnest(ARRAY['USAGE','SELECT','UPDATE']) AS priv`,
+      [`public.${seq}`]
+    );
+    for (const baris of r.rows) {
+      const harus = baris.priv === "USAGE" || baris.priv === "SELECT";
+      assert.equal(
+        baris.punya,
+        harus,
+        `hak ${baris.priv} pada sequence ${seq} seharusnya ${harus}, dapat ${baris.punya}`
+      );
+    }
+  }
+});
+
+test("migrasi 0003 tidak menyertakan password literal di teks SQL yang dicetak node-pg-migrate", async () => {
+  const { createRequire } = await import("node:module");
+  const requireCjs = createRequire(import.meta.url);
+  const migrasi0003 = requireCjs("../migrations/0003_app_user.js");
+
+  const pw = process.env.APP_DB_PASSWORD;
+  assert.ok(pw && pw.length >= 8, "APP_DB_PASSWORD harus terisi saat tes");
+
+  const sqlSteps = [];
+  const dbQueries = [];
+  const pgmTiruan = {
+    sql(teks) {
+      sqlSteps.push(String(teks));
+    },
+    db: {
+      async query(teks) {
+        dbQueries.push(String(teks));
+      },
+    },
+  };
+
+  await migrasi0003.up(pgmTiruan);
+
+  const gabunganSql = sqlSteps.join("\n");
+  assert.ok(
+    !gabunganSql.includes(pw),
+    "teks SQL migrasi 0003 tidak boleh mengandung nilai APP_DB_PASSWORD"
+  );
+  for (const q of dbQueries) {
+    assert.ok(
+      !q.includes(pw),
+      "teks query pgm.db.query tidak boleh mengandung nilai APP_DB_PASSWORD secara literal"
+    );
+  }
 });

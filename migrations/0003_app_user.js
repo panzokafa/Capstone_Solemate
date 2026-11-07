@@ -5,7 +5,7 @@
 
 const USER = "solemate_app";
 
-exports.up = (pgm) => {
+exports.up = async (pgm) => {
   const password = process.env.APP_DB_PASSWORD;
   if (!password || password.length < 8) {
     throw new Error(
@@ -14,19 +14,31 @@ exports.up = (pgm) => {
     );
   }
 
-  // Nama role = identifier (pakai tanda kutip ganda). Password = string literal.
+  // Nama role = identifier (pakai tanda kutip ganda).
+  // Password dikirim sebagai parameter ($1) ke session config lewat pgm.db.query
+  // supaya tidak pernah tercetak sebagai literal di log SQL node-pg-migrate.
   const roleIdent = `"${USER}"`;
-  const passLiteral = "'".concat(String(password).replace(/'/g, "''"), "'");
+  await pgm.db.query(
+    "SELECT set_config('solemate.app_db_password', $1, false)",
+    [String(password)]
+  );
 
   pgm.sql(`
-    DO $$ BEGIN
+    DO $$
+    DECLARE
+      pw text := current_setting('solemate.app_db_password', true);
+    BEGIN
+      IF pw IS NULL OR length(pw) < 8 THEN
+        RAISE EXCEPTION 'solemate.app_db_password belum diset pada sesi migrasi.';
+      END IF;
       IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '${USER}') THEN
-        CREATE ROLE ${roleIdent} LOGIN PASSWORD ${passLiteral};
+        EXECUTE format('CREATE ROLE %I LOGIN PASSWORD %L', '${USER}', pw);
       ELSE
-        ALTER ROLE ${roleIdent} WITH LOGIN PASSWORD ${passLiteral};
+        EXECUTE format('ALTER ROLE %I WITH LOGIN PASSWORD %L', '${USER}', pw);
       END IF;
     END $$;
   `);
+  pgm.sql("SELECT set_config('solemate.app_db_password', '', false);");
 
   // Hak eksplisit per tabel. Tidak ada GRANT menyeluruh yang lalu dicabut.
   const grant = (table, privs) =>

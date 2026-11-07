@@ -6,4 +6,5 @@ export * from "./textarea";
 export * from "./card";
 export * from "./page-header";
 export * from "./badge";
+export * from "./dialog";
 

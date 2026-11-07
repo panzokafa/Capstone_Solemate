@@ -43,3 +43,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Hasil build verifikasi (NEXT_DIST_DIR=.next-build)
+.next-build/

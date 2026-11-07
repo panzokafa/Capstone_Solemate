@@ -14,7 +14,9 @@ import {
   MAKS_JUMLAH_PASANG,
   MAKS_DESKRIPSI_BARANG,
   MAKS_NAMA_PELANGGAN,
+  MAKS_HARI_MASUK_LAMPAU,
   TOLERANSI_TANGGAL_MASUK_MENIT,
+  MAKS_HARI_ESTIMASI_SELESAI,
   PERIODE_FILTER_TIKET,
   MAKS_RENTANG_HARI_FILTER,
   UKURAN_HALAMAN_DEFAULT,
@@ -29,9 +31,110 @@ const BATAS_ID_INT = 2_147_483_647;
 const MS_PER_HARI = 86_400_000;
 const OFFSET_WIB_MS = 7 * 3_600_000;
 
+// Karakter terlarang pada input teks pengguna (nama pelanggan, deskripsi barang):
+// - Karakter kontrol (0x00-0x1F, 0x7F-0x9F), termasuk tab (\t), baris baru (\r, \n), dan byte nol (\0).
+// - Karakter bidi / pembalik arah teks (U+061C, U+200E, U+200F, U+202A-U+202E, U+2066-U+2069).
+// - Karakter lebar-nol / zero-width (U+200B-U+200D, U+2060, U+FEFF).
+export const POLA_KARAKTER_TERLARANG =
+  /[\u0000-\u001F\u007F-\u009F\u061C\u200B-\u200F\u202A-\u202E\u2060\u2066-\u2069\uFEFF]/;
+
+export function mengandungKarakterTerlarang(teks: string): boolean {
+  return POLA_KARAKTER_TERLARANG.test(teks);
+}
+
+/**
+ * Mendeteksi apakah respons fetch dialihkan ke halaman login atau mengembalikan 401
+ * akibat sesi autentikasi pengguna telah kedaluwarsa atau hilang.
+ */
+export function apakahSesiDialihkanKeLogin(res: {
+  status?: number;
+  redirected?: boolean;
+  url?: string;
+  headers?: { get: (name: string) => string | null };
+}): boolean {
+  if (res.redirected && typeof res.url === "string" && res.url.includes("/login")) {
+    return true;
+  }
+  if (res.status === 401) {
+    return true;
+  }
+  const cType =
+    res.headers && typeof res.headers.get === "function"
+      ? res.headers.get("content-type") ?? ""
+      : "";
+  if (
+    cType.includes("text/html") &&
+    (res.status === 302 || res.status === 307 || res.redirected)
+  ) {
+    return true;
+  }
+  return false;
+}
+
+export type PetaGalatField = Record<string, string>;
+
+/**
+ * Pemetaan galat terstruktur dari respons server ke kolom/baris form UI.
+ * Menggunakan kode `field` dari server (bukan regex pada teks kalimat error).
+ */
+export function petakanGalatServer(
+  pesan: string,
+  field?: string | null
+): { peta: PetaGalatField; umum: string | null } {
+  const peta: PetaGalatField = {};
+
+  if (field) {
+    if (field === "nama_pelanggan") {
+      peta.nama_pelanggan = pesan;
+      return { peta, umum: pesan };
+    }
+    if (field === "nomor_wa") {
+      peta.nomor_wa = pesan;
+      return { peta, umum: pesan };
+    }
+    if (field === "tanggal_masuk") {
+      peta.tanggal_masuk = pesan;
+      return { peta, umum: pesan };
+    }
+    if (field === "estimasi_selesai") {
+      peta.estimasi_selesai = pesan;
+      return { peta, umum: pesan };
+    }
+    if (field === "status_bayar") {
+      peta.status_bayar = pesan;
+      return { peta, umum: pesan };
+    }
+    if (field === "metode_bayar") {
+      peta.metode_bayar = pesan;
+      return { peta, umum: pesan };
+    }
+
+    // items.N.service_id, items.N.deskripsi_barang, items.N.jumlah, atau items.N
+    const itemMatch = field.match(
+      /^items\.(\d+)(?:\.(service_id|deskripsi_barang|jumlah))?$/
+    );
+    if (itemMatch) {
+      const idx = Number(itemMatch[1]);
+      const sub = itemMatch[2];
+      if (sub === "service_id") {
+        peta[`item_${idx}_service`] = pesan;
+      } else if (sub === "jumlah") {
+        peta[`item_${idx}_jumlah`] = pesan;
+      } else if (sub === "deskripsi_barang") {
+        peta[`item_${idx}_deskripsi`] = pesan;
+      } else {
+        peta[`item_${idx}_deskripsi`] = pesan;
+      }
+      return { peta, umum: pesan };
+    }
+  }
+
+  return { peta, umum: pesan };
+}
+
 export type HasilValidasi<T> =
   | { ok: true; data: T }
-  | { ok: false; galat: string };
+  | { ok: false; galat: string; field?: string };
 
 export type InputItemTiket = {
   service_id: number;
@@ -40,11 +143,13 @@ export type InputItemTiket = {
 };
 
 export type InputBuatTiket = {
+  idempotency_key?: string | null;
   nama_pelanggan: string;
   nomor_wa: string;
   konfirmasi_ubah_nama: boolean;
   items: InputItemTiket[];
   tanggal_masuk: Date;
+  tanggal_masuk_diisi?: boolean;
   estimasi_selesai: Date | null;
   status_bayar: StatusBayar;
   metode_bayar: MetodeBayar | null;
@@ -195,10 +300,10 @@ export function validasiCekPelanggan(
   }
   const asing = kunciAsing(body, ["nomor_wa"]);
   if (asing) {
-    return { ok: false, galat: `Field tidak dikenal: ${asing}.` };
+    return { ok: false, galat: `Field tidak dikenal: ${asing}.`, field: asing };
   }
   const wa = normalisasiNomorWa(body.nomor_wa);
-  if (!wa.ok) return wa;
+  if (!wa.ok) return { ok: false, galat: wa.galat, field: "nomor_wa" };
   return { ok: true, data: { nomor_wa: wa.nomor } };
 }
 
@@ -217,6 +322,7 @@ export function validasiBuatTiket(
   }
 
   const diizinkanRoot = [
+    "idempotency_key",
     "nama_pelanggan",
     "nomor_wa",
     "konfirmasi_ubah_nama",
@@ -231,48 +337,82 @@ export function validasiBuatTiket(
   ];
   const asingRoot = kunciAsing(body, diizinkanRoot);
   if (asingRoot) {
-    return { ok: false, galat: `Field tidak dikenal: ${asingRoot}.` };
+    return { ok: false, galat: `Field tidak dikenal: ${asingRoot}.`, field: asingRoot };
+  }
+
+  // 0. Kunci Idempotensi (opsional, maks 100 karakter alfanumerik + strip/garis bawah)
+  let idempotencyKey: string | null = null;
+  if (body.idempotency_key !== undefined && body.idempotency_key !== null) {
+    if (typeof body.idempotency_key !== "string") {
+      return {
+        ok: false,
+        galat: "Idempotency key harus berupa teks.",
+        field: "idempotency_key",
+      };
+    }
+    const ik = body.idempotency_key.trim();
+    if (ik.length === 0 || ik.length > 100 || !/^[A-Za-z0-9_-]+$/.test(ik)) {
+      return {
+        ok: false,
+        galat: "Idempotency key harus berupa teks alfanumerik (maksimal 100 karakter).",
+        field: "idempotency_key",
+      };
+    }
+    idempotencyKey = ik;
   }
 
   // 1. Nama pelanggan
   if (typeof body.nama_pelanggan !== "string") {
-    return { ok: false, galat: "Nama pelanggan wajib diisi." };
+    return { ok: false, galat: "Nama pelanggan wajib diisi.", field: "nama_pelanggan" };
+  }
+  if (mengandungKarakterTerlarang(body.nama_pelanggan)) {
+    return {
+      ok: false,
+      galat: "Nama pelanggan tidak boleh mengandung karakter kontrol, baris baru, tab, karakter lebar-nol, atau pembalik arah teks.",
+      field: "nama_pelanggan",
+    };
   }
   const namaPelanggan = body.nama_pelanggan.trim();
   if (namaPelanggan.length === 0) {
-    return { ok: false, galat: "Nama pelanggan wajib diisi." };
+    return { ok: false, galat: "Nama pelanggan wajib diisi.", field: "nama_pelanggan" };
   }
   if (namaPelanggan.length > MAKS_NAMA_PELANGGAN) {
     return {
       ok: false,
       galat: `Nama pelanggan maksimal ${MAKS_NAMA_PELANGGAN} karakter.`,
+      field: "nama_pelanggan",
     };
   }
 
   // 2. Nomor WhatsApp
   const wa = normalisasiNomorWa(body.nomor_wa);
-  if (!wa.ok) return wa;
+  if (!wa.ok) return { ok: false, galat: wa.galat, field: "nomor_wa" };
 
   // 3. Konfirmasi ubah nama pelanggan lama (opsional)
   if (
     body.konfirmasi_ubah_nama !== undefined &&
     typeof body.konfirmasi_ubah_nama !== "boolean"
   ) {
-    return { ok: false, galat: "Konfirmasi ubah nama harus berupa boolean." };
+    return {
+      ok: false,
+      galat: "Konfirmasi ubah nama harus berupa boolean.",
+      field: "konfirmasi_ubah_nama",
+    };
   }
   const konfirmasiUbahNama = body.konfirmasi_ubah_nama ?? false;
 
   // 4. Daftar barang / layanan (1..20 item)
   if (!Array.isArray(body.items)) {
-    return { ok: false, galat: "Daftar barang wajib berupa array." };
+    return { ok: false, galat: "Daftar barang wajib berupa array.", field: "items" };
   }
   if (body.items.length === 0) {
-    return { ok: false, galat: "Tiket wajib memiliki minimal 1 barang." };
+    return { ok: false, galat: "Tiket wajib memiliki minimal 1 barang.", field: "items" };
   }
   if (body.items.length > MAKS_ITEM_PER_TIKET) {
     return {
       ok: false,
       galat: `Maksimal ${MAKS_ITEM_PER_TIKET} barang per tiket.`,
+      field: "items",
     };
   }
 
@@ -291,13 +431,14 @@ export function validasiBuatTiket(
     const raw = body.items[i];
     const nomorBaris = i + 1;
     if (!objekBiasa(raw)) {
-      return { ok: false, galat: `Barang ke-${nomorBaris} tidak valid.` };
+      return { ok: false, galat: `Barang ke-${nomorBaris} tidak valid.`, field: `items.${i}` };
     }
     const asingItem = kunciAsing(raw, diizinkanItem);
     if (asingItem) {
       return {
         ok: false,
         galat: `Field tidak dikenal pada barang ke-${nomorBaris}: ${asingItem}.`,
+        field: `items.${i}`,
       };
     }
 
@@ -310,6 +451,7 @@ export function validasiBuatTiket(
       return {
         ok: false,
         galat: `Layanan pada barang ke-${nomorBaris} harus berupa ID bilangan bulat positif (angka, bukan teks).`,
+        field: `items.${i}.service_id`,
       };
     }
 
@@ -317,6 +459,14 @@ export function validasiBuatTiket(
       return {
         ok: false,
         galat: `Deskripsi barang ke-${nomorBaris} wajib diisi.`,
+        field: `items.${i}.deskripsi_barang`,
+      };
+    }
+    if (mengandungKarakterTerlarang(raw.deskripsi_barang)) {
+      return {
+        ok: false,
+        galat: `Deskripsi barang ke-${nomorBaris} tidak boleh mengandung karakter kontrol, baris baru, tab, karakter lebar-nol, atau pembalik arah teks.`,
+        field: `items.${i}.deskripsi_barang`,
       };
     }
     const deskripsi = raw.deskripsi_barang.trim();
@@ -324,12 +474,14 @@ export function validasiBuatTiket(
       return {
         ok: false,
         galat: `Deskripsi barang ke-${nomorBaris} wajib diisi.`,
+        field: `items.${i}.deskripsi_barang`,
       };
     }
     if (deskripsi.length > MAKS_DESKRIPSI_BARANG) {
       return {
         ok: false,
         galat: `Deskripsi barang ke-${nomorBaris} maksimal ${MAKS_DESKRIPSI_BARANG} karakter.`,
+        field: `items.${i}.deskripsi_barang`,
       };
     }
 
@@ -337,12 +489,14 @@ export function validasiBuatTiket(
       return {
         ok: false,
         galat: `Jumlah pasang pada barang ke-${nomorBaris} harus berupa bilangan bulat (angka, bukan teks).`,
+        field: `items.${i}.jumlah`,
       };
     }
     if (raw.jumlah < MIN_JUMLAH_PASANG || raw.jumlah > MAKS_JUMLAH_PASANG) {
       return {
         ok: false,
         galat: `Jumlah pasang pada barang ke-${nomorBaris} harus antara ${MIN_JUMLAH_PASANG} sampai ${MAKS_JUMLAH_PASANG}.`,
+        field: `items.${i}.jumlah`,
       };
     }
 
@@ -353,31 +507,53 @@ export function validasiBuatTiket(
     });
   }
 
-  // 5. Jadwal: tanggal_masuk (default sekarang, tidak boleh di masa depan > toleransi 5 menit)
+  // 5. Jadwal: tanggal_masuk (default sekarang, tidak boleh di masa depan > 5 menit, tidak boleh > 30 hari ke belakang)
   let tanggalMasuk = sekarang;
+  let tanggalMasukDiisi = false;
   if (body.tanggal_masuk !== undefined && body.tanggal_masuk !== null) {
+    tanggalMasukDiisi = true;
     const uMasuk = uraiWaktuInput(body.tanggal_masuk, "Tanggal masuk", false);
-    if (!uMasuk.ok) return uMasuk;
+    if (!uMasuk.ok) return { ok: false, galat: uMasuk.galat, field: "tanggal_masuk" };
     const batasMasaDepan =
       sekarang.getTime() + TOLERANSI_TANGGAL_MASUK_MENIT * 60 * 1000;
     if (uMasuk.data.getTime() > batasMasaDepan) {
       return {
         ok: false,
         galat: "Tanggal masuk tidak boleh di masa depan.",
+        field: "tanggal_masuk",
+      };
+    }
+    const batasMasaLampau =
+      sekarang.getTime() - MAKS_HARI_MASUK_LAMPAU * 24 * 60 * 60 * 1000;
+    if (uMasuk.data.getTime() < batasMasaLampau) {
+      return {
+        ok: false,
+        galat: `Tanggal masuk maksimal ${MAKS_HARI_MASUK_LAMPAU} hari ke belakang.`,
+        field: "tanggal_masuk",
       };
     }
     tanggalMasuk = uMasuk.data;
   }
 
-  // 6. Jadwal: estimasi_selesai (opsional; bila diisi harus >= tanggal_masuk)
+  // 6. Jadwal: estimasi_selesai (opsional; bila diisi harus >= tanggal_masuk dan <= tanggal_masuk + 365 hari)
   let estimasiSelesai: Date | null = null;
   if (body.estimasi_selesai !== undefined && body.estimasi_selesai !== null) {
     const uEst = uraiWaktuInput(body.estimasi_selesai, "Estimasi selesai", true);
-    if (!uEst.ok) return uEst;
+    if (!uEst.ok) return { ok: false, galat: uEst.galat, field: "estimasi_selesai" };
     if (uEst.data.getTime() < tanggalMasuk.getTime()) {
       return {
         ok: false,
         galat: "Estimasi selesai tidak boleh sebelum tanggal masuk.",
+        field: "estimasi_selesai",
+      };
+    }
+    const batasEstimasi =
+      tanggalMasuk.getTime() + MAKS_HARI_ESTIMASI_SELESAI * 24 * 60 * 60 * 1000;
+    if (uEst.data.getTime() > batasEstimasi) {
+      return {
+        ok: false,
+        galat: `Estimasi selesai maksimal ${MAKS_HARI_ESTIMASI_SELESAI} hari setelah tanggal masuk.`,
+        field: "estimasi_selesai",
       };
     }
     estimasiSelesai = uEst.data;
@@ -391,6 +567,7 @@ export function validasiBuatTiket(
     return {
       ok: false,
       galat: "Status pembayaran harus 'Belum bayar' atau 'Lunas'.",
+      field: "status_bayar",
     };
   }
   const statusBayar = body.status_bayar as StatusBayar;
@@ -404,6 +581,7 @@ export function validasiBuatTiket(
       return {
         ok: false,
         galat: "Metode pembayaran wajib dipilih ('Cash' atau 'Non-cash') saat status Lunas.",
+        field: "metode_bayar",
       };
     }
     metodeBayar = body.metode_bayar as MetodeBayar;
@@ -412,6 +590,7 @@ export function validasiBuatTiket(
       return {
         ok: false,
         galat: "Metode pembayaran harus kosong saat status Belum bayar.",
+        field: "metode_bayar",
       };
     }
   }
@@ -419,11 +598,13 @@ export function validasiBuatTiket(
   return {
     ok: true,
     data: {
+      idempotency_key: idempotencyKey,
       nama_pelanggan: namaPelanggan,
       nomor_wa: wa.nomor,
       konfirmasi_ubah_nama: konfirmasiUbahNama,
       items,
       tanggal_masuk: tanggalMasuk,
+      tanggal_masuk_diisi: tanggalMasukDiisi,
       estimasi_selesai: estimasiSelesai,
       status_bayar: statusBayar,
       metode_bayar: metodeBayar,

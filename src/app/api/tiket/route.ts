@@ -67,23 +67,44 @@ export async function POST(req: NextRequest) {
     }
 
     const sekarang = new Date();
+
+    const idempotencyHeader =
+      req.headers.get("Idempotency-Key") ?? req.headers.get("idempotency-key");
+    if (
+      idempotencyHeader &&
+      typeof body === "object" &&
+      body !== null &&
+      !("idempotency_key" in body)
+    ) {
+      (body as Record<string, unknown>).idempotency_key = idempotencyHeader;
+    }
+
     const v = validasiBuatTiket(body, sekarang);
     if (!v.ok) {
-      return NextResponse.json({ error: v.galat }, { status: 400 });
+      return NextResponse.json(
+        { error: v.galat, pesan: v.galat, field: v.field },
+        { status: 400 }
+      );
     }
 
     const hasil = await buatTiketToko(v.data, sesi.userId, sekarang);
     if (!hasil.ok) {
-      return NextResponse.json({ error: hasil.galat }, { status: hasil.kode });
+      return NextResponse.json(
+        { error: hasil.galat, pesan: hasil.galat, field: hasil.field },
+        { status: hasil.kode }
+      );
     }
+
+    const statusHttp = hasil.duplikat ? 200 : 201;
 
     return NextResponse.json(
       {
         ok: true,
         data: hasil.tiket,
         peringatan: hasil.peringatan,
+        duplikat: hasil.duplikat ?? false,
       },
-      { status: 201 }
+      { status: statusHttp }
     );
   } catch (e) {
     if (e instanceof AksesDitolakError) return DITOLAK();

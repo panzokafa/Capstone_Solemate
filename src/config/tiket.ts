@@ -20,9 +20,24 @@ export const MAKS_JUMLAH_PASANG = 20;
 export const MAKS_DESKRIPSI_BARANG = 200;
 export const MAKS_NAMA_PELANGGAN = 100;
 
-// Toleransi selisih jam perangkat kasir terhadap jam server untuk aturan
-// "tanggal_masuk tidak boleh di masa depan".
+// Batas rentang tanggal pesanan (asumsi sementara — perlu konfirmasi pemilik toko):
+// 1. tanggal_masuk maksimal 30 hari ke belakang (memungkinkan pencatatan tiket susulan yang wajar)
+// 2. tanggal_masuk maksimal 5 menit ke depan (toleransi selisih jam perangkat kasir vs server)
+// 3. estimasi_selesai maksimal 365 hari setelah tanggal_masuk (mencegah kesalahan ketik tahun jauh)
+export const MAKS_HARI_MASUK_LAMPAU = 30;
 export const TOLERANSI_TANGGAL_MASUK_MENIT = 5;
+export const MAKS_HARI_ESTIMASI_SELESAI = 365;
+
+// Masa simpan kunci idempotensi sebelum dibersihkan secara berkala (jam).
+export const MASA_SIMPAN_IDEMPOTENSI_JAM = 24;
+
+// Catatan Keterbatasan Sistem & Rekomendasi Mitigasi (Phase 5A):
+// 1. Pencarian nomor WhatsApp lewat query string URL GET /api/tiket?cari=08...
+//    berpotensi terekam di access log server HTTP/reverse proxy. Disarankan di masa depan
+//    menggunakan konfigurasi masking log atau audit log tersendiri untuk penelusuran.
+// 2. Endpoint POST /api/pelanggan/cek saat ini belum memiliki rate limiting per user/IP
+//    (berbeda dengan login yang dilindungi login_rate_limit). Disarankan di masa depan
+//    diberi pembatas frekuensi (mis. 30 cek/menit) untuk mencegah enumerasi pelanggan.
 
 // Batas filter dan paginasi Daftar Tiket (semua parameter query dianggap input tidak tepercaya).
 // Catatan asumsi (perlu konfirmasi pemilik toko): segmen "7_hari" (7 hari terakhir) dipakai

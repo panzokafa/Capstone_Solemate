@@ -7,7 +7,7 @@
 import * as React from "react";
 import Link from "next/link";
 import type { LayananPublik } from "@/lib/katalog";
-import type { DetailTiket, InfoPelangganTiket, PeringatanNamaPelanggan } from "@/lib/tiket";
+import type { DetailTiket, PeringatanNamaPelanggan } from "@/lib/tiket";
 import {
   BATAS_TOTAL_TIKET,
   MAKS_DESKRIPSI_BARANG,
@@ -21,6 +21,11 @@ import {
 import type { MetodeBayar, StatusBayar } from "@/config/order-status";
 import { normalisasiNomorWa, buatUrlWaMe, buatPesanWaTiket } from "@/lib/nomor-wa";
 import { formatRupiah, formatTanggal } from "@/lib/format";
+import {
+  petakanGalatServer,
+  apakahSesiDialihkanKeLogin,
+  type PetaGalatField,
+} from "@/lib/tiket-validasi";
 import { Ikon } from "@/components/ikon";
 import {
   Badge,
@@ -44,7 +49,9 @@ type BarisBarangForm = {
   jumlah: string;
 };
 
-type PetaGalatField = Record<string, string>;
+type InfoPelangganCek = {
+  nama: string;
+};
 
 function formatDatetimeLocalWib(tgl: Date): string {
   const bagian = new Intl.DateTimeFormat("en-CA", {
@@ -69,39 +76,7 @@ function uraiInputDatetimeWib(nilai: string): Date | null {
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
-function petakanGalatServerKeField(pesan: string): PetaGalatField {
-  const peta: PetaGalatField = {};
-  const barisMatch = pesan.match(/^Baris barang ke-(\d+):\s*(.+)$/i);
-  if (barisMatch) {
-    const idx = Number(barisMatch[1]) - 1;
-    const detail = barisMatch[2];
-    if (/service_id|layanan/i.test(detail)) {
-      peta[`item_${idx}_service`] = detail;
-    } else if (/deskripsi/i.test(detail)) {
-      peta[`item_${idx}_deskripsi`] = detail;
-    } else if (/jumlah/i.test(detail)) {
-      peta[`item_${idx}_jumlah`] = detail;
-    }
-    return peta;
-  }
 
-  if (/nomor whatsapp/i.test(pesan)) {
-    peta.nomor_wa = pesan;
-  } else if (/nama pelanggan/i.test(pesan)) {
-    peta.nama_pelanggan = pesan;
-  } else if (/tanggal masuk/i.test(pesan)) {
-    peta.tanggal_masuk = pesan;
-  } else if (/estimasi selesai/i.test(pesan)) {
-    peta.estimasi_selesai = pesan;
-  } else if (/metode pembayaran/i.test(pesan)) {
-    peta.metode_bayar = pesan;
-  } else if (/status pembayaran/i.test(pesan)) {
-    peta.status_bayar = pesan;
-  } else if (/layanan.*tidak ditemukan|layanan.*nonaktif/i.test(pesan)) {
-    peta.item_0_service = pesan;
-  }
-  return peta;
-}
 
 export interface BuatTiketClientProps {
   layananAwal: LayananPublik[];
@@ -125,8 +100,13 @@ export function BuatTiketClient({
   const [sedangCekWa, setSedangCekWa] = React.useState(false);
   const [infoCekWa, setInfoCekWa] = React.useState<string | null>(null);
   const [pelangganTerdaftar, setPelangganTerdaftar] =
-    React.useState<InfoPelangganTiket | null>(null);
+    React.useState<InfoPelangganCek | null>(null);
   const [konfirmasiUbahNama, setKonfirmasiUbahNama] = React.useState(false);
+  const [idempotencyKey, setIdempotencyKey] = React.useState<string>(() =>
+    typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+      ? crypto.randomUUID()
+      : `form-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
+  );
 
   const [items, setItems] = React.useState<BarisBarangForm[]>([
     {
@@ -254,6 +234,13 @@ export function BuatTiketClient({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ nomor_wa: nomorWa }),
       });
+      if (apakahSesiDialihkanKeLogin(res)) {
+        setGalatField((lama) => ({
+          ...lama,
+          nomor_wa: "Sesi berakhir, silakan masuk lagi.",
+        }));
+        return;
+      }
       const json = await res.json().catch(() => null);
       if (!res.ok) {
         setGalatField((lama) => ({
@@ -263,14 +250,14 @@ export function BuatTiketClient({
         return;
       }
 
-      if (json?.ditemukan && json?.data) {
-        const ditemukan = json.data as InfoPelangganTiket;
-        setPelangganTerdaftar(ditemukan);
+      if (json?.ditemukan && json?.data?.nama) {
+        const nama = String(json.data.nama);
+        setPelangganTerdaftar({ nama });
         setKonfirmasiUbahNama(false);
         if (namaPelanggan.trim().length === 0) {
-          setNamaPelanggan(ditemukan.nama);
+          setNamaPelanggan(nama);
         }
-        setInfoCekWa(`Pelanggan terdaftar ditemukan atas nama "${ditemukan.nama}".`);
+        setInfoCekWa(`Pelanggan terdaftar ditemukan atas nama "${nama}".`);
       } else {
         setPelangganTerdaftar(null);
         setKonfirmasiUbahNama(false);
@@ -334,6 +321,11 @@ export function BuatTiketClient({
   function resetFormBaru() {
     const sekarangStr = formatDatetimeLocalWib(new Date());
 
+    setIdempotencyKey(
+      typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+        ? crypto.randomUUID()
+        : `form-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
+    );
     setNomorWa("");
     setNamaPelanggan("");
     setPelangganTerdaftar(null);
@@ -434,6 +426,7 @@ export function BuatTiketClient({
 
     try {
       const muatan = {
+        idempotency_key: idempotencyKey,
         nama_pelanggan: namaPelanggan.trim(),
         nomor_wa: nomorWa.trim(),
         konfirmasi_ubah_nama: namaBerbedaDenganTerdaftar ? konfirmasiUbahNama : false,
@@ -446,18 +439,30 @@ export function BuatTiketClient({
 
       const res = await fetch("/api/tiket", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "Idempotency-Key": idempotencyKey,
+        },
         body: JSON.stringify(muatan),
       });
+
+      if (apakahSesiDialihkanKeLogin(res)) {
+        setGalatUmum("Sesi berakhir, silakan masuk lagi.");
+        return;
+      }
+
       const json = await res.json().catch(() => null);
 
       if (!res.ok) {
         const pesanServer: string =
           typeof json?.error === "string"
             ? json.error
-            : "Gagal membuat tiket. Silakan periksa kembali data pesanan.";
-        setGalatField(petakanGalatServerKeField(pesanServer));
-        setGalatUmum(pesanServer);
+            : typeof json?.pesan === "string"
+              ? json.pesan
+              : "Gagal membuat tiket. Silakan periksa kembali data pesanan.";
+        const petakan = petakanGalatServer(pesanServer, json?.field);
+        setGalatField(petakan.peta);
+        setGalatUmum(petakan.umum);
         return;
       }
 

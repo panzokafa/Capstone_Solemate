@@ -7,3 +7,8 @@ This version has breaking changes — APIs, conventions, and file structure may 
 This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
 
 <!-- END:nextjs-agent-rules -->
+
+## Aturan Pelaporan Eksekusi & Pengujian
+
+Mulai sekarang setiap laporan wajib menyertakan output mentah baris "# tests / # pass / # fail" (atau `ℹ tests / ℹ pass / ℹ fail`) tiap suite, lint, tsc, dan build; apa pun yang tidak dijalankan di sesi ini ditulis "tidak dijalankan", bukan dari ingatan.
+

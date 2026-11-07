@@ -183,7 +183,16 @@ formatWaktu("2026-05-10T20:00:00.000Z"); // "03.00 WIB"
 
 ## 5. Catatan Asumsi & Aturan Modul Tiket (Phase 5A)
 - **Asumsi segmen filter `"7 hari terakhir"` (`periode=7_hari`):** PRD bagian 7.3 dan FR-13 menyebut filter *"beberapa hari lalu"* tanpa angka pasti. Untuk sementara antarmuka dan server menggunakan **7 hari terakhir** dalam zona waktu `Asia/Jakarta` (dikonfigurasi terpusat di `src/config/tiket.ts` agar mudah disesuaikan setelah konfirmasi pemilik toko).
+- **Asumsi batas rentang tanggal tiket:** `tanggal_masuk` maksimal 30 hari ke belakang (`MAKS_HARI_MASUK_LAMPAU = 30`) dan toleransi maksimal 5 menit di masa depan (`TOLERANSI_TANGGAL_MASUK_MENIT = 5`); `estimasi_selesai` maksimal 365 hari setelah `tanggal_masuk` (`MAKS_HARI_ESTIMASI_SELESAI = 365`). Konfigurasi ini terpusat di `src/config/tiket.ts` dan perlu dikonfirmasi kepada pemilik toko.
 - **Tanggal pada `kode_tiket` (`SM-YYYYMMDD-NNN`):** menggunakan **tanggal terbit tiket** di server pada zona waktu `Asia/Jakarta`, bukan `tanggal_masuk` yang diisi kasir, supaya penomoran resi harian selalu maju berurutan dan bebas bentrok.
 - **Keamanan tautan & teks:** seluruh teks pengguna dirender sebagai teks biasa (tanpa `dangerouslySetInnerHTML`), dan seluruh tautan `wa.me` wajib meng-encode pesan dengan `encodeURIComponent` serta memakai `rel="noopener noreferrer"`.
+
+---
+
+## 6. Keterbatasan Sistem & Rekomendasi Mitigasi (Phase 5A)
+- **Pencarian Nomor WhatsApp pada URL Daftar Tiket (`/tiket?cari=08...`):**
+  Pencarian tiket lewat filter query string `cari` dapat mengandung nomor WhatsApp pelanggan. Karena dikirim melalui parameter URL (GET), nilai ini berpotensi tercatat di log akses HTTP server atau reverse proxy (Nginx, Caddy, Vercel). Rekomendasi mitigasi: di masa depan, gunakan mekanisme hash parsial, header tersendiri, atau filter masking log server yang menyamarkan query parameter `cari` yang menyerupai nomor telepon.
+- **Pengecekan Pelanggan (`POST /api/pelanggan/cek`):**
+  Saat ini pengecekan nomor WhatsApp pelanggan belum memiliki rate limiting per user/IP (berbeda dengan endpoint `/api/login` yang dilindungi tabel `login_rate_limit`). Rekomendasi mitigasi: tambahkan pembatas frekuensi (misalnya maksimal 30 pengecekan per menit per pengguna) untuk mencegah upaya enumerasi data pelanggan oleh akun kasir yang disusupi.
 
 

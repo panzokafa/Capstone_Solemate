@@ -6,15 +6,17 @@
 //   pencarian berparameter, dan paginasi
 // - Detail tiket lengkap beserta item dan riwayat audit hanya-baca
 
-import type { PoolClient } from "pg";
-import { getPool } from "./db";
+import { createHash } from "node:crypto";
+import type { Pool, PoolClient } from "pg";
+import { getPool } from "./db.ts";
 import {
   AWALAN_KODE_TIKET,
   BATAS_TOTAL_TIKET,
+  MASA_SIMPAN_IDEMPOTENSI_JAM,
   hitungEstimasiSelesaiDefault,
-} from "@/config/tiket";
-import type { StatusPesanan, StatusBayar, MetodeBayar } from "@/config/order-status";
-import type { FilterDaftarTiket, InputBuatTiket } from "./tiket-validasi";
+} from "../config/tiket.ts";
+import type { StatusPesanan, StatusBayar, MetodeBayar } from "../config/order-status.ts";
+import type { FilterDaftarTiket, InputBuatTiket } from "./tiket-validasi.ts";
 
 export type InfoPelangganTiket = {
   id: number;
@@ -92,11 +94,13 @@ export type HasilBuatTiket =
       ok: true;
       tiket: DetailTiket;
       peringatan: PeringatanNamaPelanggan | null;
+      duplikat?: boolean;
     }
   | {
       ok: false;
-      kode: 400;
+      kode: number;
       galat: string;
+      field?: string;
     };
 
 export type HasilDaftarTiket = {
@@ -110,25 +114,70 @@ export type HasilDaftarTiket = {
 };
 
 class GalatBisnisTiket extends Error {
-  readonly kode = 400 as const;
-  constructor(pesan: string) {
+  readonly kode: number;
+  readonly field?: string;
+  constructor(pesan: string, field?: string, kode: number = 400) {
     super(pesan);
     this.name = "GalatBisnisTiket";
+    this.kode = kode;
+    this.field = field;
   }
 }
 
-async function dalamTransaksi<T>(fn: (c: PoolClient) => Promise<T>): Promise<T> {
+/**
+ * Menghitung representasi hash kanonikal dari isi permintaan pembuatan tiket (SHA-256).
+ * Digunakan untuk memastikan kunci idempotensi yang sama tidak disalahgunakan
+ * dengan isi formulir atau pengguna yang berbeda (deteksi konflik 409).
+ */
+export function hitungHashPermintaanTiket(input: InputBuatTiket): string {
+  const kanonikal = {
+    nama_pelanggan: input.nama_pelanggan.trim(),
+    nomor_wa: input.nomor_wa,
+    konfirmasi_ubah_nama: Boolean(input.konfirmasi_ubah_nama),
+    items: [...input.items]
+      .sort((a, b) => a.service_id - b.service_id || a.deskripsi_barang.localeCompare(b.deskripsi_barang) || a.jumlah - b.jumlah)
+      .map((it) => ({
+        service_id: it.service_id,
+        deskripsi_barang: it.deskripsi_barang.trim(),
+        jumlah: it.jumlah,
+      })),
+    tanggal_masuk: input.tanggal_masuk_diisi
+      ? input.tanggal_masuk instanceof Date
+        ? input.tanggal_masuk.toISOString()
+        : new Date(input.tanggal_masuk).toISOString()
+      : null,
+    estimasi_selesai: input.estimasi_selesai
+      ? input.estimasi_selesai instanceof Date
+        ? input.estimasi_selesai.toISOString()
+        : new Date(input.estimasi_selesai).toISOString()
+      : null,
+    status_bayar: input.status_bayar,
+    metode_bayar: input.metode_bayar ?? null,
+  };
+  return createHash("sha256").update(JSON.stringify(kanonikal)).digest("hex");
+}
+
+export async function dalamTransaksi<T>(fn: (c: PoolClient) => Promise<T>): Promise<T> {
   const client = await getPool().connect();
+  let rusak: unknown = null;
   try {
     await client.query("BEGIN");
     const hasil = await fn(client);
     await client.query("COMMIT");
     return hasil;
   } catch (err) {
-    await client.query("ROLLBACK").catch(() => {});
+    try {
+      await client.query("ROLLBACK");
+    } catch (rbErr) {
+      rusak = rbErr ?? true;
+    }
     throw err;
   } finally {
-    client.release();
+    if (rusak) {
+      client.release(rusak instanceof Error ? rusak : true);
+    } else {
+      client.release();
+    }
   }
 }
 
@@ -175,14 +224,48 @@ export async function buatTiketToko(
   userId: number,
   sekarang: Date = new Date()
 ): Promise<HasilBuatTiket> {
+  const reqHash = hitungHashPermintaanTiket(input);
+
   try {
     return await dalamTransaksi(async (c) => {
+      // 0. Bersihkan kunci idempotensi usang (> 24 jam) secara berkala/oportunistik
+      await c
+        .query(
+          `DELETE FROM ticket_idempotency WHERE created_at < now() - interval '24 hours'`
+        )
+        .catch(() => {});
+
+      // 0b. Cek kunci idempotensi bila disediakan: jika sudah ada, validasi kesesuaian pengguna dan isi permintaan
+      if (input.idempotency_key) {
+        const existingKey = await c.query(
+          `SELECT order_id, user_id, request_hash FROM ticket_idempotency WHERE key = $1`,
+          [input.idempotency_key]
+        );
+        if ((existingKey.rowCount ?? 0) > 0) {
+          const row = existingKey.rows[0];
+          if (row.user_id !== userId || row.request_hash !== reqHash) {
+            throw new GalatBisnisTiket(
+              "Kunci idempotensi sudah pernah digunakan dengan data atau pengguna yang berbeda.",
+              "idempotency_key",
+              409
+            );
+          }
+          const orderId = row.order_id as number;
+          const tiketLama = await ambilDetailTiketDenganClient(c, orderId);
+          if (tiketLama) {
+            return { ok: true, tiket: tiketLama, peringatan: null, duplikat: true };
+          }
+        }
+      }
+
       // 1. Ambil layanan dari database (tidak percaya harga/total dari klien).
+      // Menggunakan FOR SHARE agar baris layanan terkunci dari perubahan saat transaksi berlangsung.
       const unikServiceIds = Array.from(new Set(input.items.map((it) => it.service_id)));
       const svcRes = await c.query(
         `SELECT id, nama, harga, estimasi_hari, aktif
            FROM services
-          WHERE id = ANY($1::int[])`,
+          WHERE id = ANY($1::int[])
+          FOR SHARE`,
         [unikServiceIds]
       );
       const petaLayanan = new Map<
@@ -206,13 +289,20 @@ export async function buatTiketToko(
       let total = 0;
       let jumlahPasang = 0;
 
-      for (const it of input.items) {
+      for (let i = 0; i < input.items.length; i++) {
+        const it = input.items[i];
         const layanan = petaLayanan.get(it.service_id);
         if (!layanan) {
-          throw new GalatBisnisTiket("Layanan yang dipilih tidak ditemukan.");
+          throw new GalatBisnisTiket(
+            "Layanan yang dipilih tidak ditemukan.",
+            `items.${i}.service_id`
+          );
         }
         if (!layanan.aktif) {
-          throw new GalatBisnisTiket(`Layanan "${layanan.nama}" sedang nonaktif.`);
+          throw new GalatBisnisTiket(
+            `Layanan "${layanan.nama}" sedang nonaktif.`,
+            `items.${i}.service_id`
+          );
         }
         const hargaSaatTransaksi = layanan.harga;
         const subtotal = hargaSaatTransaksi * it.jumlah;
@@ -347,6 +437,15 @@ export async function buatTiketToko(
       );
       const ord = ordRes.rows[0];
 
+      // 5b. Simpan kunci idempotensi bila disediakan (beserta user_id dan request_hash)
+      if (input.idempotency_key) {
+        await c.query(
+          `INSERT INTO ticket_idempotency (key, order_id, user_id, request_hash)
+           VALUES ($1, $2, $3, $4)`,
+          [input.idempotency_key, ord.id, userId, reqHash]
+        );
+      }
+
       // 6. Simpan order_items (harga_saat_transaksi disalin per baris dari katalog aktif).
       const itemsTersimpan: ItemTiket[] = [];
       for (const it of itemSiapSimpan) {
@@ -425,7 +524,36 @@ export async function buatTiketToko(
     });
   } catch (err) {
     if (err instanceof GalatBisnisTiket) {
-      return { ok: false, kode: err.kode, galat: err.message };
+      return { ok: false, kode: err.kode, galat: err.message, field: err.field };
+    }
+    // Tangani race condition bila kunci idempotensi sama dikirim serentak
+    if (
+      input.idempotency_key &&
+      typeof err === "object" &&
+      err !== null &&
+      "code" in err &&
+      (err as { code: string }).code === "23505"
+    ) {
+      const existingKey = await getPool().query(
+        `SELECT order_id, user_id, request_hash FROM ticket_idempotency WHERE key = $1`,
+        [input.idempotency_key]
+      );
+      if ((existingKey.rowCount ?? 0) > 0) {
+        const row = existingKey.rows[0];
+        if (row.user_id !== userId || row.request_hash !== reqHash) {
+          return {
+            ok: false,
+            kode: 409,
+            galat: "Kunci idempotensi sudah pernah digunakan dengan data atau pengguna yang berbeda.",
+            field: "idempotency_key",
+          };
+        }
+        const orderId = row.order_id as number;
+        const tiketLama = await ambilDetailTiket(orderId);
+        if (tiketLama) {
+          return { ok: true, tiket: tiketLama, peringatan: null, duplikat: true };
+        }
+      }
     }
     throw err;
   }
@@ -565,12 +693,31 @@ export async function daftarTiket(filter: FilterDaftarTiket): Promise<HasilDafta
   };
 }
 
+function sensorNomorWaDariNilaiAudit(
+  nilai: Record<string, unknown> | null
+): Record<string, unknown> | null {
+  if (!nilai || typeof nilai !== "object") return null;
+  const hasil: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(nilai)) {
+    if (k === "nomor_wa" || k === "wa" || k === "phone") continue;
+    hasil[k] = v;
+  }
+  return hasil;
+}
+
 /**
  * Mengambil detail lengkap satu tiket beserta daftar item dan riwayat audit hanya-baca.
+ * Menampilkan riwayat perubahan order dan perubahan nama pelanggan (tanpa nomor WA).
  */
 export async function ambilDetailTiket(id: number): Promise<DetailTiket | null> {
-  const pool = getPool();
-  const ordRes = await pool.query(
+  return ambilDetailTiketDenganClient(getPool(), id);
+}
+
+export async function ambilDetailTiketDenganClient(
+  client: Pool | PoolClient,
+  id: number
+): Promise<DetailTiket | null> {
+  const ordRes = await client.query(
     `SELECT
        o.id,
        o.kode_tiket,
@@ -599,7 +746,7 @@ export async function ambilDetailTiket(id: number): Promise<DetailTiket | null> 
   const ord = ordRes.rows[0];
 
   const [itemRes, auditRes] = await Promise.all([
-    pool.query(
+    client.query(
       `SELECT
          oi.id,
          oi.service_id,
@@ -613,7 +760,7 @@ export async function ambilDetailTiket(id: number): Promise<DetailTiket | null> 
        ORDER BY oi.id ASC`,
       [id]
     ),
-    pool.query(
+    client.query(
       `SELECT
          al.id,
          al.aksi,
@@ -624,9 +771,10 @@ export async function ambilDetailTiket(id: number): Promise<DetailTiket | null> 
          al.waktu
        FROM audit_logs al
        LEFT JOIN users u ON u.id = al.user_id
-       WHERE al.entitas = 'orders' AND al.entitas_id = $1
+       WHERE (al.entitas = 'orders' AND al.entitas_id = $1)
+          OR (al.entitas = 'customers' AND al.entitas_id = $2 AND al.aksi = 'UBAH_NAMA_PELANGGAN')
        ORDER BY al.waktu ASC, al.id ASC`,
-      [id]
+      [id, ord.customer_id]
     ),
   ]);
 
@@ -645,8 +793,8 @@ export async function ambilDetailTiket(id: number): Promise<DetailTiket | null> 
   const riwayatAudit: RiwayatAuditTiket[] = auditRes.rows.map((al) => ({
     id: al.id,
     aksi: al.aksi,
-    nilai_lama: al.nilai_lama,
-    nilai_baru: al.nilai_baru,
+    nilai_lama: sensorNomorWaDariNilaiAudit(al.nilai_lama),
+    nilai_baru: sensorNomorWaDariNilaiAudit(al.nilai_baru),
     user_id: al.user_id,
     nama_pengguna: al.nama_pengguna,
     waktu: keIso(al.waktu)!,
@@ -676,4 +824,17 @@ export async function ambilDetailTiket(id: number): Promise<DetailTiket | null> 
     items,
     riwayat_audit: riwayatAudit,
   };
+}
+
+/**
+ * Membersihkan baris kunci idempotensi yang telah kedaluwarsa.
+ */
+export async function bersihkanKunciIdempotensiKedaluwarsa(
+  jamKedaluwarsa: number = MASA_SIMPAN_IDEMPOTENSI_JAM
+): Promise<number> {
+  const res = await getPool().query(
+    `DELETE FROM ticket_idempotency WHERE created_at < now() - ($1 || ' hours')::interval`,
+    [String(jamKedaluwarsa)]
+  );
+  return res.rowCount ?? 0;
 }

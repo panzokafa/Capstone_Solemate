@@ -18,7 +18,13 @@ import {
   validasiQueryDaftarTiket,
   tanggalHariIniWib,
   geserHariKalender,
+  petakanGalatServer,
+  apakahSesiDialihkanKeLogin,
 } from "../src/lib/tiket-validasi.ts";
+import {
+  bersihkanKunciIdempotensiKedaluwarsa,
+  dalamTransaksi,
+} from "../src/lib/tiket.ts";
 
 const { Pool } = pg;
 const BASE = process.env.BASE_URL ?? "http://localhost:3000";
@@ -26,13 +32,17 @@ const BASE = process.env.BASE_URL ?? "http://localhost:3000";
 const pin6 = () => String(Math.floor(Math.random() * 900000) + 100000);
 const OWNER_NAMA = `Owner Tiket ${Date.now()}`;
 const KASIR_NAMA = `Kasir Tiket ${Date.now()}`;
+const KASIR2_NAMA = `Kasir Tiket Dua ${Date.now()}`;
 const OWNER_PIN = pin6();
 const KASIR_PIN = pin6();
+const KASIR2_PIN = pin6();
 
 let admin;
 let app;
 let ownerCookie;
 let kasirCookie;
+let kasir2Cookie;
+let kasirUserId;
 let layananA; // Rp 30.000, 2 hari, aktif
 let layananB; // Rp 75.000, 5 hari, aktif
 let layananNonaktif; // Rp 20.000, 1 hari, nonaktif
@@ -84,10 +94,13 @@ before(async () => {
   app = new Pool({ connectionString: process.env.DATABASE_URL_APP });
 
   await buatAkunUji(OWNER_NAMA, "owner", OWNER_PIN);
-  await buatAkunUji(KASIR_NAMA, "kasir", KASIR_PIN);
+  const k1 = await buatAkunUji(KASIR_NAMA, "kasir", KASIR_PIN);
+  await buatAkunUji(KASIR2_NAMA, "kasir", KASIR2_PIN);
+  kasirUserId = k1;
 
   ownerCookie = await login(OWNER_NAMA, OWNER_PIN);
   kasirCookie = await login(KASIR_NAMA, KASIR_PIN);
+  kasir2Cookie = await login(KASIR2_NAMA, KASIR2_PIN);
 
   const s1 = await api(ownerCookie, "POST", "/api/katalog", {
     nama: `Deep Clean Uji ${Date.now()}`,
@@ -447,7 +460,7 @@ test("pelanggan lama dipakai ulang tanpa duplikat; nama berbeda tidak ditimpa di
   });
   assert.equal(cek.res.status, 200);
   assert.equal(cek.data.ditemukan, true);
-  assert.equal(cek.data.data.id, custId);
+  assert.equal(cek.data.data.id, undefined, "customer.id tidak boleh bocor di respons cek pelanggan");
   assert.equal(cek.data.data.nama, "Andi Saputra");
 
   // Tiket kedua dengan nama berbeda TANPA konfirmasi: jangan timpa, beri peringatan
@@ -490,6 +503,18 @@ test("pelanggan lama dipakai ulang tanpa duplikat; nama berbeda tidak ditimpa di
   );
   assert.equal(dbCust2.rowCount, 1);
   assert.equal(dbCust2.rows[0].nama, "Andi Wijaya");
+
+  // Riwayat audit di Detail Tiket harus memuat audit perubahan nama pelanggan tanpa menyertakan nomor WA
+  const detailT3 = await api(kasirCookie, "GET", `/api/tiket/${t3.data.data.id}`);
+  assert.equal(detailT3.res.status, 200);
+  const auditUbahNama = detailT3.data.data.riwayat_audit.find(
+    (a) => a.aksi === "UBAH_NAMA_PELANGGAN"
+  );
+  assert.ok(auditUbahNama, "riwayat audit detail tiket harus menampilkan perubahan nama pelanggan");
+  assert.equal(auditUbahNama.nilai_lama?.nama, "Andi Saputra");
+  assert.equal(auditUbahNama.nilai_baru?.nama, "Andi Wijaya");
+  assert.equal(auditUbahNama.nilai_lama?.nomor_wa, undefined, "nomor WA dilarang ada di nilai_lama audit");
+  assert.equal(auditUbahNama.nilai_baru?.nomor_wa, undefined, "nomor WA dilarang ada di nilai_baru audit");
 });
 
 test("dua tiket serentak dengan nomor WA baru yang sama: keduanya berhasil (201) dan hanya satu baris customers", async () => {
@@ -650,17 +675,16 @@ test("perubahan harga layanan di katalog setelah tiket dibuat tidak mengubah har
 // ---------- 10. Filter Tanggal Asia/Jakarta di Sekitar Tengah Malam ----------
 
 test("filter tanggal Daftar Tiket memakai tanggal_masuk zona Asia/Jakarta secara akurat di sekitar tengah malam", async () => {
-  // Tanggal uji masa lalu yang tidak terpengaruh jam saat tes dijalankan:
-  // 2026-03-10 23:55 WIB = 2026-03-10T16:55:00Z (masuk 10 Maret WIB)
-  // 2026-03-11 00:05 WIB = 2026-03-10T17:05:00Z (di UTC masih 10 Maret, tetapi di WIB sudah 11 Maret!)
-  // 2026-03-11 23:55 WIB = 2026-03-11T16:55:00Z (masuk 11 Maret WIB)
-  // 2026-03-12 00:05 WIB = 2026-03-11T17:05:00Z (masuk 12 Maret WIB)
+  const hariIni = tanggalHariIniWib(new Date());
+  const tgl10 = geserHariKalender(hariIni, -10);
+  const tgl11 = geserHariKalender(hariIni, -9);
+  const tgl12 = geserHariKalender(hariIni, -8);
   const penanda = `MIDNIGHT_${Date.now()}`;
   const jadwalUji = [
-    ["M10_AKHIR", "2026-03-10T23:55:00+07:00"],
-    ["M11_AWAL", "2026-03-11T00:05:00+07:00"],
-    ["M11_AKHIR", "2026-03-11T23:55:00+07:00"],
-    ["M12_AWAL", "2026-03-12T00:05:00+07:00"],
+    ["M10_AKHIR", `${tgl10}T23:55:00+07:00`],
+    ["M11_AWAL", `${tgl11}T00:05:00+07:00`],
+    ["M11_AKHIR", `${tgl11}T23:55:00+07:00`],
+    ["M12_AWAL", `${tgl12}T00:05:00+07:00`],
   ];
 
   for (const [kode, tglMasuk] of jadwalUji) {
@@ -677,7 +701,7 @@ test("filter tanggal Daftar Tiket memakai tanggal_masuk zona Asia/Jakarta secara
   const f11 = await api(
     kasirCookie,
     "GET",
-    `/api/tiket?periode=rentang&dari=2026-03-11&sampai=2026-03-11&cari=${encodeURIComponent(penanda)}`
+    `/api/tiket?periode=rentang&dari=${tgl11}&sampai=${tgl11}&cari=${encodeURIComponent(penanda)}`
   );
   assert.equal(f11.res.status, 200);
   const nama11 = f11.data.data.map((t) => t.pelanggan.nama).sort();
@@ -686,7 +710,7 @@ test("filter tanggal Daftar Tiket memakai tanggal_masuk zona Asia/Jakarta secara
   const f10 = await api(
     kasirCookie,
     "GET",
-    `/api/tiket?periode=rentang&dari=2026-03-10&sampai=2026-03-10&cari=${encodeURIComponent(penanda)}`
+    `/api/tiket?periode=rentang&dari=${tgl10}&sampai=${tgl10}&cari=${encodeURIComponent(penanda)}`
   );
   assert.equal(f10.res.status, 200);
   assert.deepEqual(
@@ -695,7 +719,6 @@ test("filter tanggal Daftar Tiket memakai tanggal_masuk zona Asia/Jakarta secara
   );
 
   // Uji juga periode=hari_ini dan periode=kemarin relatif terhadap hari ini di WIB
-  const hariIni = tanggalHariIniWib(new Date());
   const kemarin = geserHariKalender(hariIni, -1);
   const penandaRel = `RELWIB_${Date.now()}`;
 
@@ -744,14 +767,20 @@ test("filter tanggal Daftar Tiket memakai tanggal_masuk zona Asia/Jakarta secara
 
 test("urutan Belum bayar dilakukan di SQL sebelum LIMIT/OFFSET dengan pembeda id (tiket belum bayar lintas halaman tetap muncul lebih dulu)", async () => {
   const penanda = `URUTBB_${Date.now()}`;
+  const hariIni = tanggalHariIniWib(new Date());
+  const tglTua = geserHariKalender(hariIni, -5);
+  const tgl1 = geserHariKalender(hariIni, -4);
+  const tgl2 = geserHariKalender(hariIni, -3);
+  const tgl3 = geserHariKalender(hariIni, -2);
+  const tglSama = geserHariKalender(hariIni, -1);
 
   // Buat 1 tiket Belum bayar paling TUA, lalu 3 tiket Lunas yang lebih BARU:
   // Tanpa filter belum_bayar, pada ukuran=2 tiket Belum bayar jatuh ke halaman 2!
   const daftarInput = [
-    ["BB_TUA", "2026-04-01T08:00:00+07:00", "Belum bayar", undefined],
-    ["LUNAS_1", "2026-04-02T08:00:00+07:00", "Lunas", "Cash"],
-    ["LUNAS_2", "2026-04-03T08:00:00+07:00", "Lunas", "Non-cash"],
-    ["LUNAS_3", "2026-04-04T08:00:00+07:00", "Lunas", "Cash"],
+    ["BB_TUA", `${tglTua}T08:00:00+07:00`, "Belum bayar", undefined],
+    ["LUNAS_1", `${tgl1}T08:00:00+07:00`, "Lunas", "Cash"],
+    ["LUNAS_2", `${tgl2}T08:00:00+07:00`, "Lunas", "Non-cash"],
+    ["LUNAS_3", `${tgl3}T08:00:00+07:00`, "Lunas", "Cash"],
   ];
 
   for (const [label, tgl, sb, mb] of daftarInput) {
@@ -794,14 +823,14 @@ test("urutan Belum bayar dilakukan di SQL sebelum LIMIT/OFFSET dengan pembeda id
   const rSama1 = await api(kasirCookie, "POST", "/api/tiket", {
     nama_pelanggan: `${penanda}_BB_SAMA_1`,
     nomor_wa: waUnik08(),
-    tanggal_masuk: "2026-04-05T10:00:00+07:00",
+    tanggal_masuk: `${tglSama}T10:00:00+07:00`,
     items: [{ service_id: layananA.id, deskripsi_barang: "Sama 1", jumlah: 1 }],
     status_bayar: "Belum bayar",
   });
   const rSama2 = await api(kasirCookie, "POST", "/api/tiket", {
     nama_pelanggan: `${penanda}_BB_SAMA_2`,
     nomor_wa: waUnik08(),
-    tanggal_masuk: "2026-04-05T10:00:00+07:00",
+    tanggal_masuk: `${tglSama}T10:00:00+07:00`,
     items: [{ service_id: layananA.id, deskripsi_barang: "Sama 2", jumlah: 1 }],
     status_bayar: "Belum bayar",
   });
@@ -1357,4 +1386,561 @@ test("SSR keamanan XSS & komponen UI baru: teks <script> tampil sebagai teks ter
       `${rel} dilarang memakai dangerouslySetInnerHTML`
     );
   }
+});
+
+// ---------- 12. Pengujian Perbaikan Keamanan & Validasi Tambahan (Phase 5A Review) ----------
+
+test("tolak karakter kontrol, byte nol, tab, newline, dan pembalik arah teks bidi pada nama pelanggan dan deskripsi barang", async () => {
+  const itemDasar = {
+    service_id: layananA.id,
+    deskripsi_barang: "Sneakers Standar",
+    jumlah: 1,
+  };
+  const dasar = {
+    nama_pelanggan: "Pelanggan Aman",
+    nomor_wa: waUnik08(),
+    items: [itemDasar],
+    status_bayar: "Belum bayar",
+  };
+
+  const karakterKotor = [
+    ["byte nol", "\0"],
+    ["karakter kontrol 0x01", "\x01"],
+    ["karakter kontrol 0x1f", "\x1f"],
+    ["karakter kontrol 0x7f", "\x7f"],
+    ["tab", "\t"],
+    ["newline LF", "\n"],
+    ["newline CRLF", "\r\n"],
+    ["bidi RLO (U+202E)", "\u202E"],
+    ["bidi LRM (U+200E)", "\u200E"],
+    ["bidi RLM (U+200F)", "\u200F"],
+    ["bidi LRE (U+202A)", "\u202A"],
+    ["bidi LRI (U+2066)", "\u2066"],
+    ["lebar-nol ZWSP (U+200B)", "\u200B"],
+    ["lebar-nol ZWNJ (U+200C)", "\u200C"],
+    ["lebar-nol ZWJ (U+200D)", "\u200D"],
+    ["lebar-nol WJ (U+2060)", "\u2060"],
+    ["lebar-nol BOM/ZWNBSP (U+FEFF)", "\uFEFF"],
+  ];
+
+  for (const [label, ch] of karakterKotor) {
+    // 1. Pada nama pelanggan
+    const resNama = await api(kasirCookie, "POST", "/api/tiket", {
+      ...dasar,
+      nomor_wa: waUnik08(),
+      nama_pelanggan: `Budi${ch}Santoso`,
+    });
+    assert.equal(resNama.res.status, 400, `nama pelanggan dengan ${label} harus ditolak 400`);
+    assert.match(
+      resNama.data?.error ?? "",
+      /karakter kontrol|baris baru|pembalik arah teks|lebar-nol/i,
+      `pesan error nama pelanggan dengan ${label} harus jelas`
+    );
+    assert.equal(resNama.data?.field, "nama_pelanggan");
+
+    // 2. Pada deskripsi barang
+    const resDesk = await api(kasirCookie, "POST", "/api/tiket", {
+      ...dasar,
+      nomor_wa: waUnik08(),
+      items: [{ ...itemDasar, deskripsi_barang: `Sepatu${ch}Putih` }],
+    });
+    assert.equal(resDesk.res.status, 400, `deskripsi barang dengan ${label} harus ditolak 400`);
+    assert.match(
+      resDesk.data?.error ?? "",
+      /karakter kontrol|baris baru|pembalik arah teks|lebar-nol/i,
+      `pesan error deskripsi barang dengan ${label} harus jelas`
+    );
+    assert.equal(resDesk.data?.field, "items.0.deskripsi_barang");
+  }
+});
+
+test("batas tanggal: tanggal_masuk maks 30 hari lampau dan 5 menit ke depan, estimasi_selesai maks 365 hari setelah masuk", async () => {
+  const item = { service_id: layananA.id, deskripsi_barang: "Sepatu Uji", jumlah: 1 };
+  const dasar = {
+    nama_pelanggan: "Uji Tanggal",
+    nomor_wa: waUnik08(),
+    items: [item],
+    status_bayar: "Belum bayar",
+  };
+
+  const sekarang = Date.now();
+
+  // Batas tanggal masuk:
+  // Tepat ~30 hari yang lalu (diterima)
+  const tgl30HariLalu = new Date(sekarang - 30 * 86_400_000 + 60_000).toISOString();
+  const res30Hari = await api(kasirCookie, "POST", "/api/tiket", {
+    ...dasar,
+    nomor_wa: waUnik08(),
+    tanggal_masuk: tgl30HariLalu,
+  });
+  assert.equal(res30Hari.res.status, 201, "tanggal_masuk ~30 hari lalu harus diterima");
+
+  // Lebih dari 30 hari yang lalu (31 hari) -> ditolak 400
+  const tgl31HariLalu = new Date(sekarang - 31 * 86_400_000).toISOString();
+  const res31Hari = await api(kasirCookie, "POST", "/api/tiket", {
+    ...dasar,
+    nomor_wa: waUnik08(),
+    tanggal_masuk: tgl31HariLalu,
+  });
+  assert.equal(res31Hari.res.status, 400, "tanggal_masuk 31 hari lalu harus ditolak 400");
+  assert.match(res31Hari.data?.error ?? "", /30 hari ke belakang/i);
+  assert.equal(res31Hari.data?.field, "tanggal_masuk");
+
+  // Toleransi 5 menit masa depan: 4 menit ke depan (diterima)
+  const tgl4MenitDepan = new Date(sekarang + 4 * 60_000).toISOString();
+  const res4Menit = await api(kasirCookie, "POST", "/api/tiket", {
+    ...dasar,
+    nomor_wa: waUnik08(),
+    tanggal_masuk: tgl4MenitDepan,
+  });
+  assert.equal(res4Menit.res.status, 201, "tanggal_masuk 4 menit ke depan harus diterima");
+
+  // Lebih dari 5 menit masa depan: 6 menit ke depan (ditolak)
+  const tgl6MenitDepan = new Date(sekarang + 6 * 60_000).toISOString();
+  const res6Menit = await api(kasirCookie, "POST", "/api/tiket", {
+    ...dasar,
+    nomor_wa: waUnik08(),
+    tanggal_masuk: tgl6MenitDepan,
+  });
+  assert.equal(res6Menit.res.status, 400, "tanggal_masuk 6 menit ke depan harus ditolak 400");
+  assert.match(res6Menit.data?.error ?? "", /masa depan/i);
+  assert.equal(res6Menit.data?.field, "tanggal_masuk");
+
+  // Estimasi selesai:
+  // Tepat tanggal masuk + 365 hari (diterima)
+  const tglMasuk = new Date(sekarang);
+  const tglEst365 = new Date(tglMasuk.getTime() + 365 * 86_400_000 - 60_000).toISOString();
+  const resEst365 = await api(kasirCookie, "POST", "/api/tiket", {
+    ...dasar,
+    nomor_wa: waUnik08(),
+    tanggal_masuk: tglMasuk.toISOString(),
+    estimasi_selesai: tglEst365,
+  });
+  assert.equal(resEst365.res.status, 201, "estimasi_selesai 365 hari harus diterima");
+
+  // Lebih dari 365 hari setelah tanggal masuk (366 hari) -> ditolak
+  const tglEst366 = new Date(tglMasuk.getTime() + 366 * 86_400_000).toISOString();
+  const resEst366 = await api(kasirCookie, "POST", "/api/tiket", {
+    ...dasar,
+    nomor_wa: waUnik08(),
+    tanggal_masuk: tglMasuk.toISOString(),
+    estimasi_selesai: tglEst366,
+  });
+  assert.equal(resEst366.res.status, 400, "estimasi_selesai 366 hari harus ditolak 400");
+  assert.match(resEst366.data?.error ?? "", /365 hari/i);
+  assert.equal(resEst366.data?.field, "estimasi_selesai");
+
+  // Estimasi sebelum tanggal masuk -> ditolak
+  const tglEstSebelum = new Date(tglMasuk.getTime() - 86_400_000).toISOString();
+  const resEstSebelum = await api(kasirCookie, "POST", "/api/tiket", {
+    ...dasar,
+    nomor_wa: waUnik08(),
+    tanggal_masuk: tglMasuk.toISOString(),
+    estimasi_selesai: tglEstSebelum,
+  });
+  assert.equal(resEstSebelum.res.status, 400, "estimasi sebelum tanggal masuk harus ditolak 400");
+  assert.match(resEstSebelum.data?.error ?? "", /sebelum tanggal masuk/i);
+  assert.equal(resEstSebelum.data?.field, "estimasi_selesai");
+});
+
+test("galat validasi server mengembalikan kode field terstruktur dan klien memetakan kolom dengan tepat", async () => {
+  // 1. Galat barang baris ke-2: jumlah tidak valid (melebihi 20)
+  const resJml = await api(kasirCookie, "POST", "/api/tiket", {
+    nama_pelanggan: "Test Field",
+    nomor_wa: waUnik08(),
+    items: [
+      { service_id: layananA.id, deskripsi_barang: "Barang Satu", jumlah: 1 },
+      { service_id: layananB.id, deskripsi_barang: "Barang Dua", jumlah: 99 },
+    ],
+    status_bayar: "Belum bayar",
+  });
+  assert.equal(resJml.res.status, 400);
+  assert.equal(resJml.data?.field, "items.1.jumlah");
+
+  // Pemetaan klien
+  const peta1 = petakanGalatServer(resJml.data.error, resJml.data.field);
+  assert.equal(peta1.peta["item_1_jumlah"], resJml.data.error);
+
+  // 2. Galat estimasi_selesai
+  const resEst = await api(kasirCookie, "POST", "/api/tiket", {
+    nama_pelanggan: "Test Field",
+    nomor_wa: waUnik08(),
+    items: [{ service_id: layananA.id, deskripsi_barang: "Barang Satu", jumlah: 1 }],
+    tanggal_masuk: new Date().toISOString(),
+    estimasi_selesai: new Date(Date.now() - 86_400_000).toISOString(),
+    status_bayar: "Belum bayar",
+  });
+  assert.equal(resEst.res.status, 400);
+  assert.equal(resEst.data?.field, "estimasi_selesai");
+  const peta2 = petakanGalatServer(resEst.data.error, resEst.data.field);
+  assert.equal(peta2.peta.estimasi_selesai, resEst.data.error);
+
+  // 3. Layanan nonaktif pada baris ke-2 (bukan baris ke-1)
+  const resNonaktif = await api(kasirCookie, "POST", "/api/tiket", {
+    nama_pelanggan: "Test Field",
+    nomor_wa: waUnik08(),
+    items: [
+      { service_id: layananA.id, deskripsi_barang: "Barang Aktif", jumlah: 1 },
+      { service_id: layananNonaktif.id, deskripsi_barang: "Barang Nonaktif", jumlah: 1 },
+    ],
+    status_bayar: "Belum bayar",
+  });
+  assert.equal(resNonaktif.res.status, 400);
+  assert.equal(resNonaktif.data?.field, "items.1.service_id");
+  const peta3 = petakanGalatServer(resNonaktif.data.error, resNonaktif.data.field);
+  assert.equal(peta3.peta["item_1_service"], resNonaktif.data.error);
+  assert.equal(peta3.peta["item_0_service"], undefined, "baris 0 tidak boleh tertandai galat");
+});
+
+test("kunci idempotensi pembuatan tiket: pemutaran sekuensial & serentak (200), konflik isi atau pengguna berbeda (409), dan pembersihan kunci usang", async () => {
+  const kunciIdem = `test-key-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const wa = waUnik08();
+  const payload = {
+    idempotency_key: kunciIdem,
+    nama_pelanggan: "Budi Idempotent",
+    nomor_wa: wa,
+    items: [{ service_id: layananA.id, deskripsi_barang: "Sepatu Idem", jumlah: 1 }],
+    status_bayar: "Belum bayar",
+  };
+
+  const ordersAwal = Number((await admin.query(`SELECT COUNT(*) FROM orders`)).rows[0].count);
+  const auditAwal = Number((await admin.query(`SELECT COUNT(*) FROM audit_logs`)).rows[0].count);
+
+  // 1. Request 1: pembuatan tiket pertama dengan kunci idempotensi
+  const r1 = await api(kasirCookie, "POST", "/api/tiket", payload, {
+    headers: { "Idempotency-Key": kunciIdem },
+  });
+  assert.equal(r1.res.status, 201, `request pertama harus 201, dapat ${r1.res.status}`);
+  const tiket1 = r1.data.data;
+  assert.ok(tiket1.kode_tiket);
+
+  // 2. Request 2 (sekuensial): kirim ulang persis sama dengan kunci dan pengguna sama -> 200 duplikat
+  const r2 = await api(kasirCookie, "POST", "/api/tiket", payload, {
+    headers: { "Idempotency-Key": kunciIdem },
+  });
+  assert.equal(r2.res.status, 200, `request kedua dengan kunci sama harus 200, dapat ${r2.res.status}`);
+  assert.equal(r2.data.duplikat, true);
+  assert.equal(r2.data.data.id, tiket1.id);
+  assert.equal(r2.data.data.kode_tiket, tiket1.kode_tiket);
+
+  // 3. Kunci sama tetapi ISI PERMINTAAN BERBEDA -> 409 Konflik tanpa membocorkan data tiket
+  const rBedaIsi = await api(
+    kasirCookie,
+    "POST",
+    "/api/tiket",
+    { ...payload, nama_pelanggan: "Budi Berubah Nama" },
+    { headers: { "Idempotency-Key": kunciIdem } }
+  );
+  assert.equal(rBedaIsi.res.status, 409, `kunci sama isi berbeda harus 409, dapat ${rBedaIsi.res.status}`);
+  assert.match(
+    rBedaIsi.data?.error ?? "",
+    /kunci idempotensi/i,
+    "pesan galat konflik isi harus menyebutkan kunci idempotensi"
+  );
+  assert.equal(rBedaIsi.data?.data, undefined, "respons 409 tidak boleh memuat data tiket");
+
+  // 4. Kunci sama tetapi PENGGUNA BERBEDA (kasir 2) -> 409 Konflik tanpa membocorkan data tiket
+  const rBedaPengguna = await api(
+    kasir2Cookie,
+    "POST",
+    "/api/tiket",
+    payload,
+    { headers: { "Idempotency-Key": kunciIdem } }
+  );
+  assert.equal(
+    rBedaPengguna.res.status,
+    409,
+    `kunci sama pengguna berbeda harus 409, dapat ${rBedaPengguna.res.status}`
+  );
+  assert.match(
+    rBedaPengguna.data?.error ?? "",
+    /kunci idempotensi/i,
+    "pesan galat konflik pengguna harus jelas"
+  );
+  assert.equal(rBedaPengguna.data?.data, undefined, "respons 409 pengguna lain tidak boleh memuat tiket orang lain");
+
+  // Pastikan order dan audit hanya bertambah tepat 1 baris
+  const ordersSetelahSekuensial = Number((await admin.query(`SELECT COUNT(*) FROM orders`)).rows[0].count);
+  const auditSetelahSekuensial = Number((await admin.query(`SELECT COUNT(*) FROM audit_logs`)).rows[0].count);
+  assert.equal(ordersSetelahSekuensial, ordersAwal + 1, "order hanya boleh bertambah 1 baris");
+  assert.equal(auditSetelahSekuensial, auditAwal + 1, "audit log hanya boleh bertambah 1 baris");
+
+  // 5. Request serentak dengan kunci idempotensi baru yang sama & isi sama
+  const kunciSerentak = `concurrent-key-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const waKonkuren = waUnik08();
+  const payloadKonkuren = {
+    idempotency_key: kunciSerentak,
+    nama_pelanggan: "Pelanggan Idem Konkuren",
+    nomor_wa: waKonkuren,
+    items: [{ service_id: layananB.id, deskripsi_barang: "Sepatu Konkuren", jumlah: 1 }],
+    status_bayar: "Belum bayar",
+  };
+
+  const [resKonkuren1, resKonkuren2] = await Promise.all([
+    api(kasirCookie, "POST", "/api/tiket", payloadKonkuren, {
+      headers: { "Idempotency-Key": kunciSerentak },
+    }),
+    api(kasirCookie, "POST", "/api/tiket", payloadKonkuren, {
+      headers: { "Idempotency-Key": kunciSerentak },
+    }),
+  ]);
+
+  const statusList = [resKonkuren1.res.status, resKonkuren2.res.status].sort();
+  assert.deepEqual(statusList, [200, 201]);
+  assert.equal(resKonkuren1.data.data.id, resKonkuren2.data.data.id, "keduanya harus merujuk ke tiket yang sama");
+  assert.equal(resKonkuren1.data.data.kode_tiket, resKonkuren2.data.data.kode_tiket);
+
+  // 6. Request serentak dengan kunci idempotensi baru yang sama tetapi ISI BERBEDA
+  const kunciKonflikSerentak = `concurrent-conflict-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const waKonflik = waUnik08();
+  const payloadKonflikA = {
+    idempotency_key: kunciKonflikSerentak,
+    nama_pelanggan: "Pelanggan Serentak A",
+    nomor_wa: waKonflik,
+    items: [{ service_id: layananA.id, deskripsi_barang: "Item A", jumlah: 1 }],
+    status_bayar: "Belum bayar",
+  };
+  const payloadKonflikB = {
+    idempotency_key: kunciKonflikSerentak,
+    nama_pelanggan: "Pelanggan Serentak B",
+    nomor_wa: waKonflik,
+    items: [{ service_id: layananA.id, deskripsi_barang: "Item B", jumlah: 1 }],
+    status_bayar: "Belum bayar",
+  };
+
+  const [resKonfA, resKonfB] = await Promise.all([
+    api(kasirCookie, "POST", "/api/tiket", payloadKonflikA, {
+      headers: { "Idempotency-Key": kunciKonflikSerentak },
+    }),
+    api(kasirCookie, "POST", "/api/tiket", payloadKonflikB, {
+      headers: { "Idempotency-Key": kunciKonflikSerentak },
+    }),
+  ]);
+
+  const statusKonflik = [resKonfA.res.status, resKonfB.res.status].sort();
+  assert.deepEqual(
+    statusKonflik,
+    [201, 409],
+    "satu permintaan serentak harus 201 (pemenang) dan yang berbeda payload harus 409"
+  );
+  const yang409 = resKonfA.res.status === 409 ? resKonfA : resKonfB;
+  assert.match(yang409.data?.error ?? "", /kunci idempotensi/i);
+  assert.equal(yang409.data?.data, undefined, "409 serentak tidak boleh membocorkan tiket");
+
+  // 7. Uji pembersihan kunci kedaluwarsa: masukkan kunci palsu berumur 25 jam yang lalu
+  await admin.query(
+    `INSERT INTO ticket_idempotency (key, order_id, user_id, request_hash, created_at)
+     VALUES ($1, $2, $3, $4, now() - interval '25 hours')`,
+    ["stale-key-expired", tiket1.id, kasirUserId, "hash_dummy_expired_1234567890abcdef"]
+  );
+  const dibersihkan = await bersihkanKunciIdempotensiKedaluwarsa(24);
+  assert.ok(dibersihkan >= 1, "kunci kedaluwarsa harus terhapus");
+
+  const cekStale = await admin.query(
+    `SELECT * FROM ticket_idempotency WHERE key = $1`,
+    ["stale-key-expired"]
+  );
+  assert.equal(cekStale.rowCount, 0, "kunci kadaluarsa harus sudah hilang");
+
+  const cekKunciAktif = await admin.query(
+    `SELECT * FROM ticket_idempotency WHERE key = $1`,
+    [kunciIdem]
+  );
+  assert.equal(cekKunciAktif.rowCount, 1, "kunci aktif tidak boleh terhapus");
+
+  // Izin pada ticket_idempotency untuk solemate_app
+  const privIdem = await admin.query(
+    `SELECT
+       has_table_privilege('solemate_app', 'public.ticket_idempotency', 'DELETE') AS del,
+       has_table_privilege('solemate_app', 'public.ticket_idempotency', 'TRUNCATE') AS trunc`
+  );
+  assert.equal(privIdem.rows[0].del, true, "solemate_app harus punya izin DELETE untuk pembersihan kunci");
+  assert.equal(privIdem.rows[0].trunc, false, "solemate_app tidak boleh punya TRUNCATE pada ticket_idempotency");
+});
+
+test("audit ganti nama pelanggan tampil di Detail Tiket tanpa nomor WA", async () => {
+  const wa = waUnik08();
+  const namaAwal = `NamaAwal_${Date.now()}`;
+  const namaBaru = `NamaBaru_${Date.now()}`;
+
+  // 1. Buat tiket pertama dengan namaAwal
+  const r1 = await api(kasirCookie, "POST", "/api/tiket", {
+    nama_pelanggan: namaAwal,
+    nomor_wa: wa,
+    items: [{ service_id: layananA.id, deskripsi_barang: "Barang 1", jumlah: 1 }],
+    status_bayar: "Belum bayar",
+  });
+  assert.equal(r1.res.status, 201);
+
+  // 2. Buat tiket kedua dengan nomor WA yang sama, namaBaru, dan konfirmasi_ubah_nama: true
+  const r2 = await api(kasirCookie, "POST", "/api/tiket", {
+    nama_pelanggan: namaBaru,
+    nomor_wa: wa,
+    konfirmasi_ubah_nama: true,
+    items: [{ service_id: layananA.id, deskripsi_barang: "Barang 2", jumlah: 1 }],
+    status_bayar: "Belum bayar",
+  });
+  assert.equal(r2.res.status, 201);
+  const tiket2Id = r2.data.data.id;
+
+  // 3. Ambil detail tiket via API: riwayat audit harus memuat UBAH_NAMA_PELANGGAN
+  const rDetail = await api(kasirCookie, "GET", `/api/tiket/${tiket2Id}`);
+  assert.equal(rDetail.res.status, 200);
+  const auditList = rDetail.data.data.riwayat_audit;
+  const auditNama = auditList.find((a) => a.aksi === "UBAH_NAMA_PELANGGAN");
+  assert.ok(auditNama, "riwayat_audit harus memuat aksi UBAH_NAMA_PELANGGAN");
+  assert.deepEqual(auditNama.nilai_lama, { nama: namaAwal });
+  assert.deepEqual(auditNama.nilai_baru, { nama: namaBaru });
+
+  // Pastikan tidak ada properti nomor_wa / wa / phone di nilai audit
+  assert.equal("nomor_wa" in (auditNama.nilai_lama || {}), false);
+  assert.equal("nomor_wa" in (auditNama.nilai_baru || {}), false);
+  assert.equal("wa" in (auditNama.nilai_lama || {}), false);
+  assert.equal("phone" in (auditNama.nilai_lama || {}), false);
+
+  // 4. SSR Detail Tiket: namaAwal, namaBaru, dan label Perubahan Nama Pelanggan tampil di kartu audit
+  const ssr = await fetch(`${BASE}/tiket/${tiket2Id}`, {
+    headers: { Cookie: kasirCookie },
+  });
+  assert.equal(ssr.status, 200);
+  const html = await ssr.text();
+  assert.ok(/Perubahan nama pelanggan/i.test(html), "SSR harus menampilkan kartu audit Perubahan nama pelanggan");
+  assert.ok(html.includes(namaAwal), "SSR audit harus memuat nama lama");
+  assert.ok(html.includes(namaBaru), "SSR audit harus memuat nama baru");
+});
+
+test("respons POST /api/pelanggan/cek tidak memuat atribut id baik untuk pelanggan terdaftar maupun baru", async () => {
+  const waTerdaftar = waUnik08();
+  const namaTerdaftar = `PelangganCek_${Date.now()}`;
+
+  // Daftarkan dulu pelanggan lewat buat tiket
+  const rb = await api(kasirCookie, "POST", "/api/tiket", {
+    nama_pelanggan: namaTerdaftar,
+    nomor_wa: waTerdaftar,
+    items: [{ service_id: layananA.id, deskripsi_barang: "Barang Cek ID", jumlah: 1 }],
+    status_bayar: "Belum bayar",
+  });
+  assert.equal(rb.res.status, 201);
+
+  // 1. Cek pelanggan terdaftar: harus ok, ditemukan: true, dan data hanya { nama }
+  const rAda = await api(kasirCookie, "POST", "/api/pelanggan/cek", {
+    nomor_wa: waTerdaftar,
+  });
+  assert.equal(rAda.res.status, 200);
+  assert.equal(rAda.data.ok, true);
+  assert.equal(rAda.data.ditemukan, true);
+  assert.deepEqual(rAda.data.data, { nama: namaTerdaftar });
+  assert.equal("id" in rAda.data, false, "root response tidak boleh memuat atribut id");
+  assert.equal("id" in (rAda.data.data || {}), false, "objek data pelanggan tidak boleh memuat atribut id");
+
+  // 2. Cek pelanggan baru (belum pernah terdaftar): ditemukan: false, data: null, tanpa atribut id
+  const rBaru = await api(kasirCookie, "POST", "/api/pelanggan/cek", {
+    nomor_wa: waUnik08(),
+  });
+  assert.equal(rBaru.res.status, 200);
+  assert.equal(rBaru.data.ok, true);
+  assert.equal(rBaru.data.ditemukan, false);
+  assert.equal(rBaru.data.data, null);
+  assert.equal("id" in rBaru.data, false, "root response tidak boleh memuat atribut id");
+});
+
+test("deteksi sesi berakhir: apakahSesiDialihkanKeLogin mengenali pengalihan ke /login dan buat-tiket-client menanganinya", async () => {
+  // 1. Uji unit fungsi logika apakahSesiDialihkanKeLogin
+  assert.equal(
+    apakahSesiDialihkanKeLogin({
+      redirected: true,
+      url: "http://localhost:3000/login",
+      status: 200,
+    }),
+    true,
+    "harus mengenali redirected ke /login"
+  );
+
+  assert.equal(
+    apakahSesiDialihkanKeLogin({
+      status: 401,
+      redirected: false,
+    }),
+    true,
+    "harus mengenali status 401"
+  );
+
+  assert.equal(
+    apakahSesiDialihkanKeLogin({
+      status: 307,
+      redirected: true,
+      headers: {
+        get: (h) => (h.toLowerCase() === "content-type" ? "text/html; charset=utf-8" : null),
+      },
+    }),
+    true,
+    "harus mengenali 307 dengan content-type text/html"
+  );
+
+  assert.equal(
+    apakahSesiDialihkanKeLogin({
+      status: 400,
+      redirected: false,
+      url: "http://localhost:3000/api/tiket",
+      headers: { get: () => "application/json" },
+    }),
+    false,
+    "response 400 JSON bukan sesi berakhir"
+  );
+
+  assert.equal(
+    apakahSesiDialihkanKeLogin({
+      status: 200,
+      redirected: false,
+      url: "http://localhost:3000/api/tiket",
+      headers: { get: () => "application/json" },
+    }),
+    false,
+    "response 200 JSON bukan sesi berakhir"
+  );
+
+  // 2. Uji statis kode buat-tiket-client.tsx
+  const fsMod = await import("node:fs/promises");
+  const pathMod = await import("node:path");
+  const clientPath = pathMod.resolve("src/app/(app)/buat-tiket/buat-tiket-client.tsx");
+  const clientSource = await fsMod.readFile(clientPath, "utf8");
+
+  assert.ok(
+    clientSource.includes("apakahSesiDialihkanKeLogin"),
+    "buat-tiket-client.tsx wajib memanggil apakahSesiDialihkanKeLogin"
+  );
+  assert.ok(
+    clientSource.includes("Sesi berakhir, silakan masuk lagi."),
+    "buat-tiket-client.tsx wajib memunculkan pesan 'Sesi berakhir, silakan masuk lagi.'"
+  );
+  const hitunganPanggilan = (clientSource.match(/apakahSesiDialihkanKeLogin/g) || []).length;
+  assert.ok(
+    hitunganPanggilan >= 3,
+    "apakahSesiDialihkanKeLogin harus dipanggil baik saat cek nomor WA maupun submit tiket"
+  );
+});
+
+test("dalamTransaksi: jika rollback gagal, koneksi dilepas dengan parameter error (dibuang dari pool)", async () => {
+  let releaseArg = null;
+  await assert.rejects(
+    dalamTransaksi(async (c) => {
+      const origQuery = c.query.bind(c);
+      const origRelease = c.release.bind(c);
+      c.release = (err) => {
+        releaseArg = err;
+        return origRelease(err);
+      };
+      c.query = async (text, ...args) => {
+        if (typeof text === "string" && text.toUpperCase().includes("ROLLBACK")) {
+          throw new Error("Simulasi kegagalan ROLLBACK jaringan");
+        }
+        return origQuery(text, ...args);
+      };
+      throw new Error("Trigger transaksi sengaja gagal");
+    }),
+    /Trigger transaksi sengaja gagal/
+  );
+  assert.ok(releaseArg !== null, "client.release wajib dipanggil");
+  assert.ok(releaseArg instanceof Error, "client.release wajib menerima objek error saat rollback gagal");
+  assert.match(releaseArg.message, /Simulasi kegagalan ROLLBACK/);
 });

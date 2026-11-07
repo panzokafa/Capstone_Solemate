@@ -31,9 +31,11 @@ const LABEL_AKSI_AUDIT: Record<string, string> = {
   UBAH_STATUS_PESANAN: "Status pesanan diubah",
   UBAH_STATUS_BAYAR: "Status pembayaran diubah",
   BATALKAN_TIKET: "Tiket dibatalkan",
+  UBAH_NAMA_PELANGGAN: "Perubahan nama pelanggan",
 };
 
 const LABEL_KUNCI_AUDIT: Record<string, string> = {
+  nama: "Nama pelanggan",
   kode_tiket: "Kode tiket",
   sumber: "Sumber",
   status_pesanan: "Status pesanan",
@@ -71,7 +73,15 @@ function ringkasObjekAudit(obj: Record<string, unknown> | null): { label: string
   if (!obj) return [];
   const hasil: { label: string; isi: string }[] = [];
   for (const [kunci, nilai] of Object.entries(obj)) {
-    if (kunci === "customer_id" || kunci === "items") continue;
+    if (
+      kunci === "customer_id" ||
+      kunci === "items" ||
+      kunci === "nomor_wa" ||
+      kunci === "wa" ||
+      kunci === "phone"
+    ) {
+      continue;
+    }
     const label = LABEL_KUNCI_AUDIT[kunci] ?? kunci;
     hasil.push({ label, isi: formatNilaiAudit(kunci, nilai) });
   }

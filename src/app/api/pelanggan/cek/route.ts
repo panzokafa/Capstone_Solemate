@@ -31,14 +31,17 @@ export async function POST(req: NextRequest) {
 
     const v = validasiCekPelanggan(body);
     if (!v.ok) {
-      return NextResponse.json({ error: v.galat }, { status: 400 });
+      return NextResponse.json(
+        { error: v.galat, pesan: v.galat, field: v.field },
+        { status: 400 }
+      );
     }
 
     const hasil = await cekPelangganByNomorWa(v.data.nomor_wa);
     return NextResponse.json({
       ok: true,
       ditemukan: hasil.ditemukan,
-      data: hasil.pelanggan,
+      data: hasil.pelanggan ? { nama: hasil.pelanggan.nama } : null,
     });
   } catch (e) {
     if (e instanceof AksesDitolakError) return DITOLAK();

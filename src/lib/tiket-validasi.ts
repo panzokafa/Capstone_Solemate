@@ -1,0 +1,603 @@
+// Validasi murni (tanpa koneksi database) untuk pembuatan tiket, cek pelanggan, ID tiket,
+// dan seluruh parameter query Daftar Tiket. Dipakai oleh route handler, halaman, dan tes unit.
+
+import {
+  STATUS_BAYAR,
+  METODE_BAYAR,
+  type StatusBayar,
+  type MetodeBayar,
+} from "../config/order-status.ts";
+import {
+  OFFSET_WIB,
+  MAKS_ITEM_PER_TIKET,
+  MIN_JUMLAH_PASANG,
+  MAKS_JUMLAH_PASANG,
+  MAKS_DESKRIPSI_BARANG,
+  MAKS_NAMA_PELANGGAN,
+  TOLERANSI_TANGGAL_MASUK_MENIT,
+  PERIODE_FILTER_TIKET,
+  MAKS_RENTANG_HARI_FILTER,
+  UKURAN_HALAMAN_DEFAULT,
+  MAKS_UKURAN_HALAMAN,
+  MAKS_HALAMAN,
+  MAKS_PANJANG_CARI,
+  type PeriodeFilterTiket,
+} from "../config/tiket.ts";
+import { normalisasiNomorWa } from "./nomor-wa.ts";
+
+const BATAS_ID_INT = 2_147_483_647;
+const MS_PER_HARI = 86_400_000;
+const OFFSET_WIB_MS = 7 * 3_600_000;
+
+export type HasilValidasi<T> =
+  | { ok: true; data: T }
+  | { ok: false; galat: string };
+
+export type InputItemTiket = {
+  service_id: number;
+  deskripsi_barang: string;
+  jumlah: number;
+};
+
+export type InputBuatTiket = {
+  nama_pelanggan: string;
+  nomor_wa: string;
+  konfirmasi_ubah_nama: boolean;
+  items: InputItemTiket[];
+  tanggal_masuk: Date;
+  estimasi_selesai: Date | null;
+  status_bayar: StatusBayar;
+  metode_bayar: MetodeBayar | null;
+};
+
+export type FilterDaftarTiket = {
+  periode: PeriodeFilterTiket;
+  dari: string | null;
+  sampai: string | null;
+  batas_mulai: Date | null;
+  batas_akhir_eksklusif: Date | null;
+  belum_bayar_di_atas: boolean;
+  cari: string;
+  halaman: number;
+  ukuran: number;
+};
+
+function objekBiasa(v: unknown): v is Record<string, unknown> {
+  return typeof v === "object" && v !== null && !Array.isArray(v);
+}
+
+function kunciAsing(body: Record<string, unknown>, diizinkan: string[]): string | null {
+  return Object.keys(body).find((k) => !diizinkan.includes(k)) ?? null;
+}
+
+/**
+ * Validasi ID tiket dari segmen URL `/tiket/[id]` atau `/api/tiket/[id]`.
+ * Hanya menerima bilangan bulat positif murni (tanpa nol di depan, negatif, pecahan, atau huruf).
+ */
+export function validasiIdTiket(teks: string): number | null {
+  if (!/^[1-9]\d{0,9}$/.test(teks)) return null;
+  const n = Number(teks);
+  return n >= 1 && n <= BATAS_ID_INT ? n : null;
+}
+
+function uraiTanggalKalender(
+  teks: string
+): { tahun: number; bulan: number; hari: number } | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(teks);
+  if (!m) return null;
+  const tahun = Number(m[1]);
+  const bulan = Number(m[2]);
+  const hari = Number(m[3]);
+  if (bulan < 1 || bulan > 12 || hari < 1 || hari > 31) return null;
+  const d = new Date(Date.UTC(tahun, bulan - 1, hari));
+  if (
+    d.getUTCFullYear() !== tahun ||
+    d.getUTCMonth() !== bulan - 1 ||
+    d.getUTCDate() !== hari
+  ) {
+    return null;
+  }
+  return { tahun, bulan, hari };
+}
+
+export function tanggalHariIniWib(sekarang: Date = new Date()): string {
+  return new Date(sekarang.getTime() + OFFSET_WIB_MS).toISOString().slice(0, 10);
+}
+
+export function geserHariKalender(tglYmd: string, deltaHari: number): string {
+  const k = uraiTanggalKalender(tglYmd);
+  if (!k) throw new Error(`Tanggal kalender tidak valid: ${tglYmd}`);
+  return new Date(Date.UTC(k.tahun, k.bulan - 1, k.hari + deltaHari))
+    .toISOString()
+    .slice(0, 10);
+}
+
+export function batasAwalHariWib(tglYmd: string): Date {
+  return new Date(`${tglYmd}T00:00:00.000${OFFSET_WIB}`);
+}
+
+function uraiWaktuInput(
+  v: unknown,
+  label: string,
+  akhirHariJikaTanggalSaja: boolean
+): HasilValidasi<Date> {
+  if (typeof v !== "string") {
+    return { ok: false, galat: `${label} harus berupa teks tanggal/waktu yang valid.` };
+  }
+  const s = v.trim();
+  if (s.length === 0) {
+    return { ok: false, galat: `${label} tidak boleh kosong.` };
+  }
+
+  // 1. Format tanggal saja: YYYY-MM-DD (diinterpretasikan dalam zona Asia/Jakarta).
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+    if (!uraiTanggalKalender(s)) {
+      return { ok: false, galat: `${label} bukan tanggal kalender yang valid.` };
+    }
+    const jam = akhirHariJikaTanggalSaja ? "23:59:59.999" : "00:00:00.000";
+    return { ok: true, data: new Date(`${s}T${jam}${OFFSET_WIB}`) };
+  }
+
+  // 2. Format datetime lokal tanpa offset (mis. dari input datetime-local): YYYY-MM-DDTHH:mm[:ss[.sss]]
+  const mLokal = /^(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2})(?::(\d{2})(?:\.(\d{1,3}))?)?$/.exec(s);
+  if (mLokal) {
+    if (!uraiTanggalKalender(mLokal[1])) {
+      return { ok: false, galat: `${label} bukan tanggal kalender yang valid.` };
+    }
+    const jam = Number(mLokal[2]);
+    const menit = Number(mLokal[3]);
+    const detik = mLokal[4] ? Number(mLokal[4]) : 0;
+    if (jam > 23 || menit > 59 || detik > 59) {
+      return { ok: false, galat: `${label} memiliki jam yang tidak valid.` };
+    }
+    const dtkTeks = mLokal[4] ?? "00";
+    const msTeks = (mLokal[5] ?? "000").padEnd(3, "0");
+    const tgl = new Date(`${mLokal[1]}T${mLokal[2]}:${mLokal[3]}:${dtkTeks}.${msTeks}${OFFSET_WIB}`);
+    if (Number.isNaN(tgl.getTime())) {
+      return { ok: false, galat: `${label} tidak valid.` };
+    }
+    return { ok: true, data: tgl };
+  }
+
+  // 3. Format ISO 8601 lengkap dengan Z atau offset ±HH:MM
+  const mIso =
+    /^(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2})(?::(\d{2})(?:\.(\d{1,6}))?)?(Z|[+-]\d{2}:\d{2})$/.exec(
+      s
+    );
+  if (mIso) {
+    if (!uraiTanggalKalender(mIso[1])) {
+      return { ok: false, galat: `${label} bukan tanggal kalender yang valid.` };
+    }
+    const jam = Number(mIso[2]);
+    const menit = Number(mIso[3]);
+    const detik = mIso[4] ? Number(mIso[4]) : 0;
+    if (jam > 23 || menit > 59 || detik > 59) {
+      return { ok: false, galat: `${label} memiliki jam yang tidak valid.` };
+    }
+    const tgl = new Date(s);
+    if (Number.isNaN(tgl.getTime())) {
+      return { ok: false, galat: `${label} tidak valid.` };
+    }
+    return { ok: true, data: tgl };
+  }
+
+  return { ok: false, galat: `${label} harus berformat ISO atau YYYY-MM-DD.` };
+}
+
+/**
+ * Validasi body `POST /api/pelanggan/cek` (nomor WA dikirim di body JSON, bukan di URL).
+ */
+export function validasiCekPelanggan(
+  body: unknown
+): HasilValidasi<{ nomor_wa: string }> {
+  if (!objekBiasa(body)) {
+    return { ok: false, galat: "Isi permintaan tidak valid." };
+  }
+  const asing = kunciAsing(body, ["nomor_wa"]);
+  if (asing) {
+    return { ok: false, galat: `Field tidak dikenal: ${asing}.` };
+  }
+  const wa = normalisasiNomorWa(body.nomor_wa);
+  if (!wa.ok) return wa;
+  return { ok: true, data: { nomor_wa: wa.nomor } };
+}
+
+/**
+ * Validasi body `POST /api/tiket`.
+ * Catatan penting (PRD FR-61 & syarat Zero Trust): field `harga`, `harga_saat_transaksi`,
+ * `subtotal`, dan `total` yang mungkin dikirim klien SENGAJA diabaikan tanpa dipakai;
+ * server selalu mengambil harga dari tabel `services` aktif di database.
+ */
+export function validasiBuatTiket(
+  body: unknown,
+  sekarang: Date = new Date()
+): HasilValidasi<InputBuatTiket> {
+  if (!objekBiasa(body)) {
+    return { ok: false, galat: "Isi permintaan tidak valid." };
+  }
+
+  const diizinkanRoot = [
+    "nama_pelanggan",
+    "nomor_wa",
+    "konfirmasi_ubah_nama",
+    "items",
+    "tanggal_masuk",
+    "estimasi_selesai",
+    "status_bayar",
+    "metode_bayar",
+    // Diabaikan secara eksplisit bila klien mengirim nilai palsu:
+    "total",
+    "harga",
+  ];
+  const asingRoot = kunciAsing(body, diizinkanRoot);
+  if (asingRoot) {
+    return { ok: false, galat: `Field tidak dikenal: ${asingRoot}.` };
+  }
+
+  // 1. Nama pelanggan
+  if (typeof body.nama_pelanggan !== "string") {
+    return { ok: false, galat: "Nama pelanggan wajib diisi." };
+  }
+  const namaPelanggan = body.nama_pelanggan.trim();
+  if (namaPelanggan.length === 0) {
+    return { ok: false, galat: "Nama pelanggan wajib diisi." };
+  }
+  if (namaPelanggan.length > MAKS_NAMA_PELANGGAN) {
+    return {
+      ok: false,
+      galat: `Nama pelanggan maksimal ${MAKS_NAMA_PELANGGAN} karakter.`,
+    };
+  }
+
+  // 2. Nomor WhatsApp
+  const wa = normalisasiNomorWa(body.nomor_wa);
+  if (!wa.ok) return wa;
+
+  // 3. Konfirmasi ubah nama pelanggan lama (opsional)
+  if (
+    body.konfirmasi_ubah_nama !== undefined &&
+    typeof body.konfirmasi_ubah_nama !== "boolean"
+  ) {
+    return { ok: false, galat: "Konfirmasi ubah nama harus berupa boolean." };
+  }
+  const konfirmasiUbahNama = body.konfirmasi_ubah_nama ?? false;
+
+  // 4. Daftar barang / layanan (1..20 item)
+  if (!Array.isArray(body.items)) {
+    return { ok: false, galat: "Daftar barang wajib berupa array." };
+  }
+  if (body.items.length === 0) {
+    return { ok: false, galat: "Tiket wajib memiliki minimal 1 barang." };
+  }
+  if (body.items.length > MAKS_ITEM_PER_TIKET) {
+    return {
+      ok: false,
+      galat: `Maksimal ${MAKS_ITEM_PER_TIKET} barang per tiket.`,
+    };
+  }
+
+  const diizinkanItem = [
+    "service_id",
+    "deskripsi_barang",
+    "jumlah",
+    // Diabaikan secara eksplisit bila klien mengirim harga/subtotal palsu:
+    "harga",
+    "harga_saat_transaksi",
+    "subtotal",
+  ];
+  const items: InputItemTiket[] = [];
+
+  for (let i = 0; i < body.items.length; i++) {
+    const raw = body.items[i];
+    const nomorBaris = i + 1;
+    if (!objekBiasa(raw)) {
+      return { ok: false, galat: `Barang ke-${nomorBaris} tidak valid.` };
+    }
+    const asingItem = kunciAsing(raw, diizinkanItem);
+    if (asingItem) {
+      return {
+        ok: false,
+        galat: `Field tidak dikenal pada barang ke-${nomorBaris}: ${asingItem}.`,
+      };
+    }
+
+    if (
+      typeof raw.service_id !== "number" ||
+      !Number.isInteger(raw.service_id) ||
+      raw.service_id < 1 ||
+      raw.service_id > BATAS_ID_INT
+    ) {
+      return {
+        ok: false,
+        galat: `Layanan pada barang ke-${nomorBaris} harus berupa ID bilangan bulat positif (angka, bukan teks).`,
+      };
+    }
+
+    if (typeof raw.deskripsi_barang !== "string") {
+      return {
+        ok: false,
+        galat: `Deskripsi barang ke-${nomorBaris} wajib diisi.`,
+      };
+    }
+    const deskripsi = raw.deskripsi_barang.trim();
+    if (deskripsi.length === 0) {
+      return {
+        ok: false,
+        galat: `Deskripsi barang ke-${nomorBaris} wajib diisi.`,
+      };
+    }
+    if (deskripsi.length > MAKS_DESKRIPSI_BARANG) {
+      return {
+        ok: false,
+        galat: `Deskripsi barang ke-${nomorBaris} maksimal ${MAKS_DESKRIPSI_BARANG} karakter.`,
+      };
+    }
+
+    if (typeof raw.jumlah !== "number" || !Number.isInteger(raw.jumlah)) {
+      return {
+        ok: false,
+        galat: `Jumlah pasang pada barang ke-${nomorBaris} harus berupa bilangan bulat (angka, bukan teks).`,
+      };
+    }
+    if (raw.jumlah < MIN_JUMLAH_PASANG || raw.jumlah > MAKS_JUMLAH_PASANG) {
+      return {
+        ok: false,
+        galat: `Jumlah pasang pada barang ke-${nomorBaris} harus antara ${MIN_JUMLAH_PASANG} sampai ${MAKS_JUMLAH_PASANG}.`,
+      };
+    }
+
+    items.push({
+      service_id: raw.service_id,
+      deskripsi_barang: deskripsi,
+      jumlah: raw.jumlah,
+    });
+  }
+
+  // 5. Jadwal: tanggal_masuk (default sekarang, tidak boleh di masa depan > toleransi 5 menit)
+  let tanggalMasuk = sekarang;
+  if (body.tanggal_masuk !== undefined && body.tanggal_masuk !== null) {
+    const uMasuk = uraiWaktuInput(body.tanggal_masuk, "Tanggal masuk", false);
+    if (!uMasuk.ok) return uMasuk;
+    const batasMasaDepan =
+      sekarang.getTime() + TOLERANSI_TANGGAL_MASUK_MENIT * 60 * 1000;
+    if (uMasuk.data.getTime() > batasMasaDepan) {
+      return {
+        ok: false,
+        galat: "Tanggal masuk tidak boleh di masa depan.",
+      };
+    }
+    tanggalMasuk = uMasuk.data;
+  }
+
+  // 6. Jadwal: estimasi_selesai (opsional; bila diisi harus >= tanggal_masuk)
+  let estimasiSelesai: Date | null = null;
+  if (body.estimasi_selesai !== undefined && body.estimasi_selesai !== null) {
+    const uEst = uraiWaktuInput(body.estimasi_selesai, "Estimasi selesai", true);
+    if (!uEst.ok) return uEst;
+    if (uEst.data.getTime() < tanggalMasuk.getTime()) {
+      return {
+        ok: false,
+        galat: "Estimasi selesai tidak boleh sebelum tanggal masuk.",
+      };
+    }
+    estimasiSelesai = uEst.data;
+  }
+
+  // 7. Status pembayaran & metode pembayaran
+  if (
+    typeof body.status_bayar !== "string" ||
+    !(STATUS_BAYAR as readonly string[]).includes(body.status_bayar)
+  ) {
+    return {
+      ok: false,
+      galat: "Status pembayaran harus 'Belum bayar' atau 'Lunas'.",
+    };
+  }
+  const statusBayar = body.status_bayar as StatusBayar;
+
+  let metodeBayar: MetodeBayar | null = null;
+  if (statusBayar === "Lunas") {
+    if (
+      typeof body.metode_bayar !== "string" ||
+      !(METODE_BAYAR as readonly string[]).includes(body.metode_bayar)
+    ) {
+      return {
+        ok: false,
+        galat: "Metode pembayaran wajib dipilih ('Cash' atau 'Non-cash') saat status Lunas.",
+      };
+    }
+    metodeBayar = body.metode_bayar as MetodeBayar;
+  } else {
+    if (body.metode_bayar !== undefined && body.metode_bayar !== null) {
+      return {
+        ok: false,
+        galat: "Metode pembayaran harus kosong saat status Belum bayar.",
+      };
+    }
+  }
+
+  return {
+    ok: true,
+    data: {
+      nama_pelanggan: namaPelanggan,
+      nomor_wa: wa.nomor,
+      konfirmasi_ubah_nama: konfirmasiUbahNama,
+      items,
+      tanggal_masuk: tanggalMasuk,
+      estimasi_selesai: estimasiSelesai,
+      status_bayar: statusBayar,
+      metode_bayar: metodeBayar,
+    },
+  };
+}
+
+const PARAMETER_DAFTAR_DIIZINKAN = new Set([
+  "periode",
+  "dari",
+  "sampai",
+  "belum_bayar",
+  "cari",
+  "halaman",
+  "ukuran",
+]);
+
+/**
+ * Validasi seluruh parameter query `GET /api/tiket` dan halaman `/tiket`.
+ * Semua parameter query dianggap input pengguna tidak tepercaya.
+ */
+export function validasiQueryDaftarTiket(
+  searchParams: URLSearchParams,
+  sekarang: Date = new Date()
+): HasilValidasi<FilterDaftarTiket> {
+  for (const k of searchParams.keys()) {
+    if (!PARAMETER_DAFTAR_DIIZINKAN.has(k)) {
+      return { ok: false, galat: `Parameter query tidak dikenal: ${k}.` };
+    }
+    if (searchParams.getAll(k).length > 1) {
+      return { ok: false, galat: `Parameter ${k} tidak boleh dikirim berulang.` };
+    }
+  }
+
+  const periodeRaw = searchParams.get("periode");
+  const dariRaw = searchParams.get("dari");
+  const sampaiRaw = searchParams.get("sampai");
+
+  let periode: PeriodeFilterTiket;
+  if (periodeRaw === null) {
+    periode = dariRaw !== null || sampaiRaw !== null ? "rentang" : "semua";
+  } else {
+    if (!(PERIODE_FILTER_TIKET as readonly string[]).includes(periodeRaw)) {
+      return { ok: false, galat: "Parameter periode tidak valid." };
+    }
+    periode = periodeRaw as PeriodeFilterTiket;
+    if (periode !== "rentang" && (dariRaw !== null || sampaiRaw !== null)) {
+      return {
+        ok: false,
+        galat: "Parameter dari dan sampai hanya boleh dipakai saat periode=rentang.",
+      };
+    }
+  }
+
+  let dari: string | null = null;
+  let sampai: string | null = null;
+  let batasMulai: Date | null = null;
+  let batasAkhirEksklusif: Date | null = null;
+
+  const hariIni = tanggalHariIniWib(sekarang);
+
+  if (periode === "hari_ini") {
+    batasMulai = batasAwalHariWib(hariIni);
+    batasAkhirEksklusif = batasAwalHariWib(geserHariKalender(hariIni, 1));
+  } else if (periode === "kemarin") {
+    const kemarin = geserHariKalender(hariIni, -1);
+    batasMulai = batasAwalHariWib(kemarin);
+    batasAkhirEksklusif = batasAwalHariWib(hariIni);
+  } else if (periode === "7_hari") {
+    const awal = geserHariKalender(hariIni, -6);
+    batasMulai = batasAwalHariWib(awal);
+    batasAkhirEksklusif = batasAwalHariWib(geserHariKalender(hariIni, 1));
+  } else if (periode === "rentang") {
+    if (!dariRaw || !sampaiRaw) {
+      return {
+        ok: false,
+        galat: "Tanggal awal (dari) dan tanggal akhir (sampai) wajib diisi dengan format YYYY-MM-DD.",
+      };
+    }
+    const dKal = uraiTanggalKalender(dariRaw);
+    const sKal = uraiTanggalKalender(sampaiRaw);
+    if (!dKal || !sKal) {
+      return {
+        ok: false,
+        galat: "Format tanggal harus YYYY-MM-DD yang valid.",
+      };
+    }
+    const dMs = Date.UTC(dKal.tahun, dKal.bulan - 1, dKal.hari);
+    const sMs = Date.UTC(sKal.tahun, sKal.bulan - 1, sKal.hari);
+    if (dMs > sMs) {
+      return {
+        ok: false,
+        galat: "Tanggal awal tidak boleh melebihi tanggal akhir.",
+      };
+    }
+    const selisihHari = Math.round((sMs - dMs) / MS_PER_HARI);
+    if (selisihHari > MAKS_RENTANG_HARI_FILTER) {
+      return {
+        ok: false,
+        galat: `Rentang tanggal maksimal ${MAKS_RENTANG_HARI_FILTER} hari.`,
+      };
+    }
+    dari = dariRaw;
+    sampai = sampaiRaw;
+    batasMulai = batasAwalHariWib(dariRaw);
+    batasAkhirEksklusif = batasAwalHariWib(geserHariKalender(sampaiRaw, 1));
+  }
+
+  // Filter / prioritas Belum bayar di atas
+  const belumBayarRaw = searchParams.get("belum_bayar");
+  let belumBayarDiAtas = false;
+  if (belumBayarRaw !== null) {
+    if (belumBayarRaw === "true" || belumBayarRaw === "1") {
+      belumBayarDiAtas = true;
+    } else if (belumBayarRaw === "false" || belumBayarRaw === "0") {
+      belumBayarDiAtas = false;
+    } else {
+      return {
+        ok: false,
+        galat: "Parameter belum_bayar harus bernilai true, false, 1, atau 0.",
+      };
+    }
+  }
+
+  // Halaman
+  let halaman = 1;
+  const halamanRaw = searchParams.get("halaman");
+  if (halamanRaw !== null) {
+    if (!/^[1-9]\d*$/.test(halamanRaw)) {
+      return { ok: false, galat: "Nomor halaman harus berupa bilangan bulat positif." };
+    }
+    const n = Number(halamanRaw);
+    if (n < 1 || n > MAKS_HALAMAN) {
+      return {
+        ok: false,
+        galat: `Nomor halaman harus antara 1 sampai ${MAKS_HALAMAN}.`,
+      };
+    }
+    halaman = n;
+  }
+
+  // Ukuran halaman
+  let ukuran = UKURAN_HALAMAN_DEFAULT;
+  const ukuranRaw = searchParams.get("ukuran");
+  if (ukuranRaw !== null) {
+    if (!/^[1-9]\d*$/.test(ukuranRaw)) {
+      return { ok: false, galat: "Ukuran halaman harus berupa bilangan bulat positif." };
+    }
+    const n = Number(ukuranRaw);
+    if (n < 1 || n > MAKS_UKURAN_HALAMAN) {
+      return {
+        ok: false,
+        galat: `Ukuran halaman maksimal ${MAKS_UKURAN_HALAMAN}.`,
+      };
+    }
+    ukuran = n;
+  }
+
+  // Kata pencarian: hapus karakter null, trim, potong panjang maksimal 100 karakter
+  const cariRaw = searchParams.get("cari") ?? "";
+  const cari = cariRaw.replace(/\0/g, "").trim().slice(0, MAKS_PANJANG_CARI);
+
+  return {
+    ok: true,
+    data: {
+      periode,
+      dari,
+      sampai,
+      batas_mulai: batasMulai,
+      batas_akhir_eksklusif: batasAkhirEksklusif,
+      belum_bayar_di_atas: belumBayarDiAtas,
+      cari,
+      halaman,
+      ukuran,
+    },
+  };
+}

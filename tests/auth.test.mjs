@@ -257,12 +257,27 @@ test("kasir ditolak di semua rute owner (halaman dan API)", async () => {
     assert.equal(res.status, 403, `rute ${r} harus 403 untuk kasir`);
   }
 
-  // Rute kasir-only (buat-tiket) diterima kasir, ditolak owner.
-  const kasirRes = await fetch(`${BASE}/api/buat-tiket`, {
-    method: "POST",
-    headers: { Cookie: sc },
+  // Rute kasir-only (POST /api/tiket) diterima kasir, ditolak owner.
+  const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+  const svc = await pool.query(
+    `INSERT INTO services (nama, harga, estimasi_hari, aktif)
+     VALUES ($1, 30000, 2, true) RETURNING id`,
+    [`Layanan Auth ${Date.now()}`]
+  );
+  await pool.end();
+  const muatanTiket = JSON.stringify({
+    nama_pelanggan: "Pelanggan Auth",
+    nomor_wa: "081234567890",
+    items: [{ service_id: svc.rows[0].id, deskripsi_barang: "Sepatu Auth", jumlah: 1 }],
+    status_bayar: "Belum bayar",
   });
-  assert.equal(kasirRes.status, 200);
+
+  const kasirRes = await fetch(`${BASE}/api/tiket`, {
+    method: "POST",
+    headers: { Cookie: sc, "Content-Type": "application/json", Origin: BASE },
+    body: muatanTiket,
+  });
+  assert.equal(kasirRes.status, 201);
 
   const ownerLogin = await fetch(`${BASE}/api/login`, {
     method: "POST",
@@ -270,9 +285,10 @@ test("kasir ditolak di semua rute owner (halaman dan API)", async () => {
     body: JSON.stringify({ username: OWNER_NAMA, pin: OWNER_PIN }),
   });
   const scOwner = ownerLogin.headers.get("set-cookie") ?? "";
-  const ownerAtKasir = await fetch(`${BASE}/api/buat-tiket`, {
+  const ownerAtKasir = await fetch(`${BASE}/api/tiket`, {
     method: "POST",
-    headers: { Cookie: scOwner },
+    headers: { Cookie: scOwner, "Content-Type": "application/json", Origin: BASE },
+    body: muatanTiket,
   });
   assert.equal(ownerAtKasir.status, 403, "owner harus 403 di rute kasir");
 });
@@ -388,11 +404,10 @@ test("tanpa sesi, halaman dan API mengarahkan ke Login", async () => {
   }
 
   // API terlindungi: tanpa sesi harus ditolak (401/403) atau redirect ke login.
-  // buat-tiket hanya menerima POST, jadi kirim POST.
   for (const [rute, metode] of [
     ["/api/laporan-harian", "GET"],
     ["/api/katalog", "GET"],
-    ["/api/buat-tiket", "POST"],
+    ["/api/tiket", "POST"],
   ]) {
     const res = await fetch(`${BASE}${rute}`, { method: metode, redirect: "manual" });
     assert.ok(

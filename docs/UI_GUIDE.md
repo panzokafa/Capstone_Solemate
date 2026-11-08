@@ -181,10 +181,16 @@ formatWaktu("2026-05-10T20:00:00.000Z"); // "03.00 WIB"
 
 ---
 
-## 5. Catatan Asumsi & Aturan Modul Tiket (Phase 5A)
+## 5. Catatan Asumsi & Aturan Modul Tiket (Phase 5A & 5B)
 - **Asumsi segmen filter `"7 hari terakhir"` (`periode=7_hari`):** PRD bagian 7.3 dan FR-13 menyebut filter *"beberapa hari lalu"* tanpa angka pasti. Untuk sementara antarmuka dan server menggunakan **7 hari terakhir** dalam zona waktu `Asia/Jakarta` (dikonfigurasi terpusat di `src/config/tiket.ts` agar mudah disesuaikan setelah konfirmasi pemilik toko).
 - **Asumsi batas rentang tanggal tiket:** `tanggal_masuk` maksimal 30 hari ke belakang (`MAKS_HARI_MASUK_LAMPAU = 30`) dan toleransi maksimal 5 menit di masa depan (`TOLERANSI_TANGGAL_MASUK_MENIT = 5`); `estimasi_selesai` maksimal 365 hari setelah `tanggal_masuk` (`MAKS_HARI_ESTIMASI_SELESAI = 365`). Konfigurasi ini terpusat di `src/config/tiket.ts` dan perlu dikonfirmasi kepada pemilik toko.
 - **Tanggal pada `kode_tiket` (`SM-YYYYMMDD-NNN`):** menggunakan **tanggal terbit tiket** di server pada zona waktu `Asia/Jakarta`, bukan `tanggal_masuk` yang diisi kasir, supaya penomoran resi harian selalu maju berurutan dan bebas bentrok.
+- **Asumsi aturan transisi status pesanan (perlu konfirmasi pemilik toko):** terpusat di `src/config/order-status.ts`:
+  - Maju satu langkah: `Belum dicuci -> Diproses -> Siap diambil -> Sudah diambil` (`UBAH_STATUS`).
+  - Koreksi mundur maksimal satu langkah: `Diproses -> Belum dicuci`, `Siap diambil -> Diproses`, `Sudah diambil -> Siap diambil` (`KOREKSI`).
+  - `Dibatalkan` bersifat final; `Sudah diambil` tidak dapat dibatalkan; lompat langkah ditolak `409`.
+- **Asumsi pengambilan saat belum lunas (perlu konfirmasi pemilik toko):** mengubah status ke `Sudah diambil` ketika `status_bayar = 'Belum bayar'` tidak diblokir, namun wajib konfirmasi eksplisit dari kasir di antarmuka dan dicatat `belum_bayar_saat_diambil: true` di `audit_logs`.
+- **Asumsi ambang penanda tiket lama belum diambil (FR-17, perlu konfirmasi pemilik toko):** tiket berstatus `Siap diambil` dengan selisih hari kalender WIB `>= MIN_HARI_BELUM_DIAMBIL` (`2` hari, terpusat di `src/config/tiket.ts`) sejak `siap_diambil_pada` diberi lencana `"N hari belum diambil"` dan dapat difilter (`belum_diambil=1`). Waktu `siap_diambil_pada` hanya diisi saat pertama kali masuk `Siap diambil` (ketika masih `NULL`) dan tidak pernah di-reset.
 - **Keamanan tautan & teks:** seluruh teks pengguna dirender sebagai teks biasa (tanpa `dangerouslySetInnerHTML`), dan seluruh tautan `wa.me` wajib meng-encode pesan dengan `encodeURIComponent` serta memakai `rel="noopener noreferrer"`.
 
 ---

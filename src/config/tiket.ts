@@ -58,6 +58,17 @@ export const MAKS_UKURAN_HALAMAN = 50;
 export const MAKS_HALAMAN = 10_000;
 export const MAKS_PANJANG_CARI = 100;
 
+// ---------- Konfigurasi Mutasi & Tiket Lama Phase 5B ----------
+// Batas panjang alasan pembatalan tiket dan alasan pembalikan status Lunas -> Belum bayar.
+export const MAKS_ALASAN_TIKET = 200;
+
+// Asumsi sementara (perlu konfirmasi pemilik toko — PRD FR-17 "pesanan dua hari lalu"):
+// Tiket berstatus "Siap diambil" yang sudah mencapai minimal MIN_HARI_BELUM_DIAMBIL hari kalender
+// (>= 2 hari di zona Asia/Jakarta sejak siap_diambil_pada) diberi lencana "N hari belum diambil"
+// dan dapat difilter pada Daftar Tiket. Waktu siap_diambil_pada hanya diisi saat masih NULL dan
+// tidak pernah di-reset walau status sempat dikoreksi mundur lalu maju kembali.
+export const MIN_HARI_BELUM_DIAMBIL = 2;
+
 // Asumsi sementara (perlu konfirmasi pemilik toko — PRD bagian 13 butir 9):
 // Estimasi selesai default dihitung dari tanggal_masuk ditambah estimasi_hari terbesar
 // di antara seluruh layanan yang dipilih pada tiket tersebut.

@@ -13,10 +13,21 @@ import {
   AWALAN_KODE_TIKET,
   BATAS_TOTAL_TIKET,
   MASA_SIMPAN_IDEMPOTENSI_JAM,
+  MIN_HARI_BELUM_DIAMBIL,
   hitungEstimasiSelesaiDefault,
 } from "../config/tiket.ts";
-import type { StatusPesanan, StatusBayar, MetodeBayar } from "../config/order-status.ts";
-import type { FilterDaftarTiket, InputBuatTiket } from "./tiket-validasi.ts";
+import {
+  periksaTransisiStatusPesanan,
+  bolehBatalkanTiket,
+  type StatusPesanan,
+  type StatusBayar,
+  type MetodeBayar,
+} from "../config/order-status.ts";
+import type {
+  FilterDaftarTiket,
+  InputBuatTiket,
+  InputUbahTiket,
+} from "./tiket-validasi.ts";
 
 export type InfoPelangganTiket = {
   id: number;
@@ -48,6 +59,9 @@ export type RingkasanTiket = {
   tanggal_masuk: string;
   estimasi_selesai: string | null;
   status_pesanan: StatusPesanan;
+  siap_diambil_pada: string | null;
+  hari_belum_diambil: number | null;
+  terlambat_ambil: boolean;
   status_bayar: StatusBayar;
   metode_bayar: MetodeBayar | null;
   tanggal_bayar: string | null;
@@ -77,6 +91,9 @@ export type DetailTiket = {
   tanggal_masuk: string;
   estimasi_selesai: string | null;
   status_pesanan: StatusPesanan;
+  siap_diambil_pada: string | null;
+  hari_belum_diambil: number | null;
+  terlambat_ambil: boolean;
   status_bayar: StatusBayar;
   metode_bayar: MetodeBayar | null;
   tanggal_bayar: string | null;
@@ -84,10 +101,26 @@ export type DetailTiket = {
   alasan_batal: string | null;
   jumlah_item: number;
   jumlah_pasang: number;
+  ringkasan_layanan: string;
   pelanggan: InfoPelangganTiket;
   items: ItemTiket[];
   riwayat_audit: RiwayatAuditTiket[];
 };
+
+export type HasilUbahTiket =
+  | {
+      ok: true;
+      tiket: DetailTiket;
+      idempoten: boolean;
+    }
+  | {
+      ok: false;
+      kode: 400 | 404 | 409;
+      kode_konflik?: string;
+      galat: string;
+      field?: string;
+      tiket?: DetailTiket | null;
+    };
 
 export type HasilBuatTiket =
   | {
@@ -489,6 +522,12 @@ export async function buatTiketToko(
       const namaPembuat: string | null = userRes.rows[0]?.nama ?? null;
       const aud = audRes.rows[0];
 
+      const ringkasanLayanan = Array.from(
+        new Set(itemsTersimpan.map((it) => it.nama_layanan))
+      )
+        .sort()
+        .join(", ");
+
       const tiket: DetailTiket = {
         id: ord.id,
         kode_tiket: ord.kode_tiket,
@@ -498,6 +537,9 @@ export async function buatTiketToko(
         tanggal_masuk: keIso(ord.tanggal_masuk)!,
         estimasi_selesai: keIso(ord.estimasi_selesai),
         status_pesanan: ord.status_pesanan,
+        siap_diambil_pada: null,
+        hari_belum_diambil: null,
+        terlambat_ambil: false,
         status_bayar: ord.status_bayar,
         metode_bayar: ord.metode_bayar,
         tanggal_bayar: keIso(ord.tanggal_bayar),
@@ -505,6 +547,7 @@ export async function buatTiketToko(
         alasan_batal: ord.alasan_batal,
         jumlah_item: itemsTersimpan.length,
         jumlah_pasang: jumlahPasang,
+        ringkasan_layanan: ringkasanLayanan,
         pelanggan,
         items: itemsTersimpan,
         riwayat_audit: [
@@ -560,12 +603,18 @@ export async function buatTiketToko(
 }
 
 /**
- * Mengambil daftar tiket dengan filter tanggal zona Asia/Jakarta, pencarian berparameter,
+ * Mengambil daftar tiket dengan filter tanggal zona Asia/Jakarta, penanda & filter tiket lama
+ * belum diambil (>= MIN_HARI_BELUM_DIAMBIL hari kalender WIB di SQL), pencarian berparameter,
  * urutan "Belum bayar di atas" di level SQL sebelum LIMIT/OFFSET, dan paginasi.
  */
-export async function daftarTiket(filter: FilterDaftarTiket): Promise<HasilDaftarTiket> {
+export async function daftarTiket(
+  filter: FilterDaftarTiket,
+  waktuAcuan: Date | null = null
+): Promise<HasilDaftarTiket> {
   const syarat: string[] = [];
-  const params: unknown[] = [];
+  // $1 = waktuAcuan (bila null memakai now() di PostgreSQL), $2 = MIN_HARI_BELUM_DIAMBIL
+  const params: unknown[] = [waktuAcuan, MIN_HARI_BELUM_DIAMBIL];
+  const ekspresiHariBelumDiambil = `((COALESCE($1::timestamptz, now()) AT TIME ZONE 'Asia/Jakarta')::date - (COALESCE(o.siap_diambil_pada, o.tanggal_masuk) AT TIME ZONE 'Asia/Jakarta')::date)`;
 
   if (filter.batas_mulai !== null) {
     params.push(filter.batas_mulai);
@@ -574,6 +623,10 @@ export async function daftarTiket(filter: FilterDaftarTiket): Promise<HasilDafta
   if (filter.batas_akhir_eksklusif !== null) {
     params.push(filter.batas_akhir_eksklusif);
     syarat.push(`o.tanggal_masuk < $${params.length}`);
+  }
+
+  if (filter.belum_diambil_lama) {
+    syarat.push(`(o.status_pesanan = 'Siap diambil' AND ${ekspresiHariBelumDiambil} >= $2)`);
   }
 
   if (filter.cari.length > 0) {
@@ -611,12 +664,58 @@ export async function daftarTiket(filter: FilterDaftarTiket): Promise<HasilDafta
     : `o.tanggal_masuk DESC, o.id DESC`;
 
   const pool = getPool();
+  // Untuk query COUNT, bila tidak ada filter belum_diambil_lama, $1 dan $2 tidak dipakai di WHERE
+  // sehingga kita hanya mengikat parameter yang dirujuk atau membangun ulang syarat hitung.
+  const syaratHitung: string[] = [];
+  const paramsHitung: unknown[] = [];
+  if (filter.batas_mulai !== null) {
+    paramsHitung.push(filter.batas_mulai);
+    syaratHitung.push(`o.tanggal_masuk >= $${paramsHitung.length}`);
+  }
+  if (filter.batas_akhir_eksklusif !== null) {
+    paramsHitung.push(filter.batas_akhir_eksklusif);
+    syaratHitung.push(`o.tanggal_masuk < $${paramsHitung.length}`);
+  }
+  if (filter.belum_diambil_lama) {
+    paramsHitung.push(waktuAcuan);
+    const idxW = paramsHitung.length;
+    paramsHitung.push(MIN_HARI_BELUM_DIAMBIL);
+    const idxM = paramsHitung.length;
+    syaratHitung.push(
+      `(o.status_pesanan = 'Siap diambil' AND ((COALESCE($${idxW}::timestamptz, now()) AT TIME ZONE 'Asia/Jakarta')::date - (COALESCE(o.siap_diambil_pada, o.tanggal_masuk) AT TIME ZONE 'Asia/Jakarta')::date) >= $${idxM})`
+    );
+  }
+  if (filter.cari.length > 0) {
+    const polaUtama = `%${escapeIlike(filter.cari)}%`;
+    paramsHitung.push(polaUtama);
+    const idxUtama = paramsHitung.length;
+    const bersihTanda = filter.cari.replace(/[\s\-().]/g, "");
+    let polaWaAlt: string | null = null;
+    if (bersihTanda.startsWith("08") && /^08\d+$/.test(bersihTanda)) {
+      polaWaAlt = `%${escapeIlike("628" + bersihTanda.slice(2))}%`;
+    } else if (bersihTanda.startsWith("+62") && /^\+62\d+$/.test(bersihTanda)) {
+      polaWaAlt = `%${escapeIlike("62" + bersihTanda.slice(3))}%`;
+    } else if (/^\d{4,15}$/.test(bersihTanda) && bersihTanda !== filter.cari) {
+      polaWaAlt = `%${escapeIlike(bersihTanda)}%`;
+    }
+    paramsHitung.push(polaWaAlt);
+    const idxWaAlt = paramsHitung.length;
+    syaratHitung.push(
+      `(o.kode_tiket ILIKE $${idxUtama} ESCAPE '\\'
+        OR c.nama ILIKE $${idxUtama} ESCAPE '\\'
+        OR c.nomor_wa ILIKE $${idxUtama} ESCAPE '\\'
+        OR ($${idxWaAlt}::text IS NOT NULL AND c.nomor_wa ILIKE $${idxWaAlt} ESCAPE '\\'))`
+    );
+  }
+  const whereHitungSql =
+    syaratHitung.length > 0 ? `WHERE ${syaratHitung.join(" AND ")}` : "";
+
   const hitungRes = await pool.query(
     `SELECT COUNT(*)::int AS total_data
        FROM orders o
        JOIN customers c ON c.id = o.customer_id
-       ${whereSql}`,
-    params
+       ${whereHitungSql}`,
+    paramsHitung
   );
   const totalData: number = hitungRes.rows[0]?.total_data ?? 0;
   const totalHalaman = Math.max(1, Math.ceil(totalData / filter.ukuran));
@@ -634,6 +733,16 @@ export async function daftarTiket(filter: FilterDaftarTiket): Promise<HasilDafta
        o.tanggal_masuk,
        o.estimasi_selesai,
        o.status_pesanan,
+       o.siap_diambil_pada,
+       CASE
+         WHEN o.status_pesanan = 'Siap diambil' THEN
+           GREATEST(0, ${ekspresiHariBelumDiambil})::int
+         ELSE NULL
+       END AS hari_belum_diambil,
+       (
+         o.status_pesanan = 'Siap diambil'
+         AND ${ekspresiHariBelumDiambil} >= $2
+       ) AS terlambat_ambil,
        o.status_bayar,
        o.metode_bayar,
        o.tanggal_bayar,
@@ -668,6 +777,10 @@ export async function daftarTiket(filter: FilterDaftarTiket): Promise<HasilDafta
     tanggal_masuk: keIso(b.tanggal_masuk)!,
     estimasi_selesai: keIso(b.estimasi_selesai),
     status_pesanan: b.status_pesanan,
+    siap_diambil_pada: keIso(b.siap_diambil_pada),
+    hari_belum_diambil:
+      typeof b.hari_belum_diambil === "number" ? b.hari_belum_diambil : null,
+    terlambat_ambil: Boolean(b.terlambat_ambil),
     status_bayar: b.status_bayar,
     metode_bayar: b.metode_bayar,
     tanggal_bayar: keIso(b.tanggal_bayar),
@@ -709,14 +822,19 @@ function sensorNomorWaDariNilaiAudit(
  * Mengambil detail lengkap satu tiket beserta daftar item dan riwayat audit hanya-baca.
  * Menampilkan riwayat perubahan order dan perubahan nama pelanggan (tanpa nomor WA).
  */
-export async function ambilDetailTiket(id: number): Promise<DetailTiket | null> {
-  return ambilDetailTiketDenganClient(getPool(), id);
+export async function ambilDetailTiket(
+  id: number,
+  waktuAcuan: Date | null = null
+): Promise<DetailTiket | null> {
+  return ambilDetailTiketDenganClient(getPool(), id, waktuAcuan);
 }
 
 export async function ambilDetailTiketDenganClient(
   client: Pool | PoolClient,
-  id: number
+  id: number,
+  waktuAcuan: Date | null = null
 ): Promise<DetailTiket | null> {
+  const ekspresiHari = `((COALESCE($2::timestamptz, now()) AT TIME ZONE 'Asia/Jakarta')::date - (COALESCE(o.siap_diambil_pada, o.tanggal_masuk) AT TIME ZONE 'Asia/Jakarta')::date)`;
   const ordRes = await client.query(
     `SELECT
        o.id,
@@ -727,6 +845,16 @@ export async function ambilDetailTiketDenganClient(
        o.tanggal_masuk,
        o.estimasi_selesai,
        o.status_pesanan,
+       o.siap_diambil_pada,
+       CASE
+         WHEN o.status_pesanan = 'Siap diambil' THEN
+           GREATEST(0, ${ekspresiHari})::int
+         ELSE NULL
+       END AS hari_belum_diambil,
+       (
+         o.status_pesanan = 'Siap diambil'
+         AND ${ekspresiHari} >= $3
+       ) AS terlambat_ambil,
        o.status_bayar,
        o.metode_bayar,
        o.tanggal_bayar,
@@ -739,7 +867,7 @@ export async function ambilDetailTiketDenganClient(
      JOIN customers c ON c.id = o.customer_id
      LEFT JOIN users u ON u.id = o.dibuat_oleh
      WHERE o.id = $1`,
-    [id]
+    [id, waktuAcuan, MIN_HARI_BELUM_DIAMBIL]
   );
 
   if ((ordRes.rowCount ?? 0) === 0) return null;
@@ -789,6 +917,9 @@ export async function ambilDetailTiketDenganClient(
   }));
 
   const jumlahPasang = items.reduce((sum, it) => sum + it.jumlah, 0);
+  const ringkasanLayanan = Array.from(new Set(items.map((it) => it.nama_layanan)))
+    .sort()
+    .join(", ");
 
   const riwayatAudit: RiwayatAuditTiket[] = auditRes.rows.map((al) => ({
     id: al.id,
@@ -809,6 +940,10 @@ export async function ambilDetailTiketDenganClient(
     tanggal_masuk: keIso(ord.tanggal_masuk)!,
     estimasi_selesai: keIso(ord.estimasi_selesai),
     status_pesanan: ord.status_pesanan,
+    siap_diambil_pada: keIso(ord.siap_diambil_pada),
+    hari_belum_diambil:
+      typeof ord.hari_belum_diambil === "number" ? ord.hari_belum_diambil : null,
+    terlambat_ambil: Boolean(ord.terlambat_ambil),
     status_bayar: ord.status_bayar,
     metode_bayar: ord.metode_bayar,
     tanggal_bayar: keIso(ord.tanggal_bayar),
@@ -816,6 +951,7 @@ export async function ambilDetailTiketDenganClient(
     alasan_batal: ord.alasan_batal,
     jumlah_item: items.length,
     jumlah_pasang: jumlahPasang,
+    ringkasan_layanan: ringkasanLayanan,
     pelanggan: {
       id: ord.customer_id,
       nama: ord.customer_nama,
@@ -824,6 +960,367 @@ export async function ambilDetailTiketDenganClient(
     items,
     riwayat_audit: riwayatAudit,
   };
+}
+
+/**
+ * Mengubah status pesanan, status pembayaran, atau membatalkan tiket dalam SATU transaksi DB (Phase 5B):
+ * - Mengunci baris dengan SELECT ... FOR UPDATE (anti race condition dua kasir serentak).
+ * - Idempoten: bila target sama persis dengan status di DB, tidak menjalankan UPDATE dan tidak menulis audit ganda.
+ * - Memeriksa status_sebelumnya: bila sudah diubah pengguna lain, membalas 409 beserta data terbaru.
+ * - siap_diambil_pada hanya diisi saat masih NULL dan tidak pernah dikosongkan / di-reset.
+ * - Menulis audit_logs (tanpa nomor WA) dalam transaksi yang sama; kegagalan audit membatalkan perubahan orders.
+ */
+export async function ubahTiket(
+  id: number,
+  input: InputUbahTiket,
+  userId: number
+): Promise<HasilUbahTiket> {
+  return dalamTransaksi(async (c) => {
+    const kunciRes = await c.query(
+      `SELECT
+         id,
+         kode_tiket,
+         status_pesanan,
+         siap_diambil_pada,
+         status_bayar,
+         metode_bayar,
+         tanggal_bayar,
+         alasan_batal
+       FROM orders
+       WHERE id = $1
+       FOR UPDATE`,
+      [id]
+    );
+
+    if ((kunciRes.rowCount ?? 0) === 0) {
+      return { ok: false, kode: 404, galat: "Tiket tidak ditemukan." };
+    }
+
+    const ord = kunciRes.rows[0] as {
+      id: number;
+      kode_tiket: string;
+      status_pesanan: StatusPesanan;
+      siap_diambil_pada: Date | null;
+      status_bayar: StatusBayar;
+      metode_bayar: MetodeBayar | null;
+      tanggal_bayar: Date | null;
+      alasan_batal: string | null;
+    };
+
+    const muatDetail = async () => (await ambilDetailTiketDenganClient(c, id))!;
+
+    // ---------- 1. Perubahan Status Pesanan ----------
+    if (input.jenis === "status_pesanan") {
+      if (ord.status_pesanan === "Dibatalkan") {
+        return {
+          ok: false,
+          kode: 409,
+          kode_konflik: "TIKET_SUDAH_DIBATALKAN",
+          galat: "Tiket sudah berstatus Dibatalkan dan bersifat final (tidak dapat diubah lagi).",
+          tiket: await muatDetail(),
+        };
+      }
+
+      // Idempotensi: target sudah sama persis dengan status di DB
+      // (baik dikirim dengan status_sebelumnya === status saat ini maupun retry dari langkah sah sebelumnya)
+      if (
+        ord.status_pesanan === input.status_pesanan &&
+        (input.status_sebelumnya === ord.status_pesanan ||
+          periksaTransisiStatusPesanan(input.status_sebelumnya, input.status_pesanan).izinkan)
+      ) {
+        return { ok: true, tiket: await muatDetail(), idempoten: true };
+      }
+
+      if (ord.status_pesanan !== input.status_sebelumnya) {
+        return {
+          ok: false,
+          kode: 409,
+          kode_konflik: "STATUS_BERUBAH",
+          galat: `Status pesanan telah berubah menjadi '${ord.status_pesanan}'. Data tiket telah disegarkan.`,
+          tiket: await muatDetail(),
+        };
+      }
+
+      const cekTransisi = periksaTransisiStatusPesanan(
+        ord.status_pesanan,
+        input.status_pesanan
+      );
+      if (!cekTransisi.izinkan) {
+        return {
+          ok: false,
+          kode: 409,
+          kode_konflik: "TRANSISI_TIDAK_VALID",
+          galat: cekTransisi.alasan,
+          tiket: await muatDetail(),
+        };
+      }
+      if (cekTransisi.jenis === "idempoten") {
+        return { ok: true, tiket: await muatDetail(), idempoten: true };
+      }
+
+      const belumBayarSaatDiambil =
+        input.status_pesanan === "Sudah diambil" && ord.status_bayar === "Belum bayar";
+
+      if (belumBayarSaatDiambil && !input.konfirmasi_belum_bayar) {
+        return {
+          ok: false,
+          kode: 409,
+          kode_konflik: "BUTUH_KONFIRMASI_BELUM_BAYAR",
+          galat:
+            "Tiket ini masih berstatus Belum bayar. Konfirmasi terlebih dahulu sebelum menandai pesanan Sudah diambil.",
+          tiket: await muatDetail(),
+        };
+      }
+
+      // siap_diambil_pada hanya diisi ketika masih NULL dan tidak pernah dikosongkan / di-reset
+      if (input.status_pesanan === "Siap diambil") {
+        await c.query(
+          `UPDATE orders
+              SET status_pesanan = $1,
+                  siap_diambil_pada = COALESCE(siap_diambil_pada, now())
+            WHERE id = $2`,
+          [input.status_pesanan, id]
+        );
+      } else {
+        await c.query(
+          `UPDATE orders
+              SET status_pesanan = $1
+            WHERE id = $2`,
+          [input.status_pesanan, id]
+        );
+      }
+
+      const nilaiLama: Record<string, unknown> = {
+        status_pesanan: ord.status_pesanan,
+      };
+      const nilaiBaru: Record<string, unknown> = {
+        status_pesanan: input.status_pesanan,
+        ...(cekTransisi.jenis === "koreksi" ? { koreksi_mundur: true } : {}),
+        ...(belumBayarSaatDiambil ? { belum_bayar_saat_diambil: true } : {}),
+      };
+
+      await c.query(
+        `INSERT INTO audit_logs (entitas, entitas_id, aksi, nilai_lama, nilai_baru, user_id)
+         VALUES ('orders', $1, $2, $3::jsonb, $4::jsonb, $5)`,
+        [
+          id,
+          cekTransisi.aksiAudit,
+          JSON.stringify(nilaiLama),
+          JSON.stringify(nilaiBaru),
+          userId,
+        ]
+      );
+
+      return { ok: true, tiket: await muatDetail(), idempoten: false };
+    }
+
+    // ---------- 2. Perubahan Status Pembayaran ----------
+    if (input.jenis === "pembayaran") {
+      if (ord.status_pesanan === "Dibatalkan") {
+        return {
+          ok: false,
+          kode: 409,
+          kode_konflik: "TIKET_SUDAH_DIBATALKAN",
+          galat: "Tiket sudah berstatus Dibatalkan dan bersifat final (pembayaran tidak dapat diubah).",
+          tiket: await muatDetail(),
+        };
+      }
+
+      // Lunas -> Lunas
+      if (ord.status_bayar === "Lunas" && input.status_bayar === "Lunas") {
+        if (ord.metode_bayar === input.metode_bayar) {
+          return { ok: true, tiket: await muatDetail(), idempoten: true };
+        }
+        return {
+          ok: false,
+          kode: 409,
+          kode_konflik: "UBAH_METODE_HARUS_BALIK_BELUM_BAYAR",
+          galat: `Tiket sudah berstatus Lunas (${ord.metode_bayar}). Untuk mengganti metode pembayaran, balik dulu ke Belum bayar dengan alasan, lalu Lunas lagi.`,
+          tiket: await muatDetail(),
+        };
+      }
+
+      // Belum bayar -> Belum bayar (idempoten)
+      if (ord.status_bayar === "Belum bayar" && input.status_bayar === "Belum bayar") {
+        return { ok: true, tiket: await muatDetail(), idempoten: true };
+      }
+
+      // Cek konkurensi status_sebelumnya
+      if (ord.status_bayar !== input.status_sebelumnya) {
+        return {
+          ok: false,
+          kode: 409,
+          kode_konflik: "STATUS_BERUBAH",
+          galat: `Status pembayaran telah berubah menjadi '${ord.status_bayar}'. Data tiket telah disegarkan.`,
+          tiket: await muatDetail(),
+        };
+      }
+
+      if (input.status_bayar === "Lunas") {
+        const upd = await c.query(
+          `UPDATE orders
+              SET status_bayar = 'Lunas',
+                  metode_bayar = $1,
+                  tanggal_bayar = now()
+            WHERE id = $2
+            RETURNING tanggal_bayar`,
+          [input.metode_bayar, id]
+        );
+        const tglBayarBaru = keIso(upd.rows[0].tanggal_bayar);
+
+        await c.query(
+          `INSERT INTO audit_logs (entitas, entitas_id, aksi, nilai_lama, nilai_baru, user_id)
+           VALUES ('orders', $1, 'UBAH_PEMBAYARAN', $2::jsonb, $3::jsonb, $4)`,
+          [
+            id,
+            JSON.stringify({
+              status_bayar: ord.status_bayar,
+              metode_bayar: ord.metode_bayar,
+              tanggal_bayar: keIso(ord.tanggal_bayar),
+            }),
+            JSON.stringify({
+              status_bayar: "Lunas",
+              metode_bayar: input.metode_bayar,
+              tanggal_bayar: tglBayarBaru,
+            }),
+            userId,
+          ]
+        );
+
+        return { ok: true, tiket: await muatDetail(), idempoten: false };
+      }
+
+      // Lunas -> Belum bayar (wajib alasan)
+      if (!input.alasan || input.alasan.trim().length === 0) {
+        return {
+          ok: false,
+          kode: 400,
+          galat: "Alasan pembalikan pembayaran wajib diisi saat mengubah status Lunas ke Belum bayar.",
+          field: "alasan",
+        };
+      }
+
+      await c.query(
+        `UPDATE orders
+            SET status_bayar = 'Belum bayar',
+                metode_bayar = NULL,
+                tanggal_bayar = NULL
+          WHERE id = $1`,
+        [id]
+      );
+
+      await c.query(
+        `INSERT INTO audit_logs (entitas, entitas_id, aksi, nilai_lama, nilai_baru, user_id)
+         VALUES ('orders', $1, 'UBAH_PEMBAYARAN', $2::jsonb, $3::jsonb, $4)`,
+        [
+          id,
+          JSON.stringify({
+            status_bayar: ord.status_bayar,
+            metode_bayar: ord.metode_bayar,
+            tanggal_bayar: keIso(ord.tanggal_bayar),
+          }),
+          JSON.stringify({
+            status_bayar: "Belum bayar",
+            metode_bayar: null,
+            tanggal_bayar: null,
+            alasan: input.alasan,
+          }),
+          userId,
+        ]
+      );
+
+      return { ok: true, tiket: await muatDetail(), idempoten: false };
+    }
+
+    // ---------- 3. Pembatalan Tiket ----------
+    if (ord.status_pesanan === "Dibatalkan") {
+      // Idempoten hanya bila mengirim ulang pembatalan yang persis sama dari status pra-batal yang sah;
+      // jika status_sebelumnya dikirim "Dibatalkan" atau alasan berbeda, tolak 409 karena Dibatalkan bersifat final.
+      if (
+        ord.alasan_batal === input.alasan_batal &&
+        input.status_sebelumnya !== "Dibatalkan" &&
+        bolehBatalkanTiket(input.status_sebelumnya).boleh
+      ) {
+        return { ok: true, tiket: await muatDetail(), idempoten: true };
+      }
+      return {
+        ok: false,
+        kode: 409,
+        kode_konflik: "TIKET_SUDAH_DIBATALKAN",
+        galat: "Tiket sudah berstatus Dibatalkan dan bersifat final (tidak dapat diubah lagi).",
+        tiket: await muatDetail(),
+      };
+    }
+
+    const izinBatal = bolehBatalkanTiket(ord.status_pesanan);
+    if (!izinBatal.boleh) {
+      return {
+        ok: false,
+        kode: 409,
+        kode_konflik: "TIDAK_DAPAT_DIBATALKAN",
+        galat: izinBatal.alasan,
+        tiket: await muatDetail(),
+      };
+    }
+
+    if (ord.status_pesanan !== input.status_sebelumnya) {
+      return {
+        ok: false,
+        kode: 409,
+        kode_konflik: "STATUS_BERUBAH",
+        galat: `Status pesanan telah berubah menjadi '${ord.status_pesanan}'. Data tiket telah disegarkan.`,
+        tiket: await muatDetail(),
+      };
+    }
+
+    const sudahLunas = ord.status_bayar === "Lunas";
+    if (sudahLunas && !input.konfirmasi_sudah_lunas) {
+      return {
+        ok: false,
+        kode: 409,
+        kode_konflik: "BUTUH_KONFIRMASI_LUNAS",
+        galat:
+          "Tiket ini sudah berstatus Lunas. Konfirmasi secara eksplisit bahwa pengembalian dana ditangani di luar sistem sebelum membatalkan tiket.",
+        tiket: await muatDetail(),
+      };
+    }
+
+    await c.query(
+      `UPDATE orders
+          SET status_pesanan = 'Dibatalkan',
+              alasan_batal = $1
+        WHERE id = $2`,
+      [input.alasan_batal, id]
+    );
+
+    const nilaiBaruBatal: Record<string, unknown> = {
+      status_pesanan: "Dibatalkan",
+      alasan_batal: input.alasan_batal,
+      ...(sudahLunas
+        ? {
+            uang_dikembalikan_di_luar_sistem: true,
+            catatan_pembayaran:
+              "Tiket sudah Lunas saat dibatalkan; pengembalian dana dilakukan di luar sistem.",
+          }
+        : {}),
+    };
+
+    await c.query(
+      `INSERT INTO audit_logs (entitas, entitas_id, aksi, nilai_lama, nilai_baru, user_id)
+       VALUES ('orders', $1, 'BATALKAN_TIKET', $2::jsonb, $3::jsonb, $4)`,
+      [
+        id,
+        JSON.stringify({
+          status_pesanan: ord.status_pesanan,
+          status_bayar: ord.status_bayar,
+        }),
+        JSON.stringify(nilaiBaruBatal),
+        userId,
+      ]
+    );
+
+    return { ok: true, tiket: await muatDetail(), idempoten: false };
+  });
 }
 
 /**

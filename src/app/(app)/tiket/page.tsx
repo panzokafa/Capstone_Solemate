@@ -58,6 +58,7 @@ export default async function TiketPage({
           dari: "",
           sampai: "",
           belumBayarDiAtas: false,
+          belumDiambilLama: false,
           cari: "",
           ukuran: UKURAN_HALAMAN_DEFAULT,
         }}
@@ -87,6 +88,7 @@ export default async function TiketPage({
         dari: v.data.dari ?? "",
         sampai: v.data.sampai ?? "",
         belumBayarDiAtas: v.data.belum_bayar_di_atas,
+        belumDiambilLama: Boolean(v.data.belum_diambil_lama),
         cari: v.data.cari,
         ukuran: v.data.ukuran,
       }}

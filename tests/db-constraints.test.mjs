@@ -372,7 +372,7 @@ test("migrasi 0006: tabel baru dengan kolom serial buatan admin tidak memberi ha
     ["customers", ["SELECT", "INSERT", "UPDATE"]],
     ["services", ["SELECT", "INSERT", "UPDATE"]],
     ["orders", ["SELECT", "INSERT", "UPDATE"]],
-    ["order_items", ["SELECT", "INSERT", "UPDATE"]],
+    ["order_items", ["SELECT", "INSERT"]], // migrasi 0009 mencabut UPDATE pada order_items
     ["audit_logs", ["SELECT", "INSERT"]],
     ["attendance", ["SELECT", "INSERT", "UPDATE"]],
     ["wa_messages", ["SELECT", "INSERT", "UPDATE"]],

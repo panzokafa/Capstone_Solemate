@@ -2,8 +2,10 @@
 // dan seluruh parameter query Daftar Tiket. Dipakai oleh route handler, halaman, dan tes unit.
 
 import {
+  STATUS_PESANAN,
   STATUS_BAYAR,
   METODE_BAYAR,
+  type StatusPesanan,
   type StatusBayar,
   type MetodeBayar,
 } from "../config/order-status.ts";
@@ -14,6 +16,7 @@ import {
   MAKS_JUMLAH_PASANG,
   MAKS_DESKRIPSI_BARANG,
   MAKS_NAMA_PELANGGAN,
+  MAKS_ALASAN_TIKET,
   MAKS_HARI_MASUK_LAMPAU,
   TOLERANSI_TANGGAL_MASUK_MENIT,
   MAKS_HARI_ESTIMASI_SELESAI,
@@ -162,10 +165,46 @@ export type FilterDaftarTiket = {
   batas_mulai: Date | null;
   batas_akhir_eksklusif: Date | null;
   belum_bayar_di_atas: boolean;
+  belum_diambil_lama?: boolean;
   cari: string;
   halaman: number;
   ukuran: number;
 };
+
+export type InputUbahStatusPesanan = {
+  jenis: "status_pesanan";
+  status_pesanan: Exclude<StatusPesanan, "Dibatalkan">;
+  status_sebelumnya: StatusPesanan;
+  konfirmasi_belum_bayar: boolean;
+};
+
+export type InputUbahPembayaran =
+  | {
+      jenis: "pembayaran";
+      status_bayar: "Lunas";
+      metode_bayar: MetodeBayar;
+      status_sebelumnya: StatusBayar;
+      alasan: null;
+    }
+  | {
+      jenis: "pembayaran";
+      status_bayar: "Belum bayar";
+      metode_bayar: null;
+      status_sebelumnya: StatusBayar;
+      alasan: string | null;
+    };
+
+export type InputBatalkanTiket = {
+  jenis: "batalkan";
+  alasan_batal: string;
+  konfirmasi_sudah_lunas: boolean;
+  status_sebelumnya: StatusPesanan;
+};
+
+export type InputUbahTiket =
+  | InputUbahStatusPesanan
+  | InputUbahPembayaran
+  | InputBatalkanTiket;
 
 function objekBiasa(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v);
@@ -617,6 +656,7 @@ const PARAMETER_DAFTAR_DIIZINKAN = new Set([
   "dari",
   "sampai",
   "belum_bayar",
+  "belum_diambil",
   "cari",
   "halaman",
   "ukuran",
@@ -729,6 +769,22 @@ export function validasiQueryDaftarTiket(
     }
   }
 
+  // Filter tiket lama belum diambil (FR-17: Siap diambil >= MIN_HARI_BELUM_DIAMBIL hari)
+  const belumDiambilRaw = searchParams.get("belum_diambil");
+  let belumDiambilLama = false;
+  if (belumDiambilRaw !== null) {
+    if (belumDiambilRaw === "true" || belumDiambilRaw === "1") {
+      belumDiambilLama = true;
+    } else if (belumDiambilRaw === "false" || belumDiambilRaw === "0") {
+      belumDiambilLama = false;
+    } else {
+      return {
+        ok: false,
+        galat: "Parameter belum_diambil harus bernilai true, false, 1, atau 0.",
+      };
+    }
+  }
+
   // Halaman
   let halaman = 1;
   const halamanRaw = searchParams.get("halaman");
@@ -776,9 +832,290 @@ export function validasiQueryDaftarTiket(
       batas_mulai: batasMulai,
       batas_akhir_eksklusif: batasAkhirEksklusif,
       belum_bayar_di_atas: belumBayarDiAtas,
+      belum_diambil_lama: belumDiambilLama,
       cari,
       halaman,
       ukuran,
+    },
+  };
+}
+
+function validasiAlasanTeks(
+   mentah: unknown,
+  namaField: "alasan" | "alasan_batal",
+  label: string
+): HasilValidasi<string> {
+  if (typeof mentah !== "string") {
+    return { ok: false, galat: `${label} wajib diisi.`, field: namaField };
+  }
+  if (mengandungKarakterTerlarang(mentah)) {
+    return {
+      ok: false,
+      galat: `${label} tidak boleh mengandung karakter kontrol, baris baru, tab, karakter lebar-nol, atau pembalik arah teks.`,
+      field: namaField,
+    };
+  }
+  const bersih = mentah.trim();
+  if (bersih.length === 0) {
+    return { ok: false, galat: `${label} wajib diisi.`, field: namaField };
+  }
+  if (bersih.length > MAKS_ALASAN_TIKET) {
+    return {
+      ok: false,
+      galat: `${label} maksimal ${MAKS_ALASAN_TIKET} karakter.`,
+      field: namaField,
+    };
+  }
+  return { ok: true, data: bersih };
+}
+
+/**
+ * Validasi body `PATCH /api/tiket/[id]` (Phase 5B).
+ * - Wajib menyertakan `jenis` ("status_pesanan" | "pembayaran" | "batalkan").
+ * - Wajib menyertakan `status_sebelumnya` pada setiap permintaan mutasi (400 jika hilang/salah).
+ * - Menolak seluruh field tak dikenal, termasuk `total` dan `tanggal_bayar` dari klien.
+ */
+export function validasiUbahTiket(body: unknown): HasilValidasi<InputUbahTiket> {
+  if (!objekBiasa(body)) {
+    return { ok: false, galat: "Isi permintaan tidak valid." };
+  }
+
+  for (const terlarang of ["total", "tanggal_bayar", "tanggal_masuk", "estimasi_selesai", "siap_diambil_pada"]) {
+    if (terlarang in body) {
+      return {
+        ok: false,
+        galat: `Server tidak menerima field '${terlarang}' dari klien.`,
+        field: terlarang,
+      };
+    }
+  }
+
+  if (
+    typeof body.jenis !== "string" ||
+    !["status_pesanan", "pembayaran", "batalkan"].includes(body.jenis)
+  ) {
+    return {
+      ok: false,
+      galat: "Field 'jenis' wajib bernilai 'status_pesanan', 'pembayaran', atau 'batalkan'.",
+      field: "jenis",
+    };
+  }
+
+  if (body.jenis === "status_pesanan") {
+    const asing = kunciAsing(body, [
+      "jenis",
+      "status_pesanan",
+      "status_sebelumnya",
+      "konfirmasi_belum_bayar",
+    ]);
+    if (asing) {
+      return { ok: false, galat: `Field tidak dikenal: ${asing}.`, field: asing };
+    }
+
+    if (
+      typeof body.status_sebelumnya !== "string" ||
+      !(STATUS_PESANAN as readonly string[]).includes(body.status_sebelumnya)
+    ) {
+      return {
+        ok: false,
+        galat: "Field 'status_sebelumnya' wajib diisi dengan status pesanan yang valid.",
+        field: "status_sebelumnya",
+      };
+    }
+
+    if (
+      typeof body.status_pesanan !== "string" ||
+      !(STATUS_PESANAN as readonly string[]).includes(body.status_pesanan)
+    ) {
+      return {
+        ok: false,
+        galat: "Field 'status_pesanan' wajib diisi dengan status pesanan yang valid.",
+        field: "status_pesanan",
+      };
+    }
+
+    if (body.status_pesanan === "Dibatalkan") {
+      return {
+        ok: false,
+        galat: "Untuk membatalkan tiket, gunakan jenis 'batalkan' disertai alasan_batal.",
+        field: "status_pesanan",
+      };
+    }
+
+    if (
+      body.konfirmasi_belum_bayar !== undefined &&
+      typeof body.konfirmasi_belum_bayar !== "boolean"
+    ) {
+      return {
+        ok: false,
+        galat: "Field 'konfirmasi_belum_bayar' harus berupa boolean.",
+        field: "konfirmasi_belum_bayar",
+      };
+    }
+
+    return {
+      ok: true,
+      data: {
+        jenis: "status_pesanan",
+        status_pesanan: body.status_pesanan as Exclude<StatusPesanan, "Dibatalkan">,
+        status_sebelumnya: body.status_sebelumnya as StatusPesanan,
+        konfirmasi_belum_bayar: body.konfirmasi_belum_bayar ?? false,
+      },
+    };
+  }
+
+  if (body.jenis === "pembayaran") {
+    const asing = kunciAsing(body, [
+      "jenis",
+      "status_bayar",
+      "status_sebelumnya",
+      "metode_bayar",
+      "alasan",
+    ]);
+    if (asing) {
+      return { ok: false, galat: `Field tidak dikenal: ${asing}.`, field: asing };
+    }
+
+    if (
+      typeof body.status_sebelumnya !== "string" ||
+      !(STATUS_BAYAR as readonly string[]).includes(body.status_sebelumnya)
+    ) {
+      return {
+        ok: false,
+        galat: "Field 'status_sebelumnya' wajib diisi dengan status pembayaran yang valid.",
+        field: "status_sebelumnya",
+      };
+    }
+
+    if (
+      typeof body.status_bayar !== "string" ||
+      !(STATUS_BAYAR as readonly string[]).includes(body.status_bayar)
+    ) {
+      return {
+        ok: false,
+        galat: "Status pembayaran harus 'Belum bayar' atau 'Lunas'.",
+        field: "status_bayar",
+      };
+    }
+
+    const statusSebelumnya = body.status_sebelumnya as StatusBayar;
+    const statusBayar = body.status_bayar as StatusBayar;
+
+    if (statusBayar === "Lunas") {
+      if (
+        typeof body.metode_bayar !== "string" ||
+        !(METODE_BAYAR as readonly string[]).includes(body.metode_bayar)
+      ) {
+        return {
+          ok: false,
+          galat: "Metode pembayaran wajib dipilih ('Cash' atau 'Non-cash') saat status Lunas.",
+          field: "metode_bayar",
+        };
+      }
+      if (body.alasan !== undefined && body.alasan !== null) {
+        return {
+          ok: false,
+          galat: "Field 'alasan' hanya digunakan saat membalik status Lunas ke Belum bayar.",
+          field: "alasan",
+        };
+      }
+      return {
+        ok: true,
+        data: {
+          jenis: "pembayaran",
+          status_bayar: "Lunas",
+          metode_bayar: body.metode_bayar as MetodeBayar,
+          status_sebelumnya: statusSebelumnya,
+          alasan: null,
+        },
+      };
+    }
+
+    // statusBayar === "Belum bayar"
+    if (body.metode_bayar !== undefined && body.metode_bayar !== null) {
+      return {
+        ok: false,
+        galat: "Metode pembayaran harus kosong saat status Belum bayar.",
+        field: "metode_bayar",
+      };
+    }
+
+    let alasanValid: string | null = null;
+    if (body.alasan !== undefined && body.alasan !== null) {
+      const cekAlasan = validasiAlasanTeks(
+        body.alasan,
+        "alasan",
+        "Alasan pembalikan pembayaran"
+      );
+      if (!cekAlasan.ok) return cekAlasan;
+      alasanValid = cekAlasan.data;
+    } else if (statusSebelumnya === "Lunas") {
+      return {
+        ok: false,
+        galat: "Alasan pembalikan pembayaran wajib diisi saat mengubah status Lunas ke Belum bayar.",
+        field: "alasan",
+      };
+    }
+
+    return {
+      ok: true,
+      data: {
+        jenis: "pembayaran",
+        status_bayar: "Belum bayar",
+        metode_bayar: null,
+        status_sebelumnya: statusSebelumnya,
+        alasan: alasanValid,
+      },
+    };
+  }
+
+  // body.jenis === "batalkan"
+  const asing = kunciAsing(body, [
+    "jenis",
+    "alasan_batal",
+    "konfirmasi_sudah_lunas",
+    "status_sebelumnya",
+  ]);
+  if (asing) {
+    return { ok: false, galat: `Field tidak dikenal: ${asing}.`, field: asing };
+  }
+
+  if (
+    typeof body.status_sebelumnya !== "string" ||
+    !(STATUS_PESANAN as readonly string[]).includes(body.status_sebelumnya)
+  ) {
+    return {
+      ok: false,
+      galat: "Field 'status_sebelumnya' wajib diisi dengan status pesanan yang valid.",
+      field: "status_sebelumnya",
+    };
+  }
+
+  const cekAlasanBatal = validasiAlasanTeks(
+    body.alasan_batal,
+    "alasan_batal",
+    "Alasan pembatalan"
+  );
+  if (!cekAlasanBatal.ok) return cekAlasanBatal;
+
+  if (
+    body.konfirmasi_sudah_lunas !== undefined &&
+    typeof body.konfirmasi_sudah_lunas !== "boolean"
+  ) {
+    return {
+      ok: false,
+      galat: "Field 'konfirmasi_sudah_lunas' harus berupa boolean.",
+      field: "konfirmasi_sudah_lunas",
+    };
+  }
+
+  return {
+    ok: true,
+    data: {
+      jenis: "batalkan",
+      alasan_batal: cekAlasanBatal.data,
+      konfirmasi_sudah_lunas: body.konfirmasi_sudah_lunas ?? false,
+      status_sebelumnya: body.status_sebelumnya as StatusPesanan,
     },
   };
 }

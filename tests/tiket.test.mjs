@@ -192,13 +192,17 @@ test("kasir bisa membuat tiket & cek pelanggan; owner ditolak membuat/mengubah t
   assert.equal(detailOwner.res.status, 200);
   assert.equal(detailOwner.data.data.kode_tiket, buat.data.data.kode_tiket);
 
-  // Tidak ada metode mutasi lain (PUT/PATCH/DELETE) di /api/tiket maupun /api/tiket/[id]
+  // Metode mutasi yang tidak didukung tetap 405; PATCH /api/tiket/[id] (Phase 5B) menolak owner dengan 403
   for (const m of ["PUT", "PATCH", "DELETE"]) {
     const r1 = await api(ownerCookie, m, "/api/tiket", {});
     assert.equal(r1.res.status, 405, `${m} /api/tiket harus 405`);
+  }
+  for (const m of ["PUT", "DELETE"]) {
     const r2 = await api(ownerCookie, m, `/api/tiket/${tiketId}`, {});
     assert.equal(r2.res.status, 405, `${m} /api/tiket/[id] harus 405`);
   }
+  const tolakPatchOwner = await api(ownerCookie, "PATCH", `/api/tiket/${tiketId}`, {});
+  assert.equal(tolakPatchOwner.res.status, 403, "PATCH /api/tiket/[id] oleh owner harus 403");
 });
 
 // ---------- 2. Request-Guard (Content-Type & Origin) ----------
@@ -1198,10 +1202,10 @@ test("SSR /tiket dan /tiket/[id]: kasir vs owner (owner hanya lihat tanpa kontro
     htmlDaftarKasir.includes('rel="noopener noreferrer"'),
     "tautan wa.me wajib memakai rel=\"noopener noreferrer\""
   );
-  assert.doesNotMatch(
+  assert.match(
     htmlDaftarKasir,
     /<select\b/i,
-    "daftar tiket Phase 5A hanya menampilkan badge status hanya-baca tanpa dropdown ubah status"
+    "daftar tiket Phase 5B menampilkan dropdown ubah status untuk kasir"
   );
 
   // 2. Owner membuka Daftar Tiket (/tiket): hanya lihat, tidak ada Buat Tiket Baru / wa.me / kontrol ubah
@@ -1273,12 +1277,15 @@ test("SSR /tiket dan /tiket/[id]: kasir vs owner (owner hanya lihat tanpa kontro
       /kurir/i,
       /ekspor/i,
       /cetak\s*resi/i,
-      /batalkan\s*tiket/i,
       /hapus\s*tiket/i,
     ]) {
       assert.doesNotMatch(htmlUji, polaTerlarang);
     }
   }
+  // Tombol Batalkan Tiket (Phase 5B) hanya muncul bagi kasir, tidak bagi owner
+  assert.match(htmlDetailKasir, /batalkan\s*tiket/i);
+  assert.doesNotMatch(htmlDaftarOwner, /batalkan\s*tiket/i);
+  assert.doesNotMatch(htmlDetailOwner, /batalkan\s*tiket/i);
 });
 
 test("SSR /tiket/[id] dengan ID tidak valid atau tidak ada menghasilkan 404 rapi; /detail-tiket mengalihkan dengan benar", async () => {

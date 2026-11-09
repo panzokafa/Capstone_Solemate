@@ -17,8 +17,11 @@
     "test:icons": "node --experimental-strip-types --test 'tests/ui-icons.test.mjs'",
     "test:db": "node --env-file=.env scripts/with-test-db.mjs --experimental-strip-types --test 'tests/db-constraints.test.mjs'",
     "test:auth": "START_TEST_SERVER=1 node --env-file=.env scripts/with-test-db.mjs --experimental-strip-types --test 'tests/auth.test.mjs' 'tests/auth-extra.test.mjs'",
-    "test": "npm run test:ui; a=$?; npm run test:db; b=$?; npm run test:auth; c=$?; exit $((a || b || c))"
-
+    "test:katalog": "START_TEST_SERVER=1 node --env-file=.env scripts/with-test-db.mjs --experimental-strip-types --test 'tests/katalog.test.mjs'",
+    "test:tiket": "START_TEST_SERVER=1 node --env-file=.env scripts/with-test-db.mjs --experimental-strip-types --test 'tests/tiket.test.mjs'",
+    "test:tiket-5b": "START_TEST_SERVER=1 node --env-file=.env scripts/with-test-db.mjs --experimental-strip-types --test 'tests/tiket-5b.test.mjs'",
+    "test:wa-6a": "START_TEST_SERVER=1 node --env-file=.env scripts/with-test-db.mjs --experimental-strip-types --test 'tests/wa-bot-6a.test.mjs'",
+    "test": "npm run test:ui; a=$?; npm run test:db; b=$?; npm run test:auth; c=$?; npm run test:katalog; d=$?; npm run test:tiket; e=$?; npm run test:tiket-5b; f=$?; npm run test:wa-6a; g=$?; exit $((a || b || c || d || e || f || g))"
   },
   "dependencies": {
     "argon2": "^0.45.1",

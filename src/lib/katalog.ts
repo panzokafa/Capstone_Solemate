@@ -2,8 +2,8 @@
 // dijalankan dalam SATU transaksi: kalau penulisan audit gagal, perubahan layanan ikut dibatalkan.
 // Layanan tidak pernah dihapus (solemate_app memang tidak punya hak DELETE pada services).
 import type { PoolClient } from "pg";
-import { getPool } from "./db";
-import type { InputLayanan, InputTambah } from "./katalog-validasi";
+import { getPool } from "./db.ts";
+import type { InputLayanan, InputTambah } from "./katalog-validasi.ts";
 
 export type Layanan = {
   id: number;

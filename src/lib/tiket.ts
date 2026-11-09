@@ -69,6 +69,7 @@ export type RingkasanTiket = {
   jumlah_item: number;
   jumlah_pasang: number;
   ringkasan_layanan: string;
+  nomor_terverifikasi: boolean;
   pelanggan: InfoPelangganTiket;
 };
 
@@ -86,6 +87,7 @@ export type DetailTiket = {
   id: number;
   kode_tiket: string;
   sumber: "wa" | "toko";
+  serah_terima?: "antar_sendiri" | "jemput" | null;
   dibuat_oleh: number | null;
   nama_pembuat: string | null;
   tanggal_masuk: string;
@@ -102,6 +104,7 @@ export type DetailTiket = {
   jumlah_item: number;
   jumlah_pasang: number;
   ringkasan_layanan: string;
+  nomor_terverifikasi: boolean;
   pelanggan: InfoPelangganTiket;
   items: ItemTiket[];
   riwayat_audit: RiwayatAuditTiket[];
@@ -532,6 +535,7 @@ export async function buatTiketToko(
         id: ord.id,
         kode_tiket: ord.kode_tiket,
         sumber: ord.sumber,
+        serah_terima: null,
         dibuat_oleh: ord.dibuat_oleh,
         nama_pembuat: namaPembuat,
         tanggal_masuk: keIso(ord.tanggal_masuk)!,
@@ -548,6 +552,7 @@ export async function buatTiketToko(
         jumlah_item: itemsTersimpan.length,
         jumlah_pasang: jumlahPasang,
         ringkasan_layanan: ringkasanLayanan,
+        nomor_terverifikasi: true,
         pelanggan,
         items: itemsTersimpan,
         riwayat_audit: [
@@ -747,6 +752,7 @@ export async function daftarTiket(
        o.metode_bayar,
        o.tanggal_bayar,
        o.total,
+       COALESCE(o.nomor_terverifikasi, true) AS nomor_terverifikasi,
        c.id AS customer_id,
        c.nama AS customer_nama,
        c.nomor_wa AS customer_nomor_wa,
@@ -788,6 +794,7 @@ export async function daftarTiket(
     jumlah_item: b.jumlah_item,
     jumlah_pasang: b.jumlah_pasang,
     ringkasan_layanan: b.ringkasan_layanan,
+    nomor_terverifikasi: b.nomor_terverifikasi !== false,
     pelanggan: {
       id: b.customer_id,
       nama: b.customer_nama,
@@ -840,6 +847,7 @@ export async function ambilDetailTiketDenganClient(
        o.id,
        o.kode_tiket,
        o.sumber,
+       o.serah_terima,
        o.dibuat_oleh,
        u.nama AS nama_pembuat,
        o.tanggal_masuk,
@@ -860,6 +868,7 @@ export async function ambilDetailTiketDenganClient(
        o.tanggal_bayar,
        o.total,
        o.alasan_batal,
+       COALESCE(o.nomor_terverifikasi, true) AS nomor_terverifikasi,
        c.id AS customer_id,
        c.nama AS customer_nama,
        c.nomor_wa AS customer_nomor_wa
@@ -935,6 +944,7 @@ export async function ambilDetailTiketDenganClient(
     id: ord.id,
     kode_tiket: ord.kode_tiket,
     sumber: ord.sumber,
+    serah_terima: ord.serah_terima ?? null,
     dibuat_oleh: ord.dibuat_oleh,
     nama_pembuat: ord.nama_pembuat,
     tanggal_masuk: keIso(ord.tanggal_masuk)!,
@@ -952,6 +962,7 @@ export async function ambilDetailTiketDenganClient(
     jumlah_item: items.length,
     jumlah_pasang: jumlahPasang,
     ringkasan_layanan: ringkasanLayanan,
+    nomor_terverifikasi: ord.nomor_terverifikasi !== false,
     pelanggan: {
       id: ord.customer_id,
       nama: ord.customer_nama,

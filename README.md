@@ -212,6 +212,145 @@ Tes login, pembatasan percobaan, peran, sesi:
 
 **Tes menggunakan database sekali pakai `solemate_test`** (dibuat ulang tiap run) — tidak mengotori database utama.
 
+## Bot WhatsApp (Phase 6A)
+
+Sistem bot WhatsApp Solemate Shoes Clean berjalan mandiri tanpa n8n. Container WhatsApp HTTP API (WAHA) meneruskan webhook pesan masuk langsung ke backend Next.js pada endpoint `POST /api/wa/webhook`, dengan proteksi tanda tangan HMAC-SHA512, verifikasi usia payload, rate limiting atomik berlabel, serta penanganan privasi identitas `@lid`.
+
+### 1. Menghasilkan Kunci Rahasia HMAC & Mengisi `.env`
+
+Jalankan perintah berikut di terminal untuk menghasilkan string acak 32-byte (64 karakter heksadesimal) yang aman:
+
+```bash
+openssl rand -hex 32
+```
+
+Salin hasil keluaran tersebut dan tempelkan ke variabel `WAHA_WEBHOOK_HMAC_KEY` di file `.env`. Pastikan variabel terkait WhatsApp di `.env` telah terisi:
+
+```env
+WAHA_BASE_URL="http://127.0.0.1:3001"
+WAHA_SESSION="default"
+WAHA_API_KEY=""
+WAHA_WEBHOOK_HMAC_KEY="<hasil_keluaran_openssl_rand_hex_32>"
+WA_GATEWAY_MODE="waha"
+
+# Kredensial Dasbor & Swagger WAHA
+WAHA_DASHBOARD_ENABLED="true"
+WAHA_DASHBOARD_USERNAME="admin"
+WAHA_DASHBOARD_PASSWORD="<password_admin_waha_anda>"
+```
+
+> **Catatan Keamanan:** Sistem menerapkan prinsip *fail-closed*. Jika `WAHA_WEBHOOK_HMAC_KEY` kosong, kurang dari 32 karakter, atau masih memakai teks placeholder contoh, endpoint webhook akan otomatis menolak semua permintaan dengan status `503 Service Unavailable`.
+
+### 2. Menjalankan Container WAHA
+
+Setelah konfigurasi `docker-compose.yml` disetujui dan diterapkan, jalankan service WAHA di latar belakang:
+
+```bash
+docker compose up -d waha
+```
+
+Periksa status container:
+
+```bash
+docker compose ps waha
+```
+
+### 3. Memverifikasi Autentikasi API Key WAHA (Uji 401 & 200)
+
+Sebelum menghubungkan sesi WhatsApp, verifikasi bahwa proteksi API Key pada endpoint WAHA ditegakkan dengan benar:
+
+1. **Uji Tanpa API Key (Harus Ditolak 401 Unauthorized):**
+   ```bash
+   curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:3001/api/sessions
+   ```
+   *Ekspektasi keluaran:* `401`
+
+2. **Uji Dengan API Key Valid (Harus Diterima 200 OK):**
+   ```bash
+   # Ganti <API_KEY> dengan nilai WAHA_API_KEY yang Anda pasang di .env
+   curl -s -o /dev/null -w "%{http_code}\n" -H "X-Api-Key: <API_KEY>" http://127.0.0.1:3001/api/sessions
+   ```
+   *Ekspektasi keluaran:* `200`
+
+3. **Apa yang Harus Dilakukan Jika Hasil Uji Tidak Sesuai:**
+   - **Jika tanpa header tetap menghasilkan `200` (API Key tidak ditegakkan):**
+     1. Periksa file `.env`, pastikan variabel `WAHA_API_KEY` telah diisi dan tidak kosong.
+     2. Pastikan file `docker-compose.yml` memetakan `- WAHA_API_KEY=${WAHA_API_KEY}` pada blok `environment` service `waha`.
+     3. Terapkan ulang konfigurasi environment ke container dengan perintah:
+        ```bash
+        docker compose up -d --force-recreate waha
+        ```
+     4. Periksa log container untuk memastikan WAHA membaca konfigurasi keamanan:
+        ```bash
+        docker compose logs waha | grep -i "api key"
+        ```
+   - **Jika dengan header `X-Api-Key` tetap menghasilkan `401`:**
+     1. Pastikan nama header adalah `X-Api-Key` persis (huruf besar-kecil) dan bukan `Authorization: Bearer`.
+     2. Pastikan nilai kunci yang dikirim tidak memuat karakter spasi atau tanda kutip tambahan yang tidak sengaja terbawa dari `.env`.
+     3. Restart container dengan `docker compose restart waha` lalu coba kembali.
+
+### 4. Memindai QR Code dengan Nomor Cadangan
+
+1. Buka browser dan kunjungi dasbor WAHA di **http://127.0.0.1:3001/dashboard**.
+2. Masuk menggunakan username (`admin`) dan password yang telah Anda tentukan di `.env` (`WAHA_DASHBOARD_PASSWORD`).
+3. Pilih session `default`.
+4. Buka aplikasi WhatsApp di **ponsel dengan nomor cadangan** (jangan gunakan nomor utama sebelum siap rilis).
+5. Masuk ke **Menu > Perangkat Tertaut > Tautkan Perangkat**, lalu pindai kode QR yang muncul di layar dasbor.
+6. Tunggu hingga status session berubah menjadi **WORKING** / **CONNECTED**.
+
+### 5. Menguji Pesan Masuk secara Interaktif
+
+Kirimkan pesan dari nomor WhatsApp lain (misal ponsel pribadi Anda) ke nomor cadangan yang tertaut pada bot:
+
+1. **Uji Menu Utama:**
+   - Kirim pesan: `MENU` atau `Halo`
+   - Bot akan membalas dengan menu pilihan 1 (Layanan & Harga), 2 (Format Pemesanan), dan 3 (Cek Status Pesanan).
+
+2. **Uji Katalog Layanan:**
+   - Kirim pesan: `1`
+   - Bot akan menampilkan daftar layanan aktif beserta harga Rupiah dan estimasi hari pengerjaan.
+
+3. **Uji Format Pemesanan:**
+   - Kirim pesan: `2`
+   - Bot akan mengirimkan template format pemesanan cuci sepatu.
+   - *Catatan Nomor Urut Layanan:* Angka layanan pada baris barang (misalnya `1 | 1 | Sneakers Putih`) merujuk pada **nomor urut (1..N)** di daftar layanan aktif yang ditampilkan bot (perintah `1`), bukan ID internal database. Pelanggan juga dapat menuliskan nama layanan secara langsung (misalnya `Deep Clean`). Angka yang melebihi jumlah layanan aktif dalam katalog akan ditolak dengan petunjuk perbaikan spesifik.
+
+4. **Uji Pembuatan Tiket via Pesan:**
+   - Kirimkan format pemesanan contoh:
+     ```text
+     Nama: Budi Santoso
+     Barang: 1 | 1 | Sneakers Putih Nike Air Force
+     Antar/Jemput: Antar sendiri
+     ```
+   - Bot akan memvalidasi pesanan, membuat tiket di database dengan status `Belum dicuci` & `Belum bayar`, dan membalas konfirmasi lengkap dengan kode tiket `SM-YYYYMMDD-XXX`.
+
+5. **Uji Pengecekan Status Pesanan:**
+   - Kirim pesan: `3` atau `cek` (bot menampilkan daftar cucian aktif).
+   - Kirim pesan: `cek <KODE_TIKET>` (contoh: `cek SM-20261108-001`) untuk melihat detail perkembangan cucian.
+
+### 6. Menjalankan Pengujian Otomatis
+
+Rangkaian pengujian otomatis bot WhatsApp (menggunakan mock gateway tanpa panggilan ke nomor WhatsApp sungguhan) dapat dijalankan kapan saja di database uji `solemate_test`:
+
+```bash
+npm run test:wa-6a
+```
+
+### 7. Catatan Privasi Akun @lid & Migrasi 0011
+
+- **Tiket sebelum migrasi 0011:** Tiket sumber WhatsApp yang dibuat sebelum migrasi 0011 tidak memiliki atribut `chat_hash` dan tidak dapat dicek statusnya melalui bot WhatsApp. Data tiket tersebut tidak boleh diisi ulang secara spekulatif dengan menebak-nebak identitas pengirim.
+- **Pengecekan Status Bersatu:** Pengecekan status ("3" atau "cek") hanya mencari pesanan dengan satu kriteria ketat: nomor telepon terverifikasi milik pengirim ATAU `chat_hash` HMAC yang cocok dengan ID chat pengirim. Nomor yang diketik manual di badan pesan tidak pernah digunakan untuk membuka tiket.
+
+### 8. Rencana Notifikasi Proaktif (Persiapan Tahap 6B)
+
+- **Larangan Proaktif ke Nomor Ketikan:** Sistem DILARANG mengirim pesan WhatsApp proaktif (misalnya notifikasi saat status sepatu menjadi Siap diambil) ke nomor telepon yang diketik manual oleh pelanggan tanpa verifikasi resmi dari gateway.
+- **Sasaran Pesan Proaktif:** Untuk pengirim `@lid` yang nomor teleponnya tidak dapat dipetakan oleh gateway, tujuan pengiriman pesan notifikasi proaktif adalah ID chat asli yang terverifikasi saat webhook diterima.
+- **Analisis Opsi Penyimpanan Target Chat:**
+  1. *Plain Chat ID:* Menyimpan JID mentah pengirim secara langsung di tabel `orders`. Sederhana untuk pengiriman keluar, namun mengekspos pengenal WhatsApp jika database dibobol atau di-dump.
+  2. *Hash-Only (HMAC):* Privasi maksimal karena satu arah, namun tidak dapat didekripsi sehingga tidak bisa digunakan untuk pengiriman proaktif ke luar.
+  3. *Terenkripsi Simetris AES-256-GCM:* Menyimpan target chat dalam bentuk cipherteks yang dienkripsi menggunakan kunci turunan berlabel (`wa-chat-target`) dari `SESSION_SECRET`. Mengizinkan pengiriman proaktif tanpa mengekspos JID polos di dump database.
+  *(Catatan: Opsi enkripsi AES-256-GCM ini hanya didokumentasikan sebagai rencana desain; skema database tidak diubah untuk opsi ini saat ini dan keputusannya menyusul pada rilis Tahap 6B).*
+
 ## Catatan
 
 - Password database **hanya** ada di `.env` (diabaikan git) dan dibaca `docker-compose.yml` dari sana. Tidak ada password di file yang di-commit.

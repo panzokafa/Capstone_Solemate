@@ -22,5 +22,27 @@ services:
       timeout: 5s
       retries: 10
 
+  waha:
+    image: devlikeapro/waha:latest-2026.10.1
+    container_name: solemate_waha
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3001:3000"
+    environment:
+      # Engine ringan berbasis WebSocket (tanpa Chromium). Pindahkan ke WEBJS jika bermasalah.
+      - WHATSAPP_DEFAULT_ENGINE=NOWEB
+      - WAHA_DASHBOARD_ENABLED=${WAHA_DASHBOARD_ENABLED:-true}
+      - WAHA_DASHBOARD_USERNAME=${WAHA_DASHBOARD_USERNAME:-admin}
+      - WAHA_DASHBOARD_PASSWORD=${WAHA_DASHBOARD_PASSWORD}
+      - WAHA_API_KEY=${WAHA_API_KEY}
+      - WHATSAPP_SWAGGER_USERNAME=${WAHA_DASHBOARD_USERNAME:-admin}
+      - WHATSAPP_SWAGGER_PASSWORD=${WAHA_DASHBOARD_PASSWORD}
+      - WHATSAPP_HOOK_URL=http://host.docker.internal:3000/api/wa/webhook
+      - WHATSAPP_HOOK_EVENTS=message
+      - WHATSAPP_HOOK_HMAC_KEY=${WAHA_WEBHOOK_HMAC_KEY}
+    volumes:
+      - solemate_waha_data:/app/.sessions
+
 volumes:
   solemate_pgdata:
+  solemate_waha_data:

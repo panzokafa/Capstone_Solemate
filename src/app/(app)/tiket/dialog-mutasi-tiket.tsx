@@ -51,6 +51,7 @@ export function detailKeRingkasan(d: DetailTiket): RingkasanTiket {
     id: d.id,
     kode_tiket: d.kode_tiket,
     sumber: d.sumber,
+    nomor_terverifikasi: d.nomor_terverifikasi,
     tanggal_masuk: d.tanggal_masuk,
     estimasi_selesai: d.estimasi_selesai,
     status_pesanan: d.status_pesanan,

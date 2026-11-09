@@ -496,7 +496,14 @@ export function DaftarTiketClient({
           <span className="font-semibold text-text-main break-words">
             {t.pelanggan.nama}
           </span>
-          <span className="text-xs text-text-muted">{t.pelanggan.nomor_wa}</span>
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="text-xs text-text-muted">{t.pelanggan.nomor_wa}</span>
+            {t.nomor_terverifikasi === false && (
+              <span className="inline-flex items-center rounded-md bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-medium text-amber-600 border border-amber-500/20">
+                Nomor belum diverifikasi
+              </span>
+            )}
+          </div>
         </div>
       ),
     },

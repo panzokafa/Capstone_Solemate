@@ -325,7 +325,7 @@ export function DetailTiketClient({ tiketAwal, peran }: DetailTiketClientProps) 
 
       <PageHeader
         title={tiket.kode_tiket}
-        description={`Sumber pesanan: ${tiket.sumber === "wa" ? "WhatsApp" : "Toko"} · Dicatat oleh ${tiket.nama_pembuat ?? "Sistem"}`}
+        description={`Sumber pesanan: ${tiket.sumber === "wa" ? "WhatsApp" : "Toko"}${tiket.sumber === "wa" && tiket.serah_terima ? ` (${tiket.serah_terima === "jemput" ? "Jemput" : "Antar sendiri"})` : ""} · Dicatat oleh ${tiket.nama_pembuat ?? "Sistem"}`}
         badge={
           <div className="flex flex-wrap items-center gap-2">
             <Badge variant="pesanan" statusPesanan={tiket.status_pesanan} />
@@ -508,11 +508,48 @@ export function DetailTiketClient({ tiketAwal, peran }: DetailTiketClientProps) 
                 <dt className="text-xs uppercase tracking-wider text-text-muted">
                   Nomor WhatsApp
                 </dt>
-                <dd className="mt-0.5 font-medium text-text-body">
-                  {tiket.pelanggan.nomor_wa}
+                <dd className="mt-0.5 font-medium text-text-body flex items-center gap-2 flex-wrap">
+                  <span>{tiket.pelanggan.nomor_wa}</span>
+                  {tiket.nomor_terverifikasi === false && (
+                    <span className="inline-flex items-center rounded-md bg-amber-500/10 px-2 py-0.5 text-xs font-medium text-amber-600 border border-amber-500/20">
+                      Nomor belum diverifikasi
+                    </span>
+                  )}
                 </dd>
               </div>
+              {tiket.sumber === "wa" && (
+                <div>
+                  <dt className="text-xs uppercase tracking-wider text-text-muted">
+                    Metode Serah Terima
+                  </dt>
+                  <dd className="mt-0.5 font-medium text-text-body">
+                    {tiket.serah_terima === "jemput" ? "Jemput" : "Antar sendiri"}
+                  </dd>
+                </div>
+              )}
             </dl>
+
+            {tiket.nomor_terverifikasi === false && (
+              <div
+                role="note"
+                className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-3.5 text-xs text-amber-800 dark:text-amber-300 font-jakarta flex items-start gap-2.5"
+              >
+                <Ikon
+                  name="alert_triangle"
+                  size={16}
+                  className="h-4 w-4 shrink-0 text-amber-600 mt-0.5"
+                  aria-hidden="true"
+                />
+                <div>
+                  <span className="font-semibold block font-outfit text-sm text-amber-900 dark:text-amber-200">
+                    Peringatan Kasir
+                  </span>
+                  <span>
+                    Nomor ini dimasukkan manual oleh pelanggan via bot privasi WA. Pastikan kebenaran nomor sebelum menghubungi.
+                  </span>
+                </div>
+              </div>
+            )}
 
             {bolehKontakWa && urlWa && (
               <div className="pt-1">

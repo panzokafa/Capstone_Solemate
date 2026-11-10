@@ -10,9 +10,14 @@ export type HasilKirimTeks =
   | { ok: true; providerMessageId?: string }
   | { ok: false; galat: string };
 
+export type HasilCekNomor =
+  | { ok: true; terdaftar: boolean; chatId?: string | null }
+  | { ok: false; galat: string };
+
 export interface WaGatewayAdapter {
   kirimTeks(params: KirimTeksParams): Promise<HasilKirimTeks>;
   petakanLidKeNomor(lid: string): Promise<string | null>;
+  cekNomorTerdaftar(nomorWa: string): Promise<HasilCekNomor>;
 }
 
 export const TTL_CACHE_LID_SUKSES_MS = 24 * 60 * 60 * 1000; // 24 jam
@@ -29,6 +34,12 @@ export class MockWaGatewayAdapter implements WaGatewayAdapter {
   public lidCache: Map<string, { nomor: string | null; expiredAt: number }> =
     new Map();
   public hitunganPanggilanLid: number = 0;
+  public mockCheckExists: Map<
+    string,
+    { terdaftar: boolean; chatId?: string | null } | { galat: string }
+  > = new Map();
+  public simulasikanGagalCheckExists: boolean = false;
+  public pesanGagalCheckExists: string = "Simulasi kegagalan cek nomor WhatsApp";
 
   async kirimTeks(params: KirimTeksParams): Promise<HasilKirimTeks> {
     if (this.simulasikanGagal) {
@@ -83,6 +94,24 @@ export class MockWaGatewayAdapter implements WaGatewayAdapter {
     return null;
   }
 
+  async cekNomorTerdaftar(nomorWa: string): Promise<HasilCekNomor> {
+    if (this.simulasikanGagalCheckExists) {
+      return { ok: false, galat: this.pesanGagalCheckExists };
+    }
+    const mocked = this.mockCheckExists.get(nomorWa);
+    if (mocked) {
+      if ("galat" in mocked) {
+        return { ok: false, galat: mocked.galat };
+      }
+      return {
+        ok: true,
+        terdaftar: mocked.terdaftar,
+        chatId: mocked.chatId !== undefined ? mocked.chatId : `${nomorWa}@c.us`,
+      };
+    }
+    return { ok: true, terdaftar: true, chatId: `${nomorWa}@c.us` };
+  }
+
   setMockLid(
     lid: string,
     pn: string | null,
@@ -98,11 +127,25 @@ export class MockWaGatewayAdapter implements WaGatewayAdapter {
     });
   }
 
+  setMockCheckExists(
+    nomorWa: string,
+    terdaftar: boolean,
+    chatId?: string | null
+  ): void {
+    this.mockCheckExists.set(nomorWa, { terdaftar, chatId });
+  }
+
+  setMockCheckExistsError(nomorWa: string, galat: string): void {
+    this.mockCheckExists.set(nomorWa, { galat });
+  }
+
   reset(): void {
     this.pesanTerkirim = [];
     this.simulasikanGagal = false;
     this.mockLidResponses.clear();
     this.lidCache.clear();
+    this.mockCheckExists.clear();
+    this.simulasikanGagalCheckExists = false;
     this.hitunganPanggilanLid = 0;
   }
 }
@@ -223,6 +266,63 @@ export class WahaGatewayAdapter implements WaGatewayAdapter {
     }
   }
 
+  /**
+   * Mengecek apakah nomor telepon terdaftar di WhatsApp melalui WAHA (Phase 6B, FR-24).
+   * Endpoint WAHA: GET /api/contacts/check-exists?phone={phone}&session={session}
+   * Dokumentasi: https://waha.devlike.pro/docs/how-to/contacts/
+   * Respons JSON: { numberExists: boolean, chatId?: string | null }
+   * Catatan keamanan: WAHA hanya menyediakan metode GET untuk endpoint ini sehingga nomor telepon berada di URL query string.
+   */
+  async cekNomorTerdaftar(nomorWa: string): Promise<HasilCekNomor> {
+    try {
+      const cleanNomor = nomorWa.replace(/[^0-9]/g, "");
+      const params = new URLSearchParams({
+        phone: cleanNomor,
+        session: this.session,
+      });
+      const url = `${this.baseUrl.replace(/\/+$/, "")}/api/contacts/check-exists?${params.toString()}`;
+
+      const res = await fetch(url, {
+        method: "GET",
+        headers: {
+          ...(this.apiKey ? { "X-Api-Key": this.apiKey } : {}),
+        },
+        signal: AbortSignal.timeout(5000),
+      });
+
+      if (res.status !== 200) {
+        const text = await res.text().catch(() => "");
+        return {
+          ok: false,
+          galat: `WAHA HTTP ${res.status}: ${text.slice(0, 100)}`,
+        };
+      }
+
+      const data = (await res.json().catch(() => null)) as {
+        numberExists?: boolean;
+        chatId?: string | null;
+      } | null;
+
+      if (!data || typeof data.numberExists !== "boolean") {
+        return {
+          ok: false,
+          galat: "Format respons WAHA check-exists tidak dikenali.",
+        };
+      }
+
+      return {
+        ok: true,
+        terdaftar: data.numberExists,
+        chatId: data.chatId ?? (data.numberExists ? `${cleanNomor}@c.us` : null),
+      };
+    } catch (err) {
+      return {
+        ok: false,
+        galat: err instanceof Error ? err.message : String(err),
+      };
+    }
+  }
+
   bersihkanLidCache(): void {
     this.lidCache.clear();
   }
@@ -232,7 +332,12 @@ let instanceGatewayAktif: WaGatewayAdapter | null = null;
 
 export function ambilWaGateway(): WaGatewayAdapter {
   if (instanceGatewayAktif) return instanceGatewayAktif;
-  if (process.env.NODE_ENV === "test" || process.env.WA_GATEWAY_MODE === "mock") {
+  if (
+    process.env.NODE_ENV === "test" ||
+    process.env.NEXT_DIST_DIR === ".next-test" ||
+    process.env.START_TEST_SERVER === "1" ||
+    process.env.WA_GATEWAY_MODE === "mock"
+  ) {
     instanceGatewayAktif = new MockWaGatewayAdapter();
   } else {
     instanceGatewayAktif = new WahaGatewayAdapter();

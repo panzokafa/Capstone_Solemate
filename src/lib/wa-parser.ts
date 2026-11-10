@@ -41,11 +41,31 @@ export type HasilParsePemesananWa =
     };
 
 /**
+ * Mendeteksi apakah pesan merupakan perintah STOP notifikasi (Phase 6B, FR-24).
+ */
+export function adalahPesanStop(teks: string): boolean {
+  const t = teks.trim().toLowerCase();
+  return t === "stop" || t === "berhenti" || t === "unsubscribe";
+}
+
+/**
+ * Mendeteksi apakah pesan merupakan perintah MULAI kembali notifikasi (Phase 6B, FR-24).
+ */
+export function adalahPesanMulai(teks: string): boolean {
+  const t = teks.trim().toLowerCase();
+  return (
+    t === "mulai" ||
+    t === "start notifikasi" ||
+    t === "aktifkan notifikasi"
+  );
+}
+
+/**
  * Mendeteksi apakah pesan merupakan perintah menu / sapaan awal.
  */
 export function adalahPesanMenu(teks: string): boolean {
   const t = teks.trim().toLowerCase();
-  const daftarKata = ["menu", "halo", "hai", "hi", "p", "start", "bantuan", "help", "mulai"];
+  const daftarKata = ["menu", "halo", "hai", "hi", "p", "start", "bantuan", "help"];
   return daftarKata.includes(t);
 }
 

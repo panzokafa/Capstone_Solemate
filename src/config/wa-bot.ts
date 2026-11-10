@@ -17,6 +17,22 @@ export const MAKS_TIKET_BELUM_DICUCI_PER_NOMOR = 5; // Maksimal tiket berstatus 
 export const JEDA_MINIMAL_BALASAN_BERUNTUN_MS = 1000; // Jeda minimal antar balasan
 export const JEDA_MEDIA_HINT_DETIK = 300; // Jeda minimal (5 menit) sebelum mengirim ulang panduan media
 
+// Konfigurasi Notifikasi Keluar (Phase 6B, FR-24)
+export const BATAS_NOTIFIKASI_PER_MENIT = 20; // Batas laju global notifikasi keluar per menit
+export const BATAS_NOTIFIKASI_PER_JAM = 300; // Batas laju global notifikasi keluar per jam
+export const TIMEOUT_NOTIFIKASI_MS = 5000; // Batas waktu tunggu kirim gateway notifikasi
+export const JEDA_ACAK_NOTIFIKASI_MAKS_MS = 2000; // Jeda acak maksimal 2 detik sebelum kirim
+
+// Template pesan notifikasi siap diambil (Phase 6B, FR-24)
+// Wajib ketat: hanya kode tiket, status selesai & siap diambil, dan status bayar.
+// Tidak boleh memuat nama pelanggan, harga, nama toko, alamat, jam buka, atau tanggal luar data.
+export function buatPesanNotifikasiSiapDiambil(
+  kodeTiket: string,
+  statusBayar: string
+): string {
+  return `Pesanan dengan kode tiket ${kodeTiket}: sepatu sudah selesai dan siap diambil. Status pembayaran: ${statusBayar}.`;
+}
+
 // Jenis & Nilai Serah Terima
 export const SERAH_TERIMA_ANTAR_SENDIRI = "antar_sendiri" as const;
 export const SERAH_TERIMA_JEMPUT = "jemput" as const;
@@ -95,4 +111,10 @@ Untuk melihat daftar layanan atau memesan pencucian sepatu, silakan ketik *MENU*
   TIKET_TIDAK_DITEMUKAN: `Pesanan tidak ditemukan atau tidak terdaftar pada nomor WhatsApp Anda. Pastikan kode tiket sudah benar (contoh: *cek SM-20261108-001*).`,
 
   TIDAK_ADA_TIKET_AKTIF: `Tidak ditemukan pesanan aktif untuk nomor WhatsApp Anda saat ini. Ketik *2* jika Anda ingin membuat pesanan baru.`,
+
+  NOTIFIKASI_DINONAKTIFKAN: `Notifikasi WhatsApp untuk nomor Anda telah dinonaktifkan. Anda tidak akan menerima notifikasi otomatis saat pesanan siap diambil. Ketik *MULAI* kapan saja untuk mengaktifkan kembali.`,
+
+  NOTIFIKASI_DIAKTIFKAN: `Notifikasi WhatsApp untuk nomor Anda telah diaktifkan kembali. Anda akan menerima notifikasi otomatis saat pesanan siap diambil. Ketik *STOP* kapan saja untuk berhenti.`,
+
+  NOTIFIKASI_LID_PETUNJUK: `Pengaturan notifikasi otomatis hanya dapat diubah melalui nomor WhatsApp reguler atau langsung melalui kasir toko, karena akun Anda menggunakan fitur privasi (@lid).`,
 };

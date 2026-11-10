@@ -340,6 +340,12 @@ export function DaftarTiketClient({
         <div className="flex flex-col items-start gap-1.5">
           <Badge variant="pesanan" statusPesanan={t.status_pesanan} />
           {renderLencanaBelumDiambil(t)}
+          {t.notifikasi_gagal && (
+            <span className="inline-flex items-center gap-1 rounded-md bg-danger/10 px-1.5 py-0.5 text-[11px] font-semibold text-danger border border-danger/20">
+              <Ikon name="alert_triangle" size={11} className="h-3 w-3 shrink-0" aria-hidden="true" />
+              <span>Notifikasi gagal</span>
+            </span>
+          )}
         </div>
       );
     }
@@ -349,6 +355,12 @@ export function DaftarTiketClient({
       <div className="flex flex-col items-start gap-1.5 min-w-[175px]">
         <Badge variant="pesanan" statusPesanan={t.status_pesanan} />
         {renderLencanaBelumDiambil(t)}
+        {t.notifikasi_gagal && (
+          <span className="inline-flex items-center gap-1 rounded-md bg-danger/10 px-1.5 py-0.5 text-[11px] font-semibold text-danger border border-danger/20">
+            <Ikon name="alert_triangle" size={11} className="h-3 w-3 shrink-0" aria-hidden="true" />
+            <span>Notifikasi gagal</span>
+          </span>
+        )}
         <Select
           aria-label={`Ubah status pesanan ${t.kode_tiket}`}
           disabled={sedangProsesBaris}

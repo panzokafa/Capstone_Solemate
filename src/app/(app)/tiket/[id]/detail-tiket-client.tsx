@@ -193,6 +193,8 @@ export function DetailTiketClient({ tiketAwal, peran }: DetailTiketClientProps) 
   const tiket = tiketMutasi ?? tiketAwal;
 
   const [sedangProses, setSedangProses] = React.useState(false);
+  const [sedangKirimUlangNotif, setSedangKirimUlangNotif] = React.useState(false);
+  const [sedangUbahNotif, setSedangUbahNotif] = React.useState(false);
   const [dialogAktif, setDialogAktif] = React.useState<ModeDialogMutasi | null>(null);
   const [infoMutasi, setInfoMutasi] = React.useState<{
     tipe: "sukses" | "galat";
@@ -202,6 +204,124 @@ export function DetailTiketClient({ tiketAwal, peran }: DetailTiketClientProps) 
 
   const bolehUbahTiket = peran === "kasir";
   const bolehKontakWa = peran === "kasir";
+
+  const notif = tiket.notifikasi;
+  const bolehKirimUlangNotif =
+    bolehUbahTiket &&
+    Boolean(notif) &&
+    (notif?.status === "gagal" ||
+      (notif?.status === "menunggu" && notif?.kode_galat === "RATE_LIMIT_TERCAPAI") ||
+      (notif?.status === "dilewati" && notif?.alasan_dilewati === "saklar_mati"));
+
+  function formatStatusNotifikasi(n: NonNullable<DetailTiket["notifikasi"]>): {
+    teks: string;
+  } {
+    if (n.status === "terkirim") {
+      const tgl = n.terkirim_pada
+        ? formatTanggal(n.terkirim_pada, { denganWaktu: true })
+        : "";
+      return { teks: `Terkirim${tgl ? ` (${tgl})` : ""}` };
+    }
+    if (n.status === "mengirim") {
+      return { teks: "Sedang mengirim..." };
+    }
+    if (n.status === "menunggu") {
+      if (n.kode_galat === "RATE_LIMIT_TERCAPAI") {
+        return { teks: "Ditunda karena batas laju" };
+      }
+      return { teks: "Menunggu antrean" };
+    }
+    if (n.status === "gagal") {
+      return { teks: `Gagal${n.kode_galat ? ` (${n.kode_galat})` : ""}` };
+    }
+    const peta: Record<string, string> = {
+      opt_out_pelanggan: "Dilewati (Pelanggan opt-out)",
+      nomor_tidak_terverifikasi: "Dilewati (Nomor belum terverifikasi)",
+      nomor_tidak_terdaftar_wa: "Dilewati (Nomor tidak terdaftar di WhatsApp)",
+      saklar_mati: "Dilewati (Layanan notifikasi nonaktif)",
+    };
+    return { teks: peta[n.alasan_dilewati ?? ""] ?? `Dilewati (${n.alasan_dilewati ?? "lainnya"})` };
+  }
+
+  async function kirimUlangNotifikasi() {
+    if (sedangKirimUlangNotif) return;
+    setSedangKirimUlangNotif(true);
+    setInfoMutasi(null);
+    try {
+      const res = await fetch(`/api/tiket/${tiket.id}/notifikasi`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      const json = await res.json().catch(() => null);
+      if (res.ok) {
+        if (json?.data) {
+          setTiketMutasi(json.data);
+        }
+        setInfoMutasi({
+          tipe: "sukses",
+          pesan: json?.ok
+            ? "Notifikasi WhatsApp berhasil dikirim ulang."
+            : `Kirim ulang selesai dengan status: ${json?.status ?? "gagal"}.`,
+        });
+      } else {
+        setInfoMutasi({
+          tipe: "galat",
+          pesan: json?.error ?? json?.pesan ?? "Gagal mengirim ulang notifikasi.",
+        });
+      }
+    } catch {
+      setInfoMutasi({
+        tipe: "galat",
+        pesan: "Terjadi kesalahan jaringan saat mengirim ulang notifikasi.",
+      });
+    } finally {
+      setSedangKirimUlangNotif(false);
+    }
+  }
+
+  async function toggleNotifikasiPelanggan(aktif: boolean) {
+    if (sedangUbahNotif) return;
+    setSedangUbahNotif(true);
+    setInfoMutasi(null);
+    try {
+      const res = await fetch(`/api/pelanggan/${tiket.pelanggan.id}/notifikasi`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ aktif }),
+      });
+      const json = await res.json().catch(() => null);
+      if (res.ok) {
+        setTiketMutasi((prev) => {
+          const t = prev ?? tiket;
+          return {
+            ...t,
+            pelanggan: {
+              ...t.pelanggan,
+              notifikasi_wa_aktif: aktif,
+            },
+          };
+        });
+        setInfoMutasi({
+          tipe: "sukses",
+          pesan: aktif
+            ? "Notifikasi WhatsApp untuk pelanggan ini telah diaktifkan."
+            : "Notifikasi WhatsApp untuk pelanggan ini telah dinonaktifkan (opt-out).",
+        });
+      } else {
+        setInfoMutasi({
+          tipe: "galat",
+          pesan: json?.error ?? "Gagal mengubah preferensi notifikasi pelanggan.",
+        });
+      }
+    } catch {
+      setInfoMutasi({
+        tipe: "galat",
+        pesan: "Terjadi kesalahan jaringan saat mengubah preferensi notifikasi pelanggan.",
+      });
+    } finally {
+      setSedangUbahNotif(false);
+    }
+  }
 
   let urlWa: string | null = null;
   if (bolehKontakWa) {
@@ -340,6 +460,44 @@ export function DetailTiketClient({ tiketAwal, peran }: DetailTiketClientProps) 
           </div>
         }
       />
+
+      {tiket.notifikasi && (
+        <div className="rounded-2xl border border-border-card bg-surface-canvas p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 font-jakarta text-sm">
+          <div className="flex items-center gap-2.5">
+            <Ikon
+              name="message_circle"
+              size={18}
+              className={`h-5 w-5 shrink-0 ${
+                tiket.notifikasi.status === "terkirim"
+                  ? "text-status-lunas-text"
+                  : tiket.notifikasi.status === "gagal"
+                    ? "text-danger"
+                    : "text-text-muted"
+              }`}
+              aria-hidden="true"
+            />
+            <div>
+              <p className="font-outfit text-xs font-semibold uppercase tracking-wider text-text-muted">
+                Notifikasi WhatsApp (Siap Diambil)
+              </p>
+              <p className="text-text-main font-medium mt-0.5">
+                {formatStatusNotifikasi(tiket.notifikasi).teks}
+              </p>
+            </div>
+          </div>
+          {bolehKirimUlangNotif && (
+            <Button
+              size="sm"
+              variant="secondary"
+              loading={sedangKirimUlangNotif}
+              onClick={() => void kirimUlangNotifikasi()}
+            >
+              <Ikon name="refresh" size={14} className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+              Kirim Ulang Notifikasi
+            </Button>
+          )}
+        </div>
+      )}
 
       {infoMutasi && (
         <div
@@ -569,6 +727,33 @@ export function DetailTiketClient({ tiketAwal, peran }: DetailTiketClientProps) 
                 </a>
               </div>
             )}
+
+            <div className="pt-3 border-t border-border-warm flex flex-col gap-2">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                <div>
+                  <p className="text-xs font-semibold text-text-main">
+                    Notifikasi WhatsApp Otomatis
+                  </p>
+                  <p className="text-xs text-text-muted mt-0.5">
+                    {tiket.pelanggan.notifikasi_wa_aktif === false
+                      ? "Pelanggan memilih berhenti menerima notifikasi (opt-out)."
+                      : "Pelanggan aktif menerima notifikasi pesanan."}
+                  </p>
+                </div>
+                {bolehUbahTiket && (
+                  <Button
+                    size="sm"
+                    variant={tiket.pelanggan.notifikasi_wa_aktif === false ? "primary" : "secondary"}
+                    loading={sedangUbahNotif}
+                    onClick={() => void toggleNotifikasiPelanggan(!tiket.pelanggan.notifikasi_wa_aktif)}
+                  >
+                    {tiket.pelanggan.notifikasi_wa_aktif === false
+                      ? "Aktifkan Notifikasi"
+                      : "Jangan Kirim Notifikasi"}
+                  </Button>
+                )}
+              </div>
+            </div>
           </CardContent>
         </Card>
 

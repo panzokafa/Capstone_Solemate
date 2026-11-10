@@ -7,6 +7,7 @@ import { requireAuth, requireKasir, AksesDitolakError } from "@/lib/auth";
 import { periksaPermintaanUbah } from "@/lib/request-guard";
 import { validasiIdTiket, validasiUbahTiket } from "@/lib/tiket-validasi";
 import { ambilDetailTiket, ubahTiket } from "@/lib/tiket";
+import { prosesNotifikasiSiapDiambil } from "@/lib/wa-notifikasi";
 
 const DITOLAK = () => NextResponse.json({ error: "Akses ditolak" }, { status: 403 });
 const GALAT_SERVER = () =>
@@ -106,10 +107,33 @@ export async function PATCH(req: NextRequest, ctx: Konteks) {
       );
     }
 
+    // Phase 6B: Pemicu notifikasi otomatis saat tiket menjadi "Siap diambil" (FR-24)
+    // Pengiriman dilakukan di latar belakang setelah transaksi commit dan TIDAK menahan respons PATCH.
+    let tiketFinal = hasil.tiket;
+    if (hasil.notifikasiDibuat) {
+      const lewatiJeda =
+        process.env.NODE_ENV === "test" ||
+        process.env.NEXT_DIST_DIR === ".next-test" ||
+        process.env.START_TEST_SERVER === "1" ||
+        Boolean(req.headers.get("x-sync-notifikasi"));
+      const janjiNotif = prosesNotifikasiSiapDiambil(id, { lewatiJeda }).catch((err) => {
+        logGalatAman("Background dispatch notifikasi gagal", err);
+      });
+
+      // Mode sinkron untuk tes / penegasan langsung bila header diberikan
+      if (req.headers.get("x-sync-notifikasi") === "1") {
+        await janjiNotif;
+        const diperbarui = await ambilDetailTiket(id);
+        if (diperbarui) {
+          tiketFinal = diperbarui;
+        }
+      }
+    }
+
     return NextResponse.json(
       {
         ok: true,
-        data: hasil.tiket,
+        data: tiketFinal,
         idempoten: hasil.idempoten,
       },
       { status: 200 }

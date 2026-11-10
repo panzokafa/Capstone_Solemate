@@ -33,6 +33,7 @@ export type InfoPelangganTiket = {
   id: number;
   nama: string;
   nomor_wa: string;
+  notifikasi_wa_aktif?: boolean;
 };
 
 export type ItemTiket = {
@@ -50,6 +51,16 @@ export type PeringatanNamaPelanggan = {
   pesan: string;
   nama_tersimpan: string;
   nama_dikirim: string;
+};
+
+export type InfoNotifikasiTiket = {
+  id: number;
+  status: "menunggu" | "mengirim" | "terkirim" | "gagal" | "dilewati";
+  alasan_dilewati: string | null;
+  kode_galat: string | null;
+  percobaan: number;
+  terkirim_pada: string | null;
+  diperbarui_pada: string | null;
 };
 
 export type RingkasanTiket = {
@@ -70,6 +81,8 @@ export type RingkasanTiket = {
   jumlah_pasang: number;
   ringkasan_layanan: string;
   nomor_terverifikasi: boolean;
+  notifikasi_status?: string | null;
+  notifikasi_gagal?: boolean;
   pelanggan: InfoPelangganTiket;
 };
 
@@ -105,6 +118,7 @@ export type DetailTiket = {
   jumlah_pasang: number;
   ringkasan_layanan: string;
   nomor_terverifikasi: boolean;
+  notifikasi?: InfoNotifikasiTiket | null;
   pelanggan: InfoPelangganTiket;
   items: ItemTiket[];
   riwayat_audit: RiwayatAuditTiket[];
@@ -115,6 +129,7 @@ export type HasilUbahTiket =
       ok: true;
       tiket: DetailTiket;
       idempoten: boolean;
+      notifikasiDibuat?: boolean;
     }
   | {
       ok: false;
@@ -365,20 +380,21 @@ export async function buatTiketToko(
       // 2. Pelanggan: INSERT ... ON CONFLICT (nomor_wa) DO NOTHING lalu SELECT bila sudah ada.
       let pelanggan: InfoPelangganTiket;
       let peringatan: PeringatanNamaPelanggan | null = null;
+      const notifAktifAwal = !input.jangan_kirim_notifikasi_wa;
 
       const insCust = await c.query(
-        `INSERT INTO customers (nama, nomor_wa)
-         VALUES ($1, $2)
+        `INSERT INTO customers (nama, nomor_wa, notifikasi_wa_aktif)
+         VALUES ($1, $2, $3)
          ON CONFLICT (nomor_wa) DO NOTHING
-         RETURNING id, nama, nomor_wa`,
-        [input.nama_pelanggan, input.nomor_wa]
+         RETURNING id, nama, nomor_wa, notifikasi_wa_aktif`,
+        [input.nama_pelanggan, input.nomor_wa, notifAktifAwal]
       );
 
       if ((insCust.rowCount ?? 0) === 1) {
         pelanggan = insCust.rows[0];
       } else {
         const selCust = await c.query(
-          `SELECT id, nama, nomor_wa
+          `SELECT id, nama, nomor_wa, notifikasi_wa_aktif
              FROM customers
             WHERE nomor_wa = $1
             FOR UPDATE`,
@@ -389,6 +405,25 @@ export async function buatTiketToko(
         }
         pelanggan = selCust.rows[0];
 
+        // Jika kasir mencentang "Jangan kirim notifikasi WhatsApp" untuk pelanggan yang sudah ada
+        if (input.jangan_kirim_notifikasi_wa && pelanggan.notifikasi_wa_aktif !== false) {
+          await c.query(
+            `UPDATE customers SET notifikasi_wa_aktif = false WHERE id = $1`,
+            [pelanggan.id]
+          );
+          pelanggan.notifikasi_wa_aktif = false;
+          await c.query(
+            `INSERT INTO audit_logs (entitas, entitas_id, aksi, nilai_lama, nilai_baru, user_id)
+             VALUES ('customers', $1, 'UBAH_NOTIFIKASI_PELANGGAN', $2::jsonb, $3::jsonb, $4)`,
+            [
+              pelanggan.id,
+              JSON.stringify({ notifikasi_wa_aktif: true }),
+              JSON.stringify({ notifikasi_wa_aktif: false }),
+              userId,
+            ]
+          );
+        }
+
         if (pelanggan.nama !== input.nama_pelanggan) {
           if (input.konfirmasi_ubah_nama) {
             const namaLama = pelanggan.nama;
@@ -396,7 +431,7 @@ export async function buatTiketToko(
               `UPDATE customers
                   SET nama = $2
                 WHERE id = $1
-                RETURNING id, nama, nomor_wa`,
+                RETURNING id, nama, nomor_wa, notifikasi_wa_aktif`,
               [pelanggan.id, input.nama_pelanggan]
             );
             pelanggan = updCust.rows[0];
@@ -756,11 +791,14 @@ export async function daftarTiket(
        c.id AS customer_id,
        c.nama AS customer_nama,
        c.nomor_wa AS customer_nomor_wa,
+       c.notifikasi_wa_aktif AS customer_notifikasi_wa_aktif,
+       wn.status AS notifikasi_status,
        COALESCE(agg.jumlah_item, 0)::int AS jumlah_item,
        COALESCE(agg.jumlah_pasang, 0)::int AS jumlah_pasang,
        COALESCE(agg.ringkasan_layanan, '') AS ringkasan_layanan
      FROM orders o
      JOIN customers c ON c.id = o.customer_id
+     LEFT JOIN wa_notifikasi wn ON wn.order_id = o.id AND wn.jenis = 'siap_diambil'
      LEFT JOIN LATERAL (
        SELECT
          COUNT(*)::int AS jumlah_item,
@@ -795,10 +833,13 @@ export async function daftarTiket(
     jumlah_pasang: b.jumlah_pasang,
     ringkasan_layanan: b.ringkasan_layanan,
     nomor_terverifikasi: b.nomor_terverifikasi !== false,
+    notifikasi_status: b.notifikasi_status ?? null,
+    notifikasi_gagal: b.notifikasi_status === "gagal",
     pelanggan: {
       id: b.customer_id,
       nama: b.customer_nama,
       nomor_wa: b.customer_nomor_wa,
+      notifikasi_wa_aktif: b.customer_notifikasi_wa_aktif !== false,
     },
   }));
 
@@ -871,7 +912,8 @@ export async function ambilDetailTiketDenganClient(
        COALESCE(o.nomor_terverifikasi, true) AS nomor_terverifikasi,
        c.id AS customer_id,
        c.nama AS customer_nama,
-       c.nomor_wa AS customer_nomor_wa
+       c.nomor_wa AS customer_nomor_wa,
+       c.notifikasi_wa_aktif AS customer_notifikasi_wa_aktif
      FROM orders o
      JOIN customers c ON c.id = o.customer_id
      LEFT JOIN users u ON u.id = o.dibuat_oleh
@@ -882,7 +924,7 @@ export async function ambilDetailTiketDenganClient(
   if ((ordRes.rowCount ?? 0) === 0) return null;
   const ord = ordRes.rows[0];
 
-  const [itemRes, auditRes] = await Promise.all([
+  const [itemRes, auditRes, notifRes] = await Promise.all([
     client.query(
       `SELECT
          oi.id,
@@ -909,9 +951,15 @@ export async function ambilDetailTiketDenganClient(
        FROM audit_logs al
        LEFT JOIN users u ON u.id = al.user_id
        WHERE (al.entitas = 'orders' AND al.entitas_id = $1)
-          OR (al.entitas = 'customers' AND al.entitas_id = $2 AND al.aksi = 'UBAH_NAMA_PELANGGAN')
+          OR (al.entitas = 'customers' AND al.entitas_id = $2 AND al.aksi IN ('UBAH_NAMA_PELANGGAN', 'UBAH_NOTIFIKASI_PELANGGAN'))
        ORDER BY al.waktu ASC, al.id ASC`,
       [id, ord.customer_id]
+    ),
+    client.query(
+      `SELECT id, status, alasan_dilewati, kode_galat, percobaan, terkirim_pada, diperbarui_pada
+       FROM wa_notifikasi
+       WHERE order_id = $1 AND jenis = 'siap_diambil'`,
+      [id]
     ),
   ]);
 
@@ -963,10 +1011,23 @@ export async function ambilDetailTiketDenganClient(
     jumlah_pasang: jumlahPasang,
     ringkasan_layanan: ringkasanLayanan,
     nomor_terverifikasi: ord.nomor_terverifikasi !== false,
+    notifikasi:
+      (notifRes.rowCount ?? 0) > 0
+        ? {
+            id: notifRes.rows[0].id,
+            status: notifRes.rows[0].status,
+            alasan_dilewati: notifRes.rows[0].alasan_dilewati,
+            kode_galat: notifRes.rows[0].kode_galat,
+            percobaan: notifRes.rows[0].percobaan,
+            terkirim_pada: keIso(notifRes.rows[0].terkirim_pada),
+            diperbarui_pada: keIso(notifRes.rows[0].diperbarui_pada),
+          }
+        : null,
     pelanggan: {
       id: ord.customer_id,
       nama: ord.customer_nama,
       nomor_wa: ord.customer_nomor_wa,
+      notifikasi_wa_aktif: ord.customer_notifikasi_wa_aktif !== false,
     },
     items,
     riwayat_audit: riwayatAudit,
@@ -1084,6 +1145,7 @@ export async function ubahTiket(
       }
 
       // siap_diambil_pada hanya diisi ketika masih NULL dan tidak pernah dikosongkan / di-reset
+      let notifikasiDibuat = false;
       if (input.status_pesanan === "Siap diambil") {
         await c.query(
           `UPDATE orders
@@ -1092,6 +1154,21 @@ export async function ubahTiket(
             WHERE id = $2`,
           [input.status_pesanan, id]
         );
+
+        // Phase 6B (FR-24): Masukkan antrean keluar notifikasi 'siap_diambil' dalam transaksi yang sama.
+        // UNIQUE (order_id, jenis) dan ON CONFLICT DO NOTHING menjamin idempotensi:
+        // jika nanti koreksi mundur lalu maju lagi ke 'Siap diambil', baris tidak dibuat ulang / tidak kirim ulang.
+        // Koreksi mundur (cekTransisi.jenis === "koreksi") tidak membuat notifikasi.
+        if (cekTransisi.jenis !== "koreksi") {
+          const insNotif = await c.query(
+            `INSERT INTO wa_notifikasi (order_id, jenis, status, percobaan, dibuat_pada, diperbarui_pada)
+             VALUES ($1, 'siap_diambil', 'menunggu', 0, now(), now())
+             ON CONFLICT (order_id, jenis) DO NOTHING
+             RETURNING id`,
+            [id]
+          );
+          notifikasiDibuat = (insNotif.rowCount ?? 0) > 0;
+        }
       } else {
         await c.query(
           `UPDATE orders
@@ -1122,7 +1199,7 @@ export async function ubahTiket(
         ]
       );
 
-      return { ok: true, tiket: await muatDetail(), idempoten: false };
+      return { ok: true, tiket: await muatDetail(), idempoten: false, notifikasiDibuat };
     }
 
     // ---------- 2. Perubahan Status Pembayaran ----------
@@ -1345,4 +1422,41 @@ export async function bersihkanKunciIdempotensiKedaluwarsa(
     [String(jamKedaluwarsa)]
   );
   return res.rowCount ?? 0;
+}
+
+/**
+ * Mengubah preferensi notifikasi WhatsApp pelanggan toko (Phase 6B, FR-24 / FR-25).
+ * Kasir saja; mencatat audit_logs tanpa menyertakan nomor telepon pelanggan.
+ */
+export async function ubahNotifikasiPelanggan(
+  customerId: number,
+  aktif: boolean,
+  userId: number
+): Promise<{ ok: boolean; customerId: number; aktif: boolean; pesan?: string }> {
+  const pool = getPool();
+  const cek = await pool.query(
+    `SELECT id, notifikasi_wa_aktif FROM customers WHERE id = $1`,
+    [customerId]
+  );
+  if ((cek.rowCount ?? 0) === 0) {
+    return { ok: false, customerId, aktif, pesan: "Pelanggan tidak ditemukan." };
+  }
+  const nilaiLama = cek.rows[0].notifikasi_wa_aktif;
+  await pool.query(
+    `UPDATE customers SET notifikasi_wa_aktif = $1 WHERE id = $2`,
+    [aktif, customerId]
+  );
+
+  // Catat riwayat audit tanpa nomor WhatsApp
+  await pool.query(
+    `INSERT INTO audit_logs (entitas, entitas_id, aksi, nilai_lama, nilai_baru, user_id)
+     VALUES ('customers', $1, 'UBAH_NOTIFIKASI_PELANGGAN', $2::jsonb, $3::jsonb, $4)`,
+    [
+      customerId,
+      JSON.stringify({ notifikasi_wa_aktif: nilaiLama }),
+      JSON.stringify({ notifikasi_wa_aktif: aktif }),
+      userId,
+    ]
+  );
+  return { ok: true, customerId, aktif };
 }

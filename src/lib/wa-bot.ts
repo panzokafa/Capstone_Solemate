@@ -9,6 +9,8 @@ import { daftarLayananAktif } from "./katalog.ts";
 import { ambilWaGateway } from "./wa-gateway.ts";
 import {
   parsePesanPemesananWa,
+  adalahPesanStop,
+  adalahPesanMulai,
   adalahPesanMenu,
   adalahPesanKatalog,
   adalahPesanFormatPemesanan,
@@ -706,6 +708,42 @@ export async function prosesWebhookMasukWa(
   }
 
   // 5. Penentuan jenis pesan & perintah
+  // 5-STOP. Perintah STOP (Opt-out notifikasi - Phase 6B, FR-24)
+  if (adalahPesanStop(body)) {
+    const klaim = await klaimPesanMasukNonTiket(pool, msgId, body);
+    if (!klaim) {
+      return { ok: true, duplikat: true, alasan: "Pesan stop duplikat." };
+    }
+    if (!nomorWaTerverifikasi) {
+      await gateway.kirimTeks({ chatId, teks: PESAN_BOT.NOTIFIKASI_LID_PETUNJUK });
+      return { ok: true, balasanTerkirim: true };
+    }
+    await pool.query(
+      `UPDATE customers SET notifikasi_wa_aktif = false WHERE nomor_wa = $1`,
+      [nomorWaTerverifikasi]
+    );
+    await gateway.kirimTeks({ chatId, teks: PESAN_BOT.NOTIFIKASI_DINONAKTIFKAN });
+    return { ok: true, balasanTerkirim: true };
+  }
+
+  // 5-MULAI. Perintah MULAI (Opt-in notifikasi - Phase 6B, FR-24)
+  if (adalahPesanMulai(body)) {
+    const klaim = await klaimPesanMasukNonTiket(pool, msgId, body);
+    if (!klaim) {
+      return { ok: true, duplikat: true, alasan: "Pesan mulai duplikat." };
+    }
+    if (!nomorWaTerverifikasi) {
+      await gateway.kirimTeks({ chatId, teks: PESAN_BOT.NOTIFIKASI_LID_PETUNJUK });
+      return { ok: true, balasanTerkirim: true };
+    }
+    await pool.query(
+      `UPDATE customers SET notifikasi_wa_aktif = true WHERE nomor_wa = $1`,
+      [nomorWaTerverifikasi]
+    );
+    await gateway.kirimTeks({ chatId, teks: PESAN_BOT.NOTIFIKASI_DIAKTIFKAN });
+    return { ok: true, balasanTerkirim: true };
+  }
+
   // 5A. Perintah MENU / Sapaan
   if (adalahPesanMenu(body)) {
     const klaim = await klaimPesanMasukNonTiket(pool, msgId, body);

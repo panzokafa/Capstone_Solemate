@@ -102,6 +102,7 @@ export function BuatTiketClient({
   const [pelangganTerdaftar, setPelangganTerdaftar] =
     React.useState<InfoPelangganCek | null>(null);
   const [konfirmasiUbahNama, setKonfirmasiUbahNama] = React.useState(false);
+  const [janganKirimNotifikasiWa, setJanganKirimNotifikasiWa] = React.useState(false);
   const [idempotencyKey, setIdempotencyKey] = React.useState<string>(() =>
     typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
       ? crypto.randomUUID()
@@ -330,6 +331,7 @@ export function BuatTiketClient({
     setNamaPelanggan("");
     setPelangganTerdaftar(null);
     setKonfirmasiUbahNama(false);
+    setJanganKirimNotifikasiWa(false);
     setInfoCekWa(null);
     setItems([
       {
@@ -430,6 +432,7 @@ export function BuatTiketClient({
         nama_pelanggan: namaPelanggan.trim(),
         nomor_wa: nomorWa.trim(),
         konfirmasi_ubah_nama: namaBerbedaDenganTerdaftar ? konfirmasiUbahNama : false,
+        jangan_kirim_notifikasi_wa: janganKirimNotifikasiWa,
         items: payloadItems,
         tanggal_masuk: tglMasukDate!.toISOString(),
         estimasi_selesai: tglEstimasiDate ? tglEstimasiDate.toISOString() : null,
@@ -780,6 +783,16 @@ export function BuatTiketClient({
                     </div>
                   </div>
                 )}
+
+                <label className="flex min-h-[44px] items-center gap-2.5 cursor-pointer text-xs font-medium text-text-body pt-1">
+                  <input
+                    type="checkbox"
+                    className="h-5 w-5 accent-primary"
+                    checked={janganKirimNotifikasiWa}
+                    onChange={(e) => setJanganKirimNotifikasiWa(e.target.checked)}
+                  />
+                  <span>Jangan kirim notifikasi WhatsApp otomatis ke pelanggan ini</span>
+                </label>
               </CardContent>
             </Card>
 

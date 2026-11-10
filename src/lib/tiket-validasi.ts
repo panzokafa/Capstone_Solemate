@@ -150,6 +150,7 @@ export type InputBuatTiket = {
   nama_pelanggan: string;
   nomor_wa: string;
   konfirmasi_ubah_nama: boolean;
+  jangan_kirim_notifikasi_wa?: boolean;
   items: InputItemTiket[];
   tanggal_masuk: Date;
   tanggal_masuk_diisi?: boolean;
@@ -365,6 +366,7 @@ export function validasiBuatTiket(
     "nama_pelanggan",
     "nomor_wa",
     "konfirmasi_ubah_nama",
+    "jangan_kirim_notifikasi_wa",
     "items",
     "tanggal_masuk",
     "estimasi_selesai",
@@ -439,6 +441,19 @@ export function validasiBuatTiket(
     };
   }
   const konfirmasiUbahNama = body.konfirmasi_ubah_nama ?? false;
+
+  // 3b. Jangan kirim notifikasi WhatsApp (opsional, FR-24 / FR-25)
+  if (
+    body.jangan_kirim_notifikasi_wa !== undefined &&
+    typeof body.jangan_kirim_notifikasi_wa !== "boolean"
+  ) {
+    return {
+      ok: false,
+      galat: "Pilihan kirim notifikasi WhatsApp harus berupa boolean.",
+      field: "jangan_kirim_notifikasi_wa",
+    };
+  }
+  const janganKirimNotifikasiWa = Boolean(body.jangan_kirim_notifikasi_wa);
 
   // 4. Daftar barang / layanan (1..20 item)
   if (!Array.isArray(body.items)) {
@@ -647,6 +662,7 @@ export function validasiBuatTiket(
       estimasi_selesai: estimasiSelesai,
       status_bayar: statusBayar,
       metode_bayar: metodeBayar,
+      jangan_kirim_notifikasi_wa: janganKirimNotifikasiWa,
     },
   };
 }

@@ -341,15 +341,57 @@ npm run test:wa-6a
 - **Tiket sebelum migrasi 0011:** Tiket sumber WhatsApp yang dibuat sebelum migrasi 0011 tidak memiliki atribut `chat_hash` dan tidak dapat dicek statusnya melalui bot WhatsApp. Data tiket tersebut tidak boleh diisi ulang secara spekulatif dengan menebak-nebak identitas pengirim.
 - **Pengecekan Status Bersatu:** Pengecekan status ("3" atau "cek") hanya mencari pesanan dengan satu kriteria ketat: nomor telepon terverifikasi milik pengirim ATAU `chat_hash` HMAC yang cocok dengan ID chat pengirim. Nomor yang diketik manual di badan pesan tidak pernah digunakan untuk membuka tiket.
 
-### 8. Rencana Notifikasi Proaktif (Persiapan Tahap 6B)
+### 8. Notifikasi Otomatis WhatsApp "Siap Diambil" (Phase 6B, FR-24)
 
-- **Larangan Proaktif ke Nomor Ketikan:** Sistem DILARANG mengirim pesan WhatsApp proaktif (misalnya notifikasi saat status sepatu menjadi Siap diambil) ke nomor telepon yang diketik manual oleh pelanggan tanpa verifikasi resmi dari gateway.
-- **Sasaran Pesan Proaktif:** Untuk pengirim `@lid` yang nomor teleponnya tidak dapat dipetakan oleh gateway, tujuan pengiriman pesan notifikasi proaktif adalah ID chat asli yang terverifikasi saat webhook diterima.
-- **Analisis Opsi Penyimpanan Target Chat:**
-  1. *Plain Chat ID:* Menyimpan JID mentah pengirim secara langsung di tabel `orders`. Sederhana untuk pengiriman keluar, namun mengekspos pengenal WhatsApp jika database dibobol atau di-dump.
-  2. *Hash-Only (HMAC):* Privasi maksimal karena satu arah, namun tidak dapat didekripsi sehingga tidak bisa digunakan untuk pengiriman proaktif ke luar.
-  3. *Terenkripsi Simetris AES-256-GCM:* Menyimpan target chat dalam bentuk cipherteks yang dienkripsi menggunakan kunci turunan berlabel (`wa-chat-target`) dari `SESSION_SECRET`. Mengizinkan pengiriman proaktif tanpa mengekspos JID polos di dump database.
-  *(Catatan: Opsi enkripsi AES-256-GCM ini hanya didokumentasikan sebagai rencana desain; skema database tidak diubah untuk opsi ini saat ini dan keputusannya menyusul pada rilis Tahap 6B).*
+Sistem mengirimkan notifikasi WhatsApp otomatis saat cucian sepatu selesai dan status tiket diubah menjadi `Siap diambil` oleh kasir.
+
+#### 1. Konfigurasi Lingkungan (`.env`)
+
+Untuk mengaktifkan pengiriman notifikasi otomatis di produksi:
+```env
+# Saklar utama notifikasi WhatsApp keluar ('true' untuk aktif, default 'false')
+WA_NOTIFIKASI_AKTIF=true
+```
+Di lingkungan pengujian otomatis (`solemate_test`), saklar aktif secara bawaan demi keterujian fitur.
+
+#### 2. Aturan Pengiriman & Privasi (Zero Trust)
+1. **Nomor Tepercaya Saja (FR-25):** Notifikasi hanya dikirim ke nomor yang terverifikasi resmi oleh webhook gateway (`nomor_terverifikasi = true` pada tiket WA) atau nomor yang diketik langsung oleh kasir di toko (`sumber = 'toko'`). Tiket WA dengan nomor tidak terverifikasi ditandai `dilewati` dengan alasan `nomor_tidak_terverifikasi`.
+2. **Kerahasiaan Isi Pesan:** Pesan hanya memuat kode tiket, konfirmasi bahwa sepatu sudah selesai dan siap diambil, serta status pembayaran (`Belum bayar` atau `Lunas`). Pesan **tidak** memuat nama pelanggan, harga cucian, nama toko, alamat, atau jam operasional.
+3. **Pengecekan Nomor Terdaftar di WhatsApp (WAHA):**
+   - Sebelum mengirim, sistem memverifikasi bahwa nomor terdaftar di WhatsApp melalui endpoint WAHA:
+     `GET /api/contacts/check-exists?phone={phone}&session={session}` (Dokumentasi: https://waha.devlike.pro/docs/how-to/contacts/).
+   - Respons yang diharapkan: `{ numberExists: boolean, chatId?: string | null }`.
+   - *Catatan Keamanan:* Karena WAHA saat ini hanya menyediakan metode `GET` untuk pengecekan kontak, nomor telepon berada pada URL query string permintaan ke container WAHA lokal.
+   - Jika nomor dipastikan tidak terdaftar di WhatsApp (`numberExists === false`), baris ditandai `dilewati` (`nomor_tidak_terdaftar_wa`).
+   - Jika endpoint WAHA mengalami galat jaringan, timeout, atau mengembalikan HTTP 5xx, baris ditandai `gagal` sementara (`GATEWAY_CHECK_GAGAL`), **bukan** dianggap nomor tidak terdaftar.
+4. **Idempotensi & Pencegahan Dobel:**
+   - Antrean `wa_notifikasi` memiliki constraint `UNIQUE (order_id, jenis)`.
+   - Transisi status pesanan dan pencatatan antrean berada dalam transaksi database yang sama.
+   - Pengiriman keluar menggunakan klaim atomik (`UPDATE ... WHERE status IN ('menunggu', 'gagal') RETURNING`) sehingga proses serentak atau klik ganda kasir tidak akan menduplikasi pesan.
+   - Koreksi status mundur (misal kembali ke `Diproses`) dan maju kembali ke `Siap diambil` tidak akan memicu pengiriman ganda.
+5. **Penanganan Baris Macet:** Baris yang macet pada status `mengirim` lebih dari 2 menit (misalnya akibat proses server terhenti mendadak) dapat diambil alih dan diproses kembali secara aman oleh pemanggil berikutnya.
+6. **Pembatasan Laju (Rate Limit):**
+   - Batas keluar: maksimal 20 pesan per menit dan 300 pesan per jam.
+   - Jika batas tercapai, baris **tidak** ditandai gagal, melainkan tetap berstatus `menunggu` dengan `kode_galat = 'RATE_LIMIT_TERCAPAI'`. UI kasir menampilkan status "Ditunda karena batas laju".
+7. **Tanpa Pemroses Latar Otomatis (No Background Worker/Cron):**
+   - Tidak ada daemon atau cron otomatis yang melakukan retry pengiriman secara berkala.
+   - Pengiriman ulang dilakukan secara manual oleh kasir melalui tombol "Kirim Ulang Notifikasi" di halaman Detail Tiket.
+8. **Kebijakan Kirim Ulang Kasir:**
+   - Tombol dan endpoint `POST /api/tiket/[id]/notifikasi` hanya diizinkan untuk notifikasi berstatus `gagal`, `menunggu` karena `RATE_LIMIT_TERCAPAI`, atau `dilewati` karena `saklar_mati` (setelah saklar server dinyalakan).
+   - Status `dilewati` dengan alasan `opt_out_pelanggan`, `nomor_tidak_terverifikasi`, dan `nomor_tidak_terdaftar_wa` **dilarang keras** untuk dikirim ulang (tombol disembunyikan di UI dan server menolak dengan HTTP 409).
+9. **Preferensi Pelanggan (Opt-Out):**
+   - Pelanggan dengan nomor terverifikasi dapat mengirimkan pesan WhatsApp `STOP` untuk berhenti menerima notifikasi, atau `MULAI` untuk mengaktifkan kembali.
+   - Pengirim `@lid` yang tidak terpetakan nomornya dan mengetik `STOP` tidak menyentuh data siapa pun (dibalas dengan pesan petunjuk).
+   - Untuk pelanggan tiket toko yang datang langsung (walk-in), kasir dapat mencentang opsi "Jangan kirim notifikasi WhatsApp otomatis ke pelanggan ini" pada form Buat Tiket atau mengubah toggle preferensi di Detail Tiket.
+   - *Catatan Asumsi:* Penerapan notifikasi ke pelanggan toko (FR-25) didasarkan pada asumsi nomor yang dicatat kasir di kasir toko adalah nomor sah milik pelanggan; jika pemilik menginginkan verifikasi tambahan untuk pelanggan walk-in, opsi ini dapat disesuaikan lebih lanjut.
+
+#### 3. Menjalankan Pengujian Otomatis Phase 6B
+
+Pengujian otomatis Phase 6B dijalankan pada database uji `solemate_test` dengan gateway tiruan (`mock`):
+
+```bash
+START_TEST_SERVER=1 node --env-file=.env scripts/with-test-db.mjs --experimental-strip-types --test 'tests/wa-notifikasi-6b.test.mjs'
+```
 
 ## Catatan
 

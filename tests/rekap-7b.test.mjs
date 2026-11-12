@@ -17,7 +17,7 @@ import {
   ambilRekapBulanan,
   ambilLaporanHarian,
 } from "../src/lib/laporan.ts";
-import { hitungPersentaseSatuDesimal } from "../src/config/laporan.ts";
+import { hitungPersentaseSatuDesimal, hitungPersentaseLainnya } from "../src/config/laporan.ts";
 
 const { Pool } = pg;
 const BASE = process.env.BASE_URL ?? "http://localhost:3000";
@@ -720,4 +720,72 @@ test("rekap bulanan lengkap, tes silang 7A, XSS, layanan kembar nonaktif, >10 la
   assert.notEqual(juaraCacatD, s1.id, `Bukti-d: urutan berdasar jumlah tiket memilih service_id=${juaraCacatD}, bukan S1 (${s1.id})`);
   assert.equal(juaraCacatD, s2.id);
   assert.equal(rekap.layanan_terlaris.daftar[0].service_id, s1.id);
+});
+
+// ---------- 5. Pembulatan Naik Top 10 (>100%) Tidak Pernah Membuat Baris "Lainnya" Negatif ----------
+
+test("baris Lainnya tidak pernah negatif saat pembulatan naik pada 11 layanan melampaui 100%", async () => {
+  // Verifikasi fungsi murni: 9 * 10.2 + 8.3 = 100.1% -> tanpa penjagaan menjadi -0.1%
+  assert.equal(
+    hitungPersentaseLainnya([10.2, 10.2, 10.2, 10.2, 10.2, 10.2, 10.2, 10.2, 10.2, 8.3], 266),
+    0
+  );
+
+  // Verifikasi ujung-ke-ujung lewat database pada bulan terisolasi 2025-11:
+  // 9 layanan x 27 psg (10,2%), 1 layanan x 22 psg (8,3%), 1 layanan x 1 psg -> total 266 psg.
+  const suf = `${Date.now()}_nov`;
+  const daftarSvc = [];
+  for (let i = 1; i <= 11; i++) {
+    const resSvc = await api(ownerCookie, "POST", "/api/katalog", {
+      nama: `Svc Bulat ${String(i).padStart(2, "0")} ${suf}`,
+      harga: 20_000,
+      estimasi_hari: 1,
+    });
+    assert.equal(resSvc.res.status, 201);
+    daftarSvc.push(resSvc.data.data);
+  }
+
+  const targetPasang = [27, 27, 27, 27, 27, 27, 27, 27, 27, 22, 1];
+  for (let i = 0; i < 11; i++) {
+    const qty = targetPasang[i];
+    const items =
+      qty > 20
+        ? [
+            { service_id: daftarSvc[i].id, deskripsi_barang: `Batch A ${i}`, jumlah: 20 },
+            { service_id: daftarSvc[i].id, deskripsi_barang: `Batch B ${i}`, jumlah: qty - 20 },
+          ]
+        : [{ service_id: daftarSvc[i].id, deskripsi_barang: `Batch ${i}`, jumlah: qty }];
+
+    const resTiket = await api(kasirCookie, "POST", "/api/tiket", {
+      nama_pelanggan: "Pelanggan Uji Pembulatan",
+      nomor_wa: waUnik08(),
+      status_bayar: "Belum bayar",
+      items,
+    });
+    assert.equal(resTiket.res.status, 201);
+
+    await adminPool.query(`ALTER TABLE orders DISABLE TRIGGER orders_proteksi_update`);
+    await adminPool.query(
+      `UPDATE orders SET tanggal_masuk = '2025-11-15 12:00:00+07'::timestamptz WHERE id = $1`,
+      [resTiket.data.data.id]
+    );
+    await adminPool.query(`ALTER TABLE orders ENABLE TRIGGER orders_proteksi_update`);
+  }
+
+  const rekapNov = await ambilRekapBulanan(
+    { periode: "rentang", dari: "2025-11-01", sampai: "2025-11-30" },
+    appPool
+  );
+  assert.equal(rekapNov.layanan_terlaris.total_pasang, 266);
+  assert.equal(rekapNov.layanan_terlaris.jumlah_layanan_unik, 11);
+  assert.equal(rekapNov.layanan_terlaris.daftar.length, 11); // 10 teratas + Lainnya
+
+  const lainnya = rekapNov.layanan_terlaris.daftar[10];
+  assert.equal(lainnya.adalah_lainnya, true);
+  assert.equal(lainnya.jumlah_pasang, 1);
+  assert.ok(
+    lainnya.persentase_pasang >= 0,
+    `Persentase Lainnya tidak boleh negatif (didapat ${lainnya.persentase_pasang})`
+  );
+  assert.equal(lainnya.persentase_pasang, 0);
 });

@@ -4,6 +4,7 @@
 import Link from "next/link";
 import { requireAuth } from "@/lib/auth.ts";
 import { ambilDataDashboard } from "@/lib/laporan.ts";
+import { hitungGeometriGrafikTren, type GeometriGrafikTren } from "@/lib/grafik-tren.ts";
 import { formatRupiah, formatTanggal } from "@/lib/format.ts";
 import { PageHeader } from "@/components/ui/page-header.tsx";
 import {
@@ -19,6 +20,77 @@ import { Ikon } from "@/components/ikon.tsx";
 import type { StatusPesanan, StatusBayar } from "@/config/status.ts";
 
 export const dynamic = "force-dynamic";
+
+function SvgGrafikTren({ geo }: { geo: GeometriGrafikTren }) {
+  const adalahPonsel = geo.mode === "ponsel";
+  return (
+    <svg
+      viewBox={geo.viewBox}
+      className={adalahPonsel ? "w-full h-52 select-none" : "w-full h-56 select-none"}
+      role="img"
+      aria-label="Grafik tren pesanan 7 hari terakhir"
+    >
+      {/* Garis Grid Horisontal */}
+      {geo.gridLinesY.map((gy) => (
+        <line
+          key={gy}
+          x1={adalahPonsel ? 8 : 20}
+          y1={gy}
+          x2={geo.viewBoxWidth - (adalahPonsel ? 8 : 20)}
+          y2={gy}
+          className="stroke-border-warm"
+          strokeDasharray="3 3"
+        />
+      ))}
+
+      {/* Batang & Label Nilai 7 Hari */}
+      {geo.bars.map((b) => (
+        <g key={b.tanggal}>
+          <text
+            x={b.labelNilai.x}
+            y={b.labelNilai.y}
+            textAnchor="middle"
+            className={`font-outfit ${adalahPonsel ? "text-[10px]" : "text-xs"} font-bold ${
+              b.adalahHariIni ? "fill-primary" : "fill-text-body"
+            }`}
+          >
+            {b.labelNilai.text}
+          </text>
+
+          <rect
+            x={b.x}
+            y={b.y}
+            width={b.width}
+            height={b.height}
+            rx={adalahPonsel ? 4 : 6}
+            className={b.adalahHariIni ? "fill-primary" : "fill-primary-light"}
+          />
+
+          <text
+            x={b.labelTanggal.x}
+            y={b.labelTanggal.y}
+            textAnchor="middle"
+            className={`font-jakarta ${adalahPonsel ? "text-[10px]" : "text-[11px]"} font-semibold ${
+              b.adalahHariIni ? "fill-primary" : "fill-text-muted"
+            }`}
+          >
+            {b.labelTanggal.text}
+          </text>
+          {b.adalahHariIni && (
+            <text
+              x={b.labelTanggal.x}
+              y={geo.yLabelHariIni}
+              textAnchor="middle"
+              className={`font-outfit ${adalahPonsel ? "text-[9px]" : "text-[10px]"} font-bold fill-primary`}
+            >
+              (Hari Ini)
+            </text>
+          )}
+        </g>
+      ))}
+    </svg>
+  );
+}
 
 export default async function DashboardPage() {
   const sesi = await requireAuth();
@@ -147,84 +219,13 @@ export default async function DashboardPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="pt-0">
-            {/* Diagram Batang SVG Responsif */}
-            <div className="w-full overflow-x-auto py-2">
-              <div className="min-w-[500px]">
-                {(() => {
-                  const maksPasang = Math.max(1, ...tren.map((t) => t.jumlah_pasang));
-                  const tinggiGrafik = 140;
-
-                  return (
-                    <svg
-                      viewBox="0 0 700 200"
-                      className="w-full h-48 select-none overflow-visible"
-                    >
-                      {/* Garis Grid Horisontal */}
-                      <line x1="30" y1="20" x2="680" y2="20" className="stroke-border-warm" strokeDasharray="3 3" />
-                      <line x1="30" y1="80" x2="680" y2="80" className="stroke-border-warm" strokeDasharray="3 3" />
-                      <line x1="30" y1="140" x2="680" y2="140" className="stroke-border-warm" strokeDasharray="3 3" />
-
-                      {/* Batang & Nilai 7 Hari */}
-                      {tren.map((t, idx) => {
-                        const x = 50 + idx * 90;
-                        const rasio = t.jumlah_pasang / maksPasang;
-                        const barHeight = Math.max(t.jumlah_pasang > 0 ? 8 : 2, Math.round(rasio * tinggiGrafik));
-                        const y = 140 - barHeight;
-                        const adalahHariIni = idx === tren.length - 1;
-
-                        const formatTgl = formatTanggal(t.tanggal, { ringkas: true });
-
-                        return (
-                          <g key={t.tanggal}>
-                            {/* Teks nilai di atas batang (bukan tooltip) */}
-                            <text
-                              x={x + 22}
-                              y={y - 8}
-                              textAnchor="middle"
-                              className={`font-outfit text-xs font-bold ${
-                                adalahHariIni ? "fill-primary" : "fill-text-body"
-                              }`}
-                            >
-                              {t.jumlah_pasang > 0 ? `${t.jumlah_pasang} psg` : "0"}
-                            </text>
-
-                            {/* Batang Grafis */}
-                            <rect
-                              x={x}
-                              y={y}
-                              width="44"
-                              height={barHeight}
-                              rx="6"
-                              className={adalahHariIni ? "fill-primary" : "fill-primary-light"}
-                            />
-
-                            {/* Label Tanggal Bawah */}
-                            <text
-                              x={x + 22}
-                              y="165"
-                              textAnchor="middle"
-                              className={`font-jakarta text-[11px] font-semibold ${
-                                adalahHariIni ? "fill-primary" : "fill-text-muted"
-                              }`}
-                            >
-                              {formatTgl}
-                            </text>
-                            {adalahHariIni && (
-                              <text
-                                x={x + 22}
-                                y="180"
-                                textAnchor="middle"
-                                className="font-outfit text-[10px] font-bold fill-primary"
-                              >
-                                (Hari Ini)
-                              </text>
-                            )}
-                          </g>
-                        );
-                      })}
-                    </svg>
-                  );
-                })()}
+            {/* Diagram Batang SVG Responsif: mode desktop & mode ponsel sempit ("6 Nov") */}
+            <div className="w-full py-1">
+              <div className="hidden sm:block">
+                <SvgGrafikTren geo={hitungGeometriGrafikTren(tren, { mode: "desktop" })} />
+              </div>
+              <div className="block sm:hidden">
+                <SvgGrafikTren geo={hitungGeometriGrafikTren(tren, { mode: "ponsel" })} />
               </div>
             </div>
           </CardContent>

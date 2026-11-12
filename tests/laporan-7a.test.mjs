@@ -16,6 +16,7 @@ import {
   ambilDataDashboard,
 } from "../src/lib/laporan.ts";
 import { keNominalAman, keJumlahAman } from "../src/config/laporan.ts";
+import { hitungGeometriGrafikTren, formatTanggalGrafik } from "../src/lib/grafik-tren.ts";
 
 const { Pool } = pg;
 const BASE = process.env.BASE_URL ?? "http://localhost:3000";
@@ -621,7 +622,76 @@ test("dashboard SSR: owner melihat grafik tren & label 'tren, bukan laporan hari
   assert.equal(htmlOwner.res.status, 200);
   assert.match(htmlOwner.html, /Tren Pesanan 7 Hari Terakhir/i, "Owner melihat grafik tren 7 hari");
   assert.match(htmlOwner.html, /tren, bukan laporan harian/i, "Wajib ada label 'tren, bukan laporan harian'");
+  assert.match(htmlOwner.html, /Grafik tren pesanan 7 hari terakhir/i);
+  assert.match(htmlOwner.html, /\(Hari Ini\)/);
   assert.match(htmlOwner.html, /Buka Laporan Harian/i);
+});
+
+test("grafik tren geometri murni: label & batang tetap di dalam viewBox, nol aman, nilai besar 500, dan ponsel tidak bertumpuk", () => {
+  const skenario = [
+    {
+      nama: "semua nol",
+      data: [0, 0, 0, 0, 0, 0, 0],
+    },
+    {
+      nama: "satu nilai besar di akhir",
+      data: [0, 0, 0, 0, 0, 0, 12],
+    },
+    {
+      nama: "nilai besar 500 + hari kosong",
+      data: [500, 0, 120, 45, 0, 310, 500],
+    },
+  ];
+
+  for (const s of skenario) {
+    const titik = s.data.map((jumlah_pasang, idx) => ({
+      tanggal: `2026-11-0${idx + 1}`,
+      jumlah_pasang,
+    }));
+
+    for (const mode of ["desktop", "ponsel"]) {
+      const geo = hitungGeometriGrafikTren(titik, { mode });
+      assert.equal(geo.bars.length, 7);
+
+      for (let i = 0; i < geo.bars.length; i++) {
+        const b = geo.bars[i];
+        // Tinggi dan posisi batang sah & di dalam viewBox
+        assert.ok(b.height > 0, `${s.nama} [${mode}]: height bar ${i} harus > 0`);
+        assert.ok(b.y >= 0 && b.y + b.height <= geo.viewBoxHeight, `${s.nama} [${mode}]: bar ${i} di luar viewBox Y`);
+        assert.ok(b.x >= 0 && b.x + b.width <= geo.viewBoxWidth, `${s.nama} [${mode}]: bar ${i} di luar viewBox X`);
+
+        // Label nilai di atas batang tertinggi TIDAK pernah terpotong ke koordinat negatif
+        assert.ok(
+          b.labelNilai.perkiraanAtas >= 0 && b.labelNilai.y < geo.viewBoxHeight,
+          `${s.nama} [${mode}]: label nilai bar ${i} keluar batas atas (${b.labelNilai.perkiraanAtas})`
+        );
+        if (b.jumlahPasang === 0) {
+          assert.equal(b.labelNilai.text, "0", "Hari kosong harus menampilkan 0 tertulis");
+        } else {
+          assert.equal(b.labelNilai.text, `${b.jumlahPasang} psg`);
+        }
+
+        // Label tanggal berada di dalam viewBox dan tidak bertumpuk antar hari berdekatan
+        assert.ok(
+          b.labelTanggal.xKiri >= 0 && b.labelTanggal.xKanan <= geo.viewBoxWidth,
+          `${s.nama} [${mode}]: label tanggal ${i} keluar batas X`
+        );
+        assert.ok(b.labelTanggal.y < geo.viewBoxHeight);
+        if (i > 0) {
+          const prev = geo.bars[i - 1];
+          assert.ok(
+            prev.labelTanggal.xKanan < b.labelTanggal.xKiri,
+            `${s.nama} [${mode}]: label tanggal ${i - 1} (${prev.labelTanggal.xKanan}) menimpa ${i} (${b.labelTanggal.xKiri})`
+          );
+        }
+      }
+      assert.ok(geo.yLabelHariIni < geo.viewBoxHeight);
+    }
+  }
+
+  // Verifikasi format pendek "6 Nov" untuk mode ponsel vs lengkap untuk desktop
+  assert.equal(formatTanggalGrafik("2026-11-06", "ponsel"), "6 Nov");
+  assert.equal(formatTanggalGrafik("2026-11-06", "desktop"), "6 Nov 2026");
 });
 
 test("konversi aman: keNominalAman & keJumlahAman melempar galat jika di luar batas aman JavaScript", () => {

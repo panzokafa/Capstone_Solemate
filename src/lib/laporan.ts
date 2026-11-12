@@ -16,6 +16,7 @@ import {
   TEKS_CATATAN_PEMBULATAN_LAYANAN,
   TEKS_LABA_RUGI_BELUM_TERSEDIA,
   hitungPersentaseSatuDesimal,
+  hitungPersentaseLainnya,
   keNominalAman,
   keJumlahAman,
 } from "../config/laporan.ts";
@@ -674,13 +675,11 @@ export async function ambilRekapBulanan(
     const sisa = semuaBaris.slice(MAKS_LAYANAN_TERLARIS);
     const sisaPasang = sisa.reduce((acc, item) => acc + item.jumlah_pasang, 0);
     const sisaNominal = sisa.reduce((acc, item) => acc + item.total_nominal, 0);
-    // Serap selisih pembulatan dari 100,0% di baris Lainnya agar total persentase tepat 100,0%
-    const totalTenthsTop10 = daftarTerbatas.reduce(
-      (acc, item) => acc + Math.round(item.persentase_pasang * 10),
-      0
+    // Serap selisih pembulatan dari 100,0% di baris Lainnya, dijaga minimal 0,0% (tidak pernah negatif)
+    const persentaseLainnya = hitungPersentaseLainnya(
+      daftarTerbatas.map((item) => item.persentase_pasang),
+      totalPasang
     );
-    const persentaseLainnya =
-      totalPasang > 0 ? Math.max(0, 1000 - totalTenthsTop10) / 10 : 0;
 
     daftarTerbatas.push({
       peringkat: null,

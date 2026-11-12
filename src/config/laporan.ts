@@ -42,7 +42,7 @@ export const TEKS_DISCLAIMER_LAPORAN =
   "Angka dihitung dari data tiket saat ini; perubahan setelah periode berlalu dapat menggeser angka hari lampau.";
 
 export const TEKS_CATATAN_PEMBULATAN_LAYANAN =
-  "Persentase dihitung terhadap total pasang masuk (1 desimal). Jika terdapat lebih dari 10 layanan, baris Lainnya menyerap selisih pembulatan agar jumlah seluruh porsi tepat 100,0%.";
+  "Persentase dihitung terhadap total pasang masuk (1 desimal). Jika terdapat lebih dari 10 layanan, baris Lainnya menyerap selisih pembulatan agar total mencapai 100,0% (dijaga minimal 0,0%, tidak pernah negatif).";
 
 /**
  * Hitung persentase dengan pembulatan 1 angka di belakang koma.
@@ -51,6 +51,22 @@ export const TEKS_CATATAN_PEMBULATAN_LAYANAN =
 export function hitungPersentaseSatuDesimal(bagian: number, total: number): number {
   if (!Number.isFinite(total) || total <= 0) return 0;
   return Math.round((bagian * 1000) / total) / 10;
+}
+
+/**
+ * Hitung persentase baris "Lainnya" (>10 layanan) sehingga tidak pernah bernilai negatif
+ * apabila pembulatan naik pada 10 layanan teratas sudah mencapai atau sedikit melampaui 100,0%.
+ */
+export function hitungPersentaseLainnya(
+  daftarPersentaseTop: readonly number[],
+  totalPasang: number
+): number {
+  if (!Number.isFinite(totalPasang) || totalPasang <= 0) return 0;
+  const totalTenthsTop = daftarPersentaseTop.reduce(
+    (acc, p) => acc + Math.round((Number.isFinite(p) && p >= 0 ? p : 0) * 10),
+    0
+  );
+  return Math.max(0, 1000 - totalTenthsTop) / 10;
 }
 
 /**

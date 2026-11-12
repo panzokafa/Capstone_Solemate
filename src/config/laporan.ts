@@ -11,8 +11,14 @@ export const MAKS_RENTANG_HARI_LAPORAN = 366;
 export const JUMLAH_HARI_TREN_DASHBOARD = 7;
 export const JUMLAH_TIKET_TERBARU_DASHBOARD = 5;
 
+export const PERIODE_REKAP_BULANAN = ["bulan_ini", "bulan_lalu", "rentang"] as const;
+export type PeriodeRekapBulanan = (typeof PERIODE_REKAP_BULANAN)[number];
+export const MAKS_LAYANAN_TERLARIS = 10;
+export const TEKS_LABA_RUGI_BELUM_TERSEDIA =
+  "Belum tersedia: sumber data pengeluaran belum ditentukan";
+
 /**
- * Catatan Asumsi & Keterbatasan Metrik (Phase 7A - Perlu Dikonfirmasi Pemilik Toko):
+ * Catatan Asumsi & Keterbatasan Metrik (Phase 7A & 7B - Perlu Dikonfirmasi Pemilik Toko):
  * 1. Pesanan Masuk: Dihitung menurut tanggal_masuk (WIB) pada periode dan bukan Dibatalkan.
  *    Volume fisik sepatu dihitung per pasang (SUM(order_items.jumlah)), bukan per tiket atau baris item.
  * 2. Pembayaran Diterima: Dihitung menurut tanggal_bayar (WIB) pada periode untuk tiket Lunas yang
@@ -20,9 +26,13 @@ export const JUMLAH_TIKET_TERBARU_DASHBOARD = 5;
  * 3. Pembatalan & Pembalikan:
  *    - Jumlah tiket dibatalkan pada periode dihitung dari audit_logs aksi 'BATALKAN_TIKET'.
  *    - Tiket dibatalkan setelah sempat Lunas dihitung dari audit BATALKAN_TIKET yang nilai_lama->>'status_bayar' = 'Lunas'.
- *      Tidak ada pengembalian uang di dalam sistem (tidak menampilkan nominal uang).
+ *      Hanya menghitung jumlah tiket yang sempat Lunas lalu dibatalkan (tanpa nominal).
  *    - Pembalikan pembayaran dihitung dari audit 'UBAH_PEMBAYARAN' (dari Lunas ke Belum bayar).
- * 4. Keterbatasan Keadaan Sekarang (Live State vs Snapshot):
+ * 4. Layanan Terlaris (Rekap Bulanan): Dikelompokkan per service_id menggunakan nama layanan saat ini
+ *    dan nominal dari order_items.harga_saat_transaksi. Persentase memakai pembulatan 1 desimal
+ *    dari total pasang masuk (0 bila total pasang nol); bila lebih dari 10 layanan, baris "Lainnya"
+ *    menyerap selisih pembulatan dari 100,0% agar total persentase tepat 100,0%.
+ * 5. Keterbatasan Keadaan Sekarang (Live State vs Snapshot):
  *    Laporan dihitung dari data tiket saat ini (bukan snapshot pembekuan saat tutup toko).
  *    Perubahan setelah periode berlalu (seperti tiket kemarin yang baru dilunasi atau dibatalkan hari ini)
  *    dapat menggeser rincian status pada periode lampau. Sebaliknya, perubahan harga layanan di katalog
@@ -30,6 +40,18 @@ export const JUMLAH_TIKET_TERBARU_DASHBOARD = 5;
  */
 export const TEKS_DISCLAIMER_LAPORAN =
   "Angka dihitung dari data tiket saat ini; perubahan setelah periode berlalu dapat menggeser angka hari lampau.";
+
+export const TEKS_CATATAN_PEMBULATAN_LAYANAN =
+  "Persentase dihitung terhadap total pasang masuk (1 desimal). Jika terdapat lebih dari 10 layanan, baris Lainnya menyerap selisih pembulatan agar jumlah seluruh porsi tepat 100,0%.";
+
+/**
+ * Hitung persentase dengan pembulatan 1 angka di belakang koma.
+ * Mengembalikan 0 jika total <= 0 untuk mencegah NaN.
+ */
+export function hitungPersentaseSatuDesimal(bagian: number, total: number): number {
+  if (!Number.isFinite(total) || total <= 0) return 0;
+  return Math.round((bagian * 1000) / total) / 10;
+}
 
 /**
  * Konversi nilai agregat database (bigint/string dari pg) ke angka number JavaScript secara aman.

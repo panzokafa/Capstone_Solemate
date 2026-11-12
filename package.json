@@ -23,7 +23,8 @@
     "test:wa-6a": "START_TEST_SERVER=1 node --env-file=.env scripts/with-test-db.mjs --experimental-strip-types --test 'tests/wa-bot-6a.test.mjs'",
     "test:wa-6b": "START_TEST_SERVER=1 node --env-file=.env scripts/with-test-db.mjs --experimental-strip-types --test 'tests/wa-notifikasi-6b.test.mjs'",
     "test:laporan-7a": "START_TEST_SERVER=1 node --env-file=.env scripts/with-test-db.mjs --experimental-strip-types --test 'tests/laporan-7a.test.mjs'",
-    "test": "npm run test:ui; a=$?; npm run test:db; b=$?; npm run test:auth; c=$?; npm run test:katalog; d=$?; npm run test:tiket; e=$?; npm run test:tiket-5b; f=$?; npm run test:wa-6a; g=$?; npm run test:wa-6b; h=$?; npm run test:laporan-7a; i=$?; exit $((a || b || c || d || e || f || g || h || i))"
+    "test:rekap-7b": "START_TEST_SERVER=1 node --env-file=.env scripts/with-test-db.mjs --experimental-strip-types --test 'tests/rekap-7b.test.mjs'",
+    "test": "npm run test:ui; a=$?; npm run test:db; b=$?; npm run test:auth; c=$?; npm run test:katalog; d=$?; npm run test:tiket; e=$?; npm run test:tiket-5b; f=$?; npm run test:wa-6a; g=$?; npm run test:wa-6b; h=$?; npm run test:laporan-7a; i=$?; npm run test:rekap-7b; j=$?; exit $((a || b || c || d || e || f || g || h || i || j))"
   },
   "dependencies": {
     "argon2": "^0.45.1",

@@ -385,7 +385,7 @@ export function LaporanHarianClient({ data, galatQuery }: LaporanHarianClientPro
                 <span className="text-xs text-text-muted">Tiket</span>
               </div>
               <span className="text-[11px] text-text-muted mt-1">
-                Uang dikembalikan di luar sistem
+                Tiket yang sudah dibayar lalu dibatalkan
               </span>
             </div>
 
@@ -398,7 +398,7 @@ export function LaporanHarianClient({ data, galatQuery }: LaporanHarianClientPro
                 <span className="text-xs text-text-muted">Kali</span>
               </div>
               <span className="text-[11px] text-text-muted mt-1">
-                Koreksi status Lunas $\rightarrow$ Belum bayar
+                Koreksi status Lunas → Belum bayar
               </span>
             </div>
           </div>

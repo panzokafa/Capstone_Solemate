@@ -155,6 +155,8 @@ test("otorisasi: kasir ditolak 403 pada API & halaman laporan, tanpa login diara
   assert.match(ownerHalaman.html, /Dihitung otomatis dari data tiket/i);
   assert.match(ownerHalaman.html, /Hanya-baca/i);
   assert.match(ownerHalaman.html, /Angka dihitung dari data tiket saat ini/i);
+  assert.match(ownerHalaman.html, /Tiket yang sudah dibayar lalu dibatalkan/i);
+  assert.doesNotMatch(ownerHalaman.html, /dikembalikan/i);
 });
 
 test("keamanan rute: endpoint laporan hanya-baca (POST/PATCH/DELETE ditolak) & header Cache-Control no-store", async () => {
@@ -237,18 +239,13 @@ test("validasi parameter query: tolak parameter asing, duplikat, tanggal tidak v
   }
 });
 
-// ---------- 2. Fixture Nyata & Hitungan Angka Manual ----------
+// ---------- 2. Fixture Tanggal Tetap Masa Lalu & Hitungan Angka Manual ----------
 
-test("laporan harian operasional: hitungan manual vs SQL agregat pada tiket multi-barang, lunas/belum, dibatalkan, dibalik, dan beda tanggal bayar", async () => {
-  // Ambil tanggal hari ini dan kemarin dari jam database zona Asia/Jakarta
-  const waktuDbRes = await adminPool.query(`
-    SELECT
-      (now() AT TIME ZONE 'Asia/Jakarta')::date::text AS hari_ini_db,
-      ((now() AT TIME ZONE 'Asia/Jakarta')::date - 1)::text AS kemarin_db,
-      ((now() AT TIME ZONE 'Asia/Jakarta')::date + 1)::text AS besok_db
-  `);
-  const { hari_ini_db, kemarin_db, besok_db } = waktuDbRes.rows[0];
+const TGL_UJI = "2026-10-15";
+const TGL_KEMARIN_UJI = "2026-10-14";
+const TGL_BESOK_UJI = "2026-10-16";
 
+test("laporan harian operasional: hitungan manual vs SQL agregat pada tanggal tetap masa lalu (deterministik 24 jam)", async () => {
   // Helper membuat tiket via API nyata
   async function buatTiket(params) {
     const { res, data } = await api(kasirCookie, "POST", "/api/tiket", {
@@ -262,13 +259,33 @@ test("laporan harian operasional: hitungan manual vs SQL agregat pada tiket mult
     return data.data;
   }
 
-  // --- Fixture 1: Tiket Multi-barang (Hari Ini, Lunas Cash) ---
-  // Layanan 1: 2 pasang x harga1
-  // Layanan 2: 3 pasang x harga2
-  // Total: 5 pasang
+  // Helper khusus admin untuk mengatur timestamp historis deterministik pada DB uji
+  async function setWaktuTiketAdmin(orderId, tglMasukWib, tglBayarWib) {
+    await adminPool.query(`ALTER TABLE orders DISABLE TRIGGER orders_proteksi_update`);
+    await adminPool.query(
+      `UPDATE orders
+          SET tanggal_masuk = $1::timestamptz,
+              tanggal_bayar = COALESCE($2::timestamptz, tanggal_bayar)
+        WHERE id = $3`,
+      [tglMasukWib, tglBayarWib ?? null, orderId]
+    );
+    await adminPool.query(`ALTER TABLE orders ENABLE TRIGGER orders_proteksi_update`);
+  }
+
+  async function setWaktuAuditAdmin(orderId, aksi, waktuWib) {
+    await adminPool.query(`ALTER TABLE audit_logs DISABLE TRIGGER audit_blokir_update`);
+    await adminPool.query(
+      `UPDATE audit_logs SET waktu = $1::timestamptz
+        WHERE entitas = 'orders' AND entitas_id = $2 AND aksi = $3`,
+      [waktuWib, orderId, aksi]
+    );
+    await adminPool.query(`ALTER TABLE audit_logs ENABLE TRIGGER audit_blokir_update`);
+  }
+
+  // --- Fixture 1: Tiket Multi-barang (2026-10-15 10:00 WIB, Lunas Cash) ---
   const h1 = layanan1.harga;
   const h2 = layanan2.harga;
-  await buatTiket({
+  const t1 = await buatTiket({
     status_bayar: "Lunas",
     metode_bayar: "Cash",
     items: [
@@ -276,46 +293,34 @@ test("laporan harian operasional: hitungan manual vs SQL agregat pada tiket mult
       { service_id: layanan2.id, deskripsi_barang: "Boots Kulit", jumlah: 3 },
     ],
   });
+  await setWaktuTiketAdmin(t1.id, `${TGL_UJI} 10:00:00+07`, `${TGL_UJI} 10:00:00+07`);
   const t1_pasang = 5;
   const t1_nominal = 2 * h1 + 3 * h2;
 
-  // --- Fixture 2: Tiket Single-barang (Hari Ini, Lunas Non-cash) ---
-  // Layanan 1: 1 pasang x harga1
-  await buatTiket({
+  // --- Fixture 2: Tiket Single-barang (2026-10-15 14:00 WIB, Lunas Non-cash) ---
+  const t2 = await buatTiket({
     status_bayar: "Lunas",
     metode_bayar: "Non-cash",
     items: [
       { service_id: layanan1.id, deskripsi_barang: "Slip-on Putih", jumlah: 1 },
     ],
   });
+  await setWaktuTiketAdmin(t2.id, `${TGL_UJI} 14:00:00+07`, `${TGL_UJI} 14:00:00+07`);
   const t2_pasang = 1;
   const t2_nominal = 1 * h1;
 
-  // Helper khusus admin untuk mengatur tanggal_masuk pada fixture tanggal lampau/depan di DB uji
-  async function setTanggalMasukAdmin(orderId, tglWibString) {
-    await adminPool.query(`ALTER TABLE orders DISABLE TRIGGER orders_proteksi_update`);
-    await adminPool.query(
-      `UPDATE orders SET tanggal_masuk = $1::timestamptz WHERE id = $2`,
-      [tglWibString, orderId]
-    );
-    await adminPool.query(`ALTER TABLE orders ENABLE TRIGGER orders_proteksi_update`);
-  }
-
-  // --- Fixture 3: Tiket Multi-barang Batas Waktu 00:01:00 WIB Hari Ini ---
-  // Masuk 1 menit setelah tengah malam WIB (tanggal berbeda di UTC dan WIB).
-  // Di WIB: tanggal hari ini (${hari_ini_db}). Di UTC: tanggal kemarin (${kemarin_db} 17:01:00Z).
+  // --- Fixture 3: Tiket Batas Waktu 00:01:00 WIB (2026-10-15 00:01 WIB = 2026-10-14 17:01 UTC) ---
   const t3 = await buatTiket({
     status_bayar: "Belum bayar",
     items: [
       { service_id: layanan2.id, deskripsi_barang: "Running Shoes", jumlah: 2 },
     ],
   });
-  await setTanggalMasukAdmin(t3.id, `${hari_ini_db} 00:01:00+07`);
+  await setWaktuTiketAdmin(t3.id, `${TGL_UJI} 00:01:00+07`);
   const t3_pasang = 2;
   const t3_nominal = 2 * h2;
 
-  // --- Fixture 4: Tiket Dibatalkan Sebelum Lunas (Hari Ini) ---
-  // Masuk hari ini lalu dibatalkan. Wajib DIKECUALIKAN dari pesanan masuk & pembayaran!
+  // --- Fixture 4: Tiket Dibatalkan Sebelum Lunas (2026-10-15 11:00 WIB) ---
   const t4 = await buatTiket({
     status_bayar: "Belum bayar",
     items: [
@@ -328,10 +333,10 @@ test("laporan harian operasional: hitungan manual vs SQL agregat pada tiket mult
     status_sebelumnya: "Belum dicuci",
   });
   assert.equal(batalT4.res.status, 200, "Batal T4 harus 200");
+  await setWaktuTiketAdmin(t4.id, `${TGL_UJI} 11:00:00+07`);
+  await setWaktuAuditAdmin(t4.id, "BATALKAN_TIKET", `${TGL_UJI} 11:05:00+07`);
 
-  // --- Fixture 5: Tiket Sempat Lunas Lalu Dibatalkan (Hari Ini) ---
-  // Dibayar lunas Cash, lalu dibatalkan dengan konfirmasi lunas.
-  // Wajib DIKECUALIKAN dari a-c, tapi tercatat di audit tiket_batal_setelah_lunas (jumlah saja).
+  // --- Fixture 5: Tiket Sempat Lunas Lalu Dibatalkan (2026-10-15 11:30 WIB) ---
   const t5 = await buatTiket({
     status_bayar: "Lunas",
     metode_bayar: "Cash",
@@ -346,10 +351,10 @@ test("laporan harian operasional: hitungan manual vs SQL agregat pada tiket mult
     status_sebelumnya: "Belum dicuci",
   });
   assert.equal(batalT5.res.status, 200, "Batal T5 harus 200");
+  await setWaktuTiketAdmin(t5.id, `${TGL_UJI} 11:30:00+07`, `${TGL_UJI} 11:31:00+07`);
+  await setWaktuAuditAdmin(t5.id, "BATALKAN_TIKET", `${TGL_UJI} 11:35:00+07`);
 
-  // --- Fixture 6: Pembalikan Pembayaran Lunas -> Belum bayar (Hari Ini) ---
-  // Dibayar Lunas, lalu dibalik ke Belum bayar dengan alasan.
-  // Masuk pesanan hari ini sebagai Belum bayar, tercatat di audit pembalikan_pembayaran.
+  // --- Fixture 6: Pembalikan Pembayaran Lunas -> Belum bayar (2026-10-15 12:00 WIB) ---
   const t6 = await buatTiket({
     status_bayar: "Lunas",
     metode_bayar: "Cash",
@@ -364,20 +369,18 @@ test("laporan harian operasional: hitungan manual vs SQL agregat pada tiket mult
     status_sebelumnya: "Lunas",
   });
   assert.equal(balikT6.res.status, 200, "Pembalikan bayar T6 harus 200");
+  await setWaktuTiketAdmin(t6.id, `${TGL_UJI} 12:00:00+07`);
+  await setWaktuAuditAdmin(t6.id, "UBAH_PEMBAYARAN", `${TGL_UJI} 12:05:00+07`);
   const t6_pasang = 1;
   const t6_nominal = 1 * h1;
 
-  // --- Fixture 7: Tiket Masuk Kemarin tapi Dibayar Hari Ini (Non-cash) ---
-  // Masuk kemarin (diatur via SQL admin), dibayar hari ini via API PATCH.
-  // Pesanan masuk masuk ke laporan kemarin, Pembayaran diterima masuk ke laporan hari ini!
+  // --- Fixture 7: Tiket Masuk Kemarin (2026-10-14 10:00 WIB) tapi Dibayar pada 2026-10-15 (Non-cash) ---
   const t7 = await buatTiket({
     status_bayar: "Belum bayar",
     items: [
       { service_id: layanan2.id, deskripsi_barang: "Sepatu Kemarin", jumlah: 2 },
     ],
   });
-  await setTanggalMasukAdmin(t7.id, `${kemarin_db} 10:00:00+07`);
-  // Bayar hari ini
   const bayarT7 = await api(kasirCookie, "PATCH", `/api/tiket/${t7.id}`, {
     jenis: "pembayaran",
     status_bayar: "Lunas",
@@ -385,56 +388,48 @@ test("laporan harian operasional: hitungan manual vs SQL agregat pada tiket mult
     status_sebelumnya: "Belum bayar",
   });
   assert.equal(bayarT7.res.status, 200, "Bayar T7 harus 200");
+  await setWaktuTiketAdmin(t7.id, `${TGL_KEMARIN_UJI} 10:00:00+07`, `${TGL_UJI} 09:00:00+07`);
   const t7_pasang = 2;
   const t7_nominal = 2 * h2;
 
-  // --- Fixture 8: Tiket Batas Waktu 23:59:00 WIB Hari Ini ---
-  // Masuk 1 menit sebelum pergantian hari WIB
+  // --- Fixture 8: Tiket Batas Waktu 23:59:00 WIB (2026-10-15 23:59 WIB = 2026-10-15 16:59 UTC) ---
   const t8 = await buatTiket({
     status_bayar: "Belum bayar",
     items: [
       { service_id: layanan1.id, deskripsi_barang: "Sepatu Malam WIB", jumlah: 1 },
     ],
   });
-  await setTanggalMasukAdmin(t8.id, `${hari_ini_db} 23:59:00+07`);
+  await setWaktuTiketAdmin(t8.id, `${TGL_UJI} 23:59:00+07`);
   const t8_pasang = 1;
   const t8_nominal = 1 * h1;
 
-  // --- Fixture 9: Tiket Batas Waktu Besok Siang WIB ---
-  // Masuk besok siang di kedua zona (kohort besok)
+  // --- Fixture 9: Tiket Batas Waktu Besok Siang WIB (2026-10-16 12:00 WIB) ---
   const t9 = await buatTiket({
     status_bayar: "Belum bayar",
     items: [
       { service_id: layanan1.id, deskripsi_barang: "Sepatu Besok WIB", jumlah: 1 },
     ],
   });
-  await setTanggalMasukAdmin(t9.id, `${besok_db} 12:00:00+07`);
+  await setWaktuTiketAdmin(t9.id, `${TGL_BESOK_UJI} 12:00:00+07`);
 
   // --- Fixture 10: Bukti Harga Katalog Berubah Tidak Mengubah Tiket Lama ---
-  // Perbarui harga layanan1 di katalog menjadi 2x lipat
   await adminPool.query(`UPDATE services SET harga = harga + 20000 WHERE id = $1`, [layanan1.id]);
 
-  // HITUNGAN MANUAL KONSTANTA EKSPEKTASI:
-  // Pesanan masuk HARI INI (aktif & bukan dibatalkan):
-  // Yang sah masuk hari ini: T1, T2, T3, T6, T8. (T4 & T5 batal; T7 kemarin; T9 besok)
+  // HITUNGAN MANUAL KONSTANTA EKSPEKTASI (pada tanggal tetap 2026-10-15):
+  // Pesanan masuk 2026-10-15 (aktif & bukan dibatalkan): T1, T2, T3, T6, T8.
   const EXPECT_TIKET_MASUK = 5;
-  const EXPECT_PASANG_MASUK = t1_pasang + t2_pasang + t3_pasang + t6_pasang + t8_pasang; // 5 + 1 + 2 + 1 + 1 = 10
+  const EXPECT_PASANG_MASUK = t1_pasang + t2_pasang + t3_pasang + t6_pasang + t8_pasang; // 10
   const EXPECT_NOMINAL_MASUK = t1_nominal + t2_nominal + t3_nominal + t6_nominal + t8_nominal;
 
-  // Dari pesanan masuk hari ini:
-  // Lunas: T1 (Cash), T2 (Non-cash)
   const EXPECT_TIKET_LUNAS = 2;
-  const EXPECT_PASANG_LUNAS = t1_pasang + t2_pasang; // 5 + 1 = 6
+  const EXPECT_PASANG_LUNAS = t1_pasang + t2_pasang; // 6
   const EXPECT_NOMINAL_LUNAS = t1_nominal + t2_nominal;
 
-  // Belum bayar: T3, T6, T8
   const EXPECT_TIKET_BELUM = 3;
-  const EXPECT_PASANG_BELUM = t3_pasang + t6_pasang + t8_pasang; // 2 + 1 + 1 = 4
+  const EXPECT_PASANG_BELUM = t3_pasang + t6_pasang + t8_pasang; // 4
   const EXPECT_NOMINAL_BELUM = t3_nominal + t6_nominal + t8_nominal;
 
-  // Pembayaran diterima HARI INI (kohort tanggal_bayar hari ini untuk tiket lunas aktif):
-  // T1 (Cash, hari ini), T2 (Non-cash, hari ini), T7 (Non-cash, masuk kemarin tapi bayar hari ini!)
-  // (T5 sudah dibatalkan, T6 dibalik jadi tanggal_bayar NULL)
+  // Pembayaran diterima tanggal 2026-10-15 (T1, T2, T7)
   const EXPECT_BAYAR_TIKET = 3;
   const EXPECT_BAYAR_NOMINAL = t1_nominal + t2_nominal + t7_nominal;
   const EXPECT_CASH_TIKET = 1;
@@ -442,95 +437,89 @@ test("laporan harian operasional: hitungan manual vs SQL agregat pada tiket mult
   const EXPECT_NON_CASH_TIKET = 2;
   const EXPECT_NON_CASH_NOMINAL = t2_nominal + t7_nominal;
 
-  // Aktivitas Audit hari ini:
-  // Tiket dibatalkan: T4, T5 = 2
-  // Batal setelah sempat lunas: T5 = 1 (tanpa nominal)
-  // Pembalikan pembayaran: T6 = 1
+  // Aktivitas Audit 2026-10-15 (T4, T5 dibatalkan; T5 sempat Lunas; T6 dibalik)
   const EXPECT_AUDIT_BATAL = 2;
   const EXPECT_AUDIT_BATAL_SEMPAT_LUNAS = 1;
   const EXPECT_AUDIT_PEMBALIKAN = 1;
 
-  // Panggil kode produksi ambilLaporanHarian untuk Hari Ini
-  const lapHariIni = await ambilLaporanHarian({
-    periode: "hari_ini",
-    dari: "",
-    sampai: "",
+  // Panggil kode produksi ambilLaporanHarian via periode rentang ke tanggal tetap TGL_UJI
+  const lapUji = await ambilLaporanHarian({
+    periode: "rentang",
+    dari: TGL_UJI,
+    sampai: TGL_UJI,
   }, appPool);
 
-  // Penegasan Hasil Kode Produksi vs Konstanta Hitungan Manual
-  assert.equal(lapHariIni.pesanan_masuk.total_tiket, EXPECT_TIKET_MASUK, "Total tiket masuk hari ini");
-  assert.equal(lapHariIni.pesanan_masuk.total_pasang, EXPECT_PASANG_MASUK, "Total pasang masuk hari ini");
-  assert.equal(lapHariIni.pesanan_masuk.total_nominal, EXPECT_NOMINAL_MASUK, "Total nominal masuk hari ini");
+  assert.equal(lapUji.pesanan_masuk.total_tiket, EXPECT_TIKET_MASUK);
+  assert.equal(lapUji.pesanan_masuk.total_pasang, EXPECT_PASANG_MASUK);
+  assert.equal(lapUji.pesanan_masuk.total_nominal, EXPECT_NOMINAL_MASUK);
 
-  assert.equal(lapHariIni.pesanan_masuk.lunas.total_tiket, EXPECT_TIKET_LUNAS, "Tiket lunas hari ini");
-  assert.equal(lapHariIni.pesanan_masuk.lunas.total_pasang, EXPECT_PASANG_LUNAS, "Pasang lunas hari ini");
-  assert.equal(lapHariIni.pesanan_masuk.lunas.total_nominal, EXPECT_NOMINAL_LUNAS, "Nominal lunas hari ini");
+  assert.equal(lapUji.pesanan_masuk.lunas.total_tiket, EXPECT_TIKET_LUNAS);
+  assert.equal(lapUji.pesanan_masuk.lunas.total_pasang, EXPECT_PASANG_LUNAS);
+  assert.equal(lapUji.pesanan_masuk.lunas.total_nominal, EXPECT_NOMINAL_LUNAS);
 
-  assert.equal(lapHariIni.pesanan_masuk.belum_bayar.total_tiket, EXPECT_TIKET_BELUM, "Tiket belum bayar hari ini");
-  assert.equal(lapHariIni.pesanan_masuk.belum_bayar.total_pasang, EXPECT_PASANG_BELUM, "Pasang belum bayar hari ini");
-  assert.equal(lapHariIni.pesanan_masuk.belum_bayar.total_nominal, EXPECT_NOMINAL_BELUM, "Nominal belum bayar hari ini");
+  assert.equal(lapUji.pesanan_masuk.belum_bayar.total_tiket, EXPECT_TIKET_BELUM);
+  assert.equal(lapUji.pesanan_masuk.belum_bayar.total_pasang, EXPECT_PASANG_BELUM);
+  assert.equal(lapUji.pesanan_masuk.belum_bayar.total_nominal, EXPECT_NOMINAL_BELUM);
 
-  assert.equal(lapHariIni.pembayaran_diterima.total_tiket, EXPECT_BAYAR_TIKET, "Total tiket bayar hari ini");
-  assert.equal(lapHariIni.pembayaran_diterima.total_nominal, EXPECT_BAYAR_NOMINAL, "Total nominal bayar hari ini");
-  assert.equal(lapHariIni.pembayaran_diterima.cash.total_tiket, EXPECT_CASH_TIKET, "Tiket cash hari ini");
-  assert.equal(lapHariIni.pembayaran_diterima.cash.total_nominal, EXPECT_CASH_NOMINAL, "Nominal cash hari ini");
-  assert.equal(lapHariIni.pembayaran_diterima.non_cash.total_tiket, EXPECT_NON_CASH_TIKET, "Tiket non-cash hari ini");
-  assert.equal(lapHariIni.pembayaran_diterima.non_cash.total_nominal, EXPECT_NON_CASH_NOMINAL, "Nominal non-cash hari ini");
+  assert.equal(lapUji.pembayaran_diterima.total_tiket, EXPECT_BAYAR_TIKET);
+  assert.equal(lapUji.pembayaran_diterima.total_nominal, EXPECT_BAYAR_NOMINAL);
+  assert.equal(lapUji.pembayaran_diterima.cash.total_tiket, EXPECT_CASH_TIKET);
+  assert.equal(lapUji.pembayaran_diterima.cash.total_nominal, EXPECT_CASH_NOMINAL);
+  assert.equal(lapUji.pembayaran_diterima.non_cash.total_tiket, EXPECT_NON_CASH_TIKET);
+  assert.equal(lapUji.pembayaran_diterima.non_cash.total_nominal, EXPECT_NON_CASH_NOMINAL);
 
-  assert.equal(lapHariIni.audit_aktivitas.tiket_dibatalkan, EXPECT_AUDIT_BATAL, "Tiket dibatalkan audit");
-  assert.equal(lapHariIni.audit_aktivitas.tiket_batal_setelah_lunas, EXPECT_AUDIT_BATAL_SEMPAT_LUNAS, "Batal sempat lunas audit");
-  assert.equal(lapHariIni.audit_aktivitas.pembalikan_pembayaran, EXPECT_AUDIT_PEMBALIKAN, "Pembalikan bayar audit");
+  assert.equal(lapUji.audit_aktivitas.tiket_dibatalkan, EXPECT_AUDIT_BATAL);
+  assert.equal(lapUji.audit_aktivitas.tiket_batal_setelah_lunas, EXPECT_AUDIT_BATAL_SEMPAT_LUNAS);
+  assert.equal(lapUji.audit_aktivitas.pembalikan_pembayaran, EXPECT_AUDIT_PEMBALIKAN);
 
-  // Periksa laporan periode kemarin: T7 harus tercatat di pesanan masuk kemarin
+  // Periksa tanggal kemarin uji (TGL_KEMARIN_UJI): T7 masuk di pesanan kemarin
   const lapKemarin = await ambilLaporanHarian({
-    periode: "kemarin",
-    dari: "",
-    sampai: "",
+    periode: "rentang",
+    dari: TGL_KEMARIN_UJI,
+    sampai: TGL_KEMARIN_UJI,
   }, appPool);
-  assert.ok(lapKemarin.pesanan_masuk.total_pasang >= t7_pasang, "T7 harus masuk ke laporan kemarin");
+  assert.equal(lapKemarin.pesanan_masuk.total_tiket, 1, "T7 masuk di kohort kemarin");
+  assert.equal(lapKemarin.pesanan_masuk.total_pasang, t7_pasang);
 });
 
-// ---------- 3. Bukti Gagal-Lalu-Lulus via Kueri Pembanding Independen ----------
+// ---------- 3. Bukti Gagal-Lalu-Lulus via Kueri Pembanding Independen (Tanggal Tetap) ----------
 
 test("bukti gagal-lalu-lulus 1: kueri salah hitung per tiket menghasilkan angka salah pada tiket multi-barang, kode produksi benar", async () => {
-  // KUERI PEMBANDING CACAT: Menghitung COUNT(orders.id) sebagai jumlah barang/sepatu
-  const kueriSalah = await appPool.query(`
-    SELECT COUNT(o.id)::int AS total_barang_cacat
-    FROM orders o
-    WHERE o.status_pesanan <> 'Dibatalkan'
-      AND o.tanggal_masuk >= ((now() AT TIME ZONE 'Asia/Jakarta')::date::text || ' 00:00:00+07')::timestamptz
-      AND o.tanggal_masuk < (((now() AT TIME ZONE 'Asia/Jakarta')::date + 1)::text || ' 00:00:00+07')::timestamptz
-  `);
+  const kueriSalah = await appPool.query(
+    `SELECT COUNT(o.id)::int AS total_barang_cacat
+     FROM orders o
+     WHERE o.status_pesanan <> 'Dibatalkan'
+       AND o.tanggal_masuk >= ($1 || ' 00:00:00+07')::timestamptz
+       AND o.tanggal_masuk < (($1::date + 1)::text || ' 00:00:00+07')::timestamptz`,
+    [TGL_UJI]
+  );
   const hasilCacat = kueriSalah.rows[0].total_barang_cacat;
 
-  // Kode produksi
-  const lap = await ambilLaporanHarian({ periode: "hari_ini", dari: "", sampai: "" }, appPool);
+  const lap = await ambilLaporanHarian({ periode: "rentang", dari: TGL_UJI, sampai: TGL_UJI }, appPool);
   const hasilProduksi = lap.pesanan_masuk.total_pasang;
 
-  // BUKTI: Kueri cacat menghasilkan 5 (jumlah tiket), padahal terdapat tiket multi-pasang (10 pasang)
   assert.notEqual(
     hasilCacat,
     hasilProduksi,
-    `Kueri salah (hitung per tiket: ${hasilCacat}) gagal menangkap volume fisik sepatu multi-barang (${hasilProduksi} pasang)`
+    `Kueri salah (hitung per tiket: ${hasilCacat}) gagal menangkap volume fisik sepatu (${hasilProduksi} pasang)`
   );
   assert.equal(hasilProduksi, 10, "Kode produksi wajib tepat 10 pasang sepatu");
 });
 
 test("bukti gagal-lalu-lulus 2: kueri salah mengikutkan tiket Dibatalkan menghasilkan angka menggelembung, kode produksi benar", async () => {
-  // KUERI PEMBANDING CACAT: Lupa memfilter status_pesanan <> 'Dibatalkan'
-  const kueriSalah = await appPool.query(`
-    SELECT COALESCE(SUM(oi.jumlah), 0)::int AS total_pasang_termasuk_batal
-    FROM orders o
-    JOIN order_items oi ON oi.order_id = o.id
-    WHERE o.tanggal_masuk >= ((now() AT TIME ZONE 'Asia/Jakarta')::date::text || ' 00:00:00+07')::timestamptz
-      AND o.tanggal_masuk < (((now() AT TIME ZONE 'Asia/Jakarta')::date + 1)::text || ' 00:00:00+07')::timestamptz
-  `);
+  const kueriSalah = await appPool.query(
+    `SELECT COALESCE(SUM(oi.jumlah), 0)::int AS total_pasang_termasuk_batal
+     FROM orders o
+     JOIN order_items oi ON oi.order_id = o.id
+     WHERE o.tanggal_masuk >= ($1 || ' 00:00:00+07')::timestamptz
+       AND o.tanggal_masuk < (($1::date + 1)::text || ' 00:00:00+07')::timestamptz`,
+    [TGL_UJI]
+  );
   const hasilCacat = kueriSalah.rows[0].total_pasang_termasuk_batal;
 
-  const lap = await ambilLaporanHarian({ periode: "hari_ini", dari: "", sampai: "" }, appPool);
+  const lap = await ambilLaporanHarian({ periode: "rentang", dari: TGL_UJI, sampai: TGL_UJI }, appPool);
   const hasilProduksi = lap.pesanan_masuk.total_pasang;
 
-  // BUKTI: Kueri cacat mengikutkan T4 (1 pasang) & T5 (2 pasang) sehingga menjadi 13 pasang
   assert.notEqual(
     hasilCacat,
     hasilProduksi,
@@ -540,59 +529,76 @@ test("bukti gagal-lalu-lulus 2: kueri salah mengikutkan tiket Dibatalkan menghas
   assert.equal(hasilProduksi, 10, "Kode produksi tepat mengecualikan tiket batal (10 pasang)");
 });
 
-test("bukti gagal-lalu-lulus 3: kueri salah batas hari UTC memotong transaksi malam WIB, kode produksi benar", async () => {
-  // KUERI PEMBANDING CACAT: Mengevaluasi batas hari berdasarkan zona UTC
-  // Tiket T3 masuk pukul 00:01 WIB (+07:00), tanggal WIB adalah hari ini (${hari_ini_db}),
-  // tetapi tanggal UTC adalah kemarin (${kemarin_db} 17:01 UTC).
-  // Tiket T8 masuk pukul 23:59 WIB (+07:00), tanggal WIB hari ini dan tanggal UTC hari ini (16:59 UTC).
-  // Kueri berbasis UTC kehilangan transaksi dini hari WIB (00:01 WIB) karena terpotong ke tanggal kemarin UTC.
-  const kueriSalahUtc = await appPool.query(`
-    SELECT COUNT(o.id)::int AS total_tiket_utc
-    FROM orders o
-    WHERE o.status_pesanan <> 'Dibatalkan'
-      AND o.tanggal_masuk >= ((now() AT TIME ZONE 'UTC')::date::text || ' 00:00:00Z')::timestamptz
-      AND o.tanggal_masuk < (((now() AT TIME ZONE 'UTC')::date + 1)::text || ' 00:00:00Z')::timestamptz
-  `);
+test("bukti gagal-lalu-lulus 3: kueri salah batas hari UTC memotong transaksi dini hari WIB (00:01 WIB) secara deterministik", async () => {
+  // Mengevaluasi batas hari berdasarkan zona UTC untuk tanggal tetap 2026-10-15:
+  // T3 masuk pukul 2026-10-15 00:01:00+07 (= 2026-10-14 17:01:00Z) sehingga terpotong ke 2026-10-14 UTC.
+  const kueriSalahUtc = await appPool.query(
+    `SELECT COUNT(o.id)::int AS total_tiket_utc
+     FROM orders o
+     WHERE o.status_pesanan <> 'Dibatalkan'
+       AND o.tanggal_masuk >= ($1 || ' 00:00:00Z')::timestamptz
+       AND o.tanggal_masuk < (($1::date + 1)::text || ' 00:00:00Z')::timestamptz`,
+    [TGL_UJI]
+  );
   const hitungUtc = kueriSalahUtc.rows[0].total_tiket_utc;
 
-  const lap = await ambilLaporanHarian({ periode: "hari_ini", dari: "", sampai: "" }, appPool);
+  const lap = await ambilLaporanHarian({ periode: "rentang", dari: TGL_UJI, sampai: TGL_UJI }, appPool);
   const hitungWib = lap.pesanan_masuk.total_tiket;
-  const EXPECT_MANUAL = 5; // T1, T2, T3 (00:01 WIB), T6, T8 (23:59 WIB)
+  const EXPECT_MANUAL = 5;
 
-  // BUKTI: Kueri cacat UTC menghasilkan 4 tiket (kehilangan tiket 00:01 WIB), berbeda dari angka manual (5 tiket).
-  // Kode produksi menghasilkan tepat angka manual (5 tiket) karena konsisten menggunakan batas Asia/Jakarta.
   assert.notEqual(
     hitungUtc,
     EXPECT_MANUAL,
-    `Kueri salah UTC (${hitungUtc}) berbeda dari angka manual (${EXPECT_MANUAL}) karena transaksi 00:01 WIB terlempar ke tanggal kemarin di UTC`
+    `Kueri salah UTC (${hitungUtc}) berbeda dari angka manual (${EXPECT_MANUAL})`
   );
-  assert.equal(hitungUtc, 4, "Kueri salah UTC hanya mendeteksi 4 tiket");
-  assert.equal(hitungWib, EXPECT_MANUAL, "Kode produksi wajib tepat 5 tiket sesuai hitungan manual zona WIB");
+  assert.equal(hitungUtc, 4, "Kueri salah UTC hanya mendeteksi 4 tiket (kehilangan T3 00:01 WIB)");
+  assert.equal(hitungWib, EXPECT_MANUAL, "Kode produksi wajib tepat 5 tiket sesuai batas WIB");
 });
 
-// ---------- 4. Dashboard Operasional (Kasir vs Owner, Tren 7 Hari, 5 Tiket Terbaru) ----------
+// ---------- 4. Tes 'Hari Ini' Bebas Jam & Dashboard Operasional ----------
 
-test("dashboard: kasir tidak melihat nominal belum bayar & tren 7 hari null; owner melihat nominal & tren 7 hari (pasang per hari)", async () => {
+test("periode hari ini & dashboard: transaksi waktu nyata dihitung akurat tanpa bergantung batas tengah malam", async () => {
+  // Buat tiket baru pada waktu sekarang (tanpa memanipulasi batas tengah malam)
+  const { res: resTiket } = await api(kasirCookie, "POST", "/api/tiket", {
+    nama_pelanggan: "Pelanggan Hari Ini",
+    nomor_wa: waUnik08(),
+    status_bayar: "Belum bayar",
+    items: [
+      { service_id: layanan1.id, deskripsi_barang: "Tiket Hari Ini", jumlah: 4 },
+    ],
+  });
+  assert.equal(resTiket.status, 201);
+
+  const lapHariIni = await ambilLaporanHarian({
+    periode: "hari_ini",
+    dari: "",
+    sampai: "",
+  }, appPool);
+  assert.ok(lapHariIni.pesanan_masuk.total_tiket >= 1);
+  assert.ok(lapHariIni.pesanan_masuk.total_pasang >= 4);
+
   // 1. Data Dashboard Kasir
   const dashKasir = await ambilDataDashboard("kasir", appPool);
   assert.equal(dashKasir.peran, "kasir");
   assert.equal(dashKasir.tren_7_hari, null, "Kasir tidak boleh menerima data tren 7 hari");
   assert.equal(dashKasir.ringkasan_hari_ini.belum_bayar_aktif.total_nominal, null, "Kasir tidak melihat nominal belum bayar");
-  assert.ok(dashKasir.ringkasan_hari_ini.belum_bayar_aktif.total_tiket >= 3);
-  assert.ok(dashKasir.ringkasan_hari_ini.belum_bayar_aktif.total_pasang >= 4);
+  assert.ok(dashKasir.ringkasan_hari_ini.belum_bayar_aktif.total_tiket >= 4);
+  assert.ok(dashKasir.ringkasan_hari_ini.belum_bayar_aktif.total_pasang >= 8);
   assert.equal(dashKasir.ringkasan_hari_ini.belum_bayar_aktif.label, "Belum bayar (semua tiket aktif)");
 
   // 2. Data Dashboard Owner
   const dashOwner = await ambilDataDashboard("owner", appPool);
   assert.equal(dashOwner.peran, "owner");
+  assert.equal(dashOwner.hari_ini, lapHariIni.rentang.hari_ini);
   assert.ok(dashOwner.tren_7_hari !== null, "Owner wajib menerima data tren 7 hari");
   assert.equal(dashOwner.tren_7_hari.length, 7, "Tren wajib memiliki tepat 7 titik harian berakhir hari ini");
   assert.ok(typeof dashOwner.ringkasan_hari_ini.belum_bayar_aktif.total_nominal === "number");
+  assert.equal(dashOwner.ringkasan_hari_ini.pesanan_masuk.total_pasang, lapHariIni.pesanan_masuk.total_pasang);
 
   // Tren hari terakhir (hari ini) harus memuat jumlah pasang sepatu hari ini
   const titikHariIni = dashOwner.tren_7_hari[6];
   assert.equal(titikHariIni.tanggal, dashOwner.hari_ini);
-  assert.ok(titikHariIni.jumlah_pasang >= 10, "Tren hari ini menggunakan JUMLAH PASANG per hari");
+  assert.equal(titikHariIni.jumlah_pasang, lapHariIni.pesanan_masuk.total_pasang);
 
   // 3. 5 Tiket Terbaru (FR-30)
   assert.ok(dashOwner.tiket_terbaru.length <= 5, "Maksimal 5 tiket terbaru");

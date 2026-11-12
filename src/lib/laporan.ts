@@ -7,9 +7,15 @@ import { getPool } from "./db.ts";
 import {
   PERIODE_LAPORAN,
   type PeriodeLaporan,
+  PERIODE_REKAP_BULANAN,
+  type PeriodeRekapBulanan,
   MAKS_RENTANG_HARI_LAPORAN,
+  MAKS_LAYANAN_TERLARIS,
   JUMLAH_TIKET_TERBARU_DASHBOARD,
   TEKS_DISCLAIMER_LAPORAN,
+  TEKS_CATATAN_PEMBULATAN_LAYANAN,
+  TEKS_LABA_RUGI_BELUM_TERSEDIA,
+  hitungPersentaseSatuDesimal,
   keNominalAman,
   keJumlahAman,
 } from "../config/laporan.ts";
@@ -23,6 +29,50 @@ export type FilterLaporanHarian = {
 export type HasilValidasiFilterLaporan =
   | { ok: true; data: FilterLaporanHarian }
   | { ok: false; kode: 400; galat: string };
+
+export type FilterRekapBulanan = {
+  periode: PeriodeRekapBulanan;
+  dari: string; // YYYY-MM-DD
+  sampai: string; // YYYY-MM-DD
+};
+
+export type HasilValidasiFilterRekap =
+  | { ok: true; data: FilterRekapBulanan }
+  | { ok: false; kode: 400; galat: string };
+
+export type BarisLayananTerlaris = {
+  peringkat: number | null;
+  service_id: number | null;
+  nama_layanan: string;
+  aktif: boolean;
+  jumlah_pasang: number;
+  persentase_pasang: number;
+  total_nominal: number;
+  adalah_lainnya: boolean;
+};
+
+export type DataRekapBulanan = {
+  periode: PeriodeRekapBulanan;
+  rentang: {
+    dari: string; // YYYY-MM-DD
+    sampai: string; // YYYY-MM-DD
+    hari_ini: string; // YYYY-MM-DD (jam database WIB)
+  };
+  disclaimer: string;
+  pesanan_masuk: DataLaporanHarian["pesanan_masuk"];
+  pembayaran_diterima: DataLaporanHarian["pembayaran_diterima"];
+  layanan_terlaris: {
+    total_pasang: number;
+    total_nominal: number;
+    jumlah_layanan_unik: number;
+    daftar: BarisLayananTerlaris[];
+    catatan_pembulatan: string;
+  };
+  laba_rugi: {
+    tersedia: false;
+    pesan: string;
+  };
+};
 
 export type DataLaporanHarian = {
   periode: PeriodeLaporan;
@@ -124,13 +174,49 @@ function uraiTanggalKalender(teks: string): { tahun: number; bulan: number; hari
   return { tahun, bulan, hari };
 }
 
-/**
- * Validasi parameter query untuk Laporan Harian Operasional.
- * Menganggap seluruh parameter dari URL sebagai input pengguna tidak tepercaya.
- */
-export function validasiQueryLaporanHarian(
+function validasiPasanganRentangTanggal(
+  dariRaw: string | null,
+  sampaiRaw: string | null
+): { ok: true; dari: string; sampai: string } | { ok: false; kode: 400; galat: string } {
+  if (!dariRaw || !sampaiRaw) {
+    return {
+      ok: false,
+      kode: 400,
+      galat: "Tanggal awal (dari) dan tanggal akhir (sampai) wajib diisi untuk periode rentang.",
+    };
+  }
+  const dKal = uraiTanggalKalender(dariRaw);
+  const sKal = uraiTanggalKalender(sampaiRaw);
+  if (!dKal || !sKal) {
+    return {
+      ok: false,
+      kode: 400,
+      galat: "Format tanggal harus YYYY-MM-DD yang valid.",
+    };
+  }
+  const dMs = Date.UTC(dKal.tahun, dKal.bulan - 1, dKal.hari);
+  const sMs = Date.UTC(sKal.tahun, sKal.bulan - 1, sKal.hari);
+  if (dMs > sMs) {
+    return {
+      ok: false,
+      kode: 400,
+      galat: "Tanggal awal tidak boleh melebihi tanggal akhir.",
+    };
+  }
+  const selisihHari = Math.round((sMs - dMs) / (24 * 60 * 60 * 1000));
+  if (selisihHari > MAKS_RENTANG_HARI_LAPORAN) {
+    return {
+      ok: false,
+      kode: 400,
+      galat: `Rentang tanggal maksimal ${MAKS_RENTANG_HARI_LAPORAN} hari.`,
+    };
+  }
+  return { ok: true, dari: dariRaw, sampai: sampaiRaw };
+}
+
+function cekKunciParameterLaporan(
   searchParams: URLSearchParams
-): HasilValidasiFilterLaporan {
+): { ok: true } | { ok: false; kode: 400; galat: string } {
   for (const k of searchParams.keys()) {
     if (!PARAMETER_LAPORAN_DIIZINKAN.has(k)) {
       return { ok: false, kode: 400, galat: `Parameter query tidak dikenal: ${k}.` };
@@ -139,6 +225,18 @@ export function validasiQueryLaporanHarian(
       return { ok: false, kode: 400, galat: `Parameter ${k} tidak boleh dikirim berulang.` };
     }
   }
+  return { ok: true };
+}
+
+/**
+ * Validasi parameter query untuk Laporan Harian Operasional.
+ * Menganggap seluruh parameter dari URL sebagai input pengguna tidak tepercaya.
+ */
+export function validasiQueryLaporanHarian(
+  searchParams: URLSearchParams
+): HasilValidasiFilterLaporan {
+  const cekKunci = cekKunciParameterLaporan(searchParams);
+  if (!cekKunci.ok) return cekKunci;
 
   const periodeRaw = searchParams.get("periode");
   const dariRaw = searchParams.get("dari");
@@ -164,41 +262,10 @@ export function validasiQueryLaporanHarian(
   let sampai = "";
 
   if (periode === "rentang") {
-    if (!dariRaw || !sampaiRaw) {
-      return {
-        ok: false,
-        kode: 400,
-        galat: "Tanggal awal (dari) dan tanggal akhir (sampai) wajib diisi untuk periode rentang.",
-      };
-    }
-    const dKal = uraiTanggalKalender(dariRaw);
-    const sKal = uraiTanggalKalender(sampaiRaw);
-    if (!dKal || !sKal) {
-      return {
-        ok: false,
-        kode: 400,
-        galat: "Format tanggal harus YYYY-MM-DD yang valid.",
-      };
-    }
-    const dMs = Date.UTC(dKal.tahun, dKal.bulan - 1, dKal.hari);
-    const sMs = Date.UTC(sKal.tahun, sKal.bulan - 1, sKal.hari);
-    if (dMs > sMs) {
-      return {
-        ok: false,
-        kode: 400,
-        galat: "Tanggal awal tidak boleh melebihi tanggal akhir.",
-      };
-    }
-    const selisihHari = Math.round((sMs - dMs) / (24 * 60 * 60 * 1000));
-    if (selisihHari > MAKS_RENTANG_HARI_LAPORAN) {
-      return {
-        ok: false,
-        kode: 400,
-        galat: `Rentang tanggal maksimal ${MAKS_RENTANG_HARI_LAPORAN} hari.`,
-      };
-    }
-    dari = dariRaw;
-    sampai = sampaiRaw;
+    const r = validasiPasanganRentangTanggal(dariRaw, sampaiRaw);
+    if (!r.ok) return r;
+    dari = r.dari;
+    sampai = r.sampai;
   }
 
   return {
@@ -212,45 +279,115 @@ export function validasiQueryLaporanHarian(
 }
 
 /**
- * Menghitung Laporan Harian Operasional dari database.
- * Jam acuan hari ini, kemarin, dan batas waktu murni dari database PostgreSQL zona Asia/Jakarta.
+ * Validasi parameter query untuk Rekap Bulanan (FR-50).
+ * Mendukung ?periode=bulan_ini | ?periode=bulan_lalu | ?periode=rentang&dari=...&sampai=...
+ * atau langsung ?dari=YYYY-MM-DD&sampai=YYYY-MM-DD.
  */
-export async function ambilLaporanHarian(
-  filter: FilterLaporanHarian,
-  poolClient?: Pool | PoolClient
-): Promise<DataLaporanHarian> {
-  const pool = poolClient ?? getPool();
+export function validasiQueryRekapBulanan(
+  searchParams: URLSearchParams
+): HasilValidasiFilterRekap {
+  const cekKunci = cekKunciParameterLaporan(searchParams);
+  if (!cekKunci.ok) return cekKunci;
 
-  // 1. Tentukan tanggal acuan dan batas periode dari jam database (Asia/Jakarta)
-  const dbWaktuRes = await pool.query(`
-    SELECT
-      (now() AT TIME ZONE 'Asia/Jakarta')::date::text AS hari_ini_db,
-      ((now() AT TIME ZONE 'Asia/Jakarta')::date - 1)::text AS kemarin_db
-  `);
-  const hariIniDb: string = dbWaktuRes.rows[0].hari_ini_db;
-  const kemarinDb: string = dbWaktuRes.rows[0].kemarin_db;
+  const periodeRaw = searchParams.get("periode");
+  const dariRaw = searchParams.get("dari");
+  const sampaiRaw = searchParams.get("sampai");
 
-  let dariTgl = filter.dari;
-  let sampaiTgl = filter.sampai;
-
-  if (filter.periode === "hari_ini") {
-    dariTgl = hariIniDb;
-    sampaiTgl = hariIniDb;
-  } else if (filter.periode === "kemarin") {
-    dariTgl = kemarinDb;
-    sampaiTgl = kemarinDb;
+  let periode: PeriodeRekapBulanan = "bulan_ini";
+  if (periodeRaw !== null) {
+    if (!(PERIODE_REKAP_BULANAN as readonly string[]).includes(periodeRaw)) {
+      return { ok: false, kode: 400, galat: "Parameter periode tidak valid." };
+    }
+    periode = periodeRaw as PeriodeRekapBulanan;
+  } else if (dariRaw !== null || sampaiRaw !== null) {
+    periode = "rentang";
   }
 
-  // Batas timestamptz eksak dalam zona Asia/Jakarta
+  if (periode !== "rentang" && (dariRaw !== null || sampaiRaw !== null)) {
+    return {
+      ok: false,
+      kode: 400,
+      galat: "Parameter dari dan sampai hanya boleh dipakai saat periode=rentang.",
+    };
+  }
+
+  let dari = "";
+  let sampai = "";
+
+  if (periode === "rentang") {
+    const r = validasiPasanganRentangTanggal(dariRaw, sampaiRaw);
+    if (!r.ok) return r;
+    dari = r.dari;
+    sampai = r.sampai;
+  }
+
+  return {
+    ok: true,
+    data: {
+      periode,
+      dari,
+      sampai,
+    },
+  };
+}
+
+type WaktuAcuanWib = {
+  hari_ini: string;
+  kemarin: string;
+  bulan_ini_awal: string;
+  bulan_ini_akhir: string;
+  bulan_lalu_awal: string;
+  bulan_lalu_akhir: string;
+};
+
+async function ambilWaktuAcuanWib(
+  pool: Pool | PoolClient,
+  tanggalAcuanWib?: string
+): Promise<WaktuAcuanWib> {
+  if (tanggalAcuanWib !== undefined) {
+    if (!uraiTanggalKalender(tanggalAcuanWib)) {
+      throw new Error(`Tanggal acuan WIB tidak valid: ${tanggalAcuanWib}`);
+    }
+  }
+  const res = await pool.query(
+    `WITH acuan AS (
+       SELECT COALESCE($1::date, (now() AT TIME ZONE 'Asia/Jakarta')::date) AS tgl
+     )
+     SELECT
+       tgl::text AS hari_ini,
+       (tgl - 1)::text AS kemarin,
+       date_trunc('month', tgl)::date::text AS bulan_ini_awal,
+       tgl::text AS bulan_ini_akhir,
+       (date_trunc('month', tgl) - interval '1 month')::date::text AS bulan_lalu_awal,
+       (date_trunc('month', tgl) - interval '1 day')::date::text AS bulan_lalu_akhir
+     FROM acuan`,
+    [tanggalAcuanWib ?? null]
+  );
+  return res.rows[0];
+}
+
+async function hitungBatasWaktuWib(
+  pool: Pool | PoolClient,
+  dariTgl: string,
+  sampaiTgl: string
+): Promise<{ batas_mulai: unknown; batas_akhir_eksklusif: unknown }> {
   const batasRes = await pool.query(
     `SELECT
        ($1 || ' 00:00:00+07')::timestamptz AS batas_mulai,
        (($2::date + 1)::text || ' 00:00:00+07')::timestamptz AS batas_akhir_eksklusif`,
     [dariTgl, sampaiTgl]
   );
-  const { batas_mulai, batas_akhir_eksklusif } = batasRes.rows[0];
+  return batasRes.rows[0];
+}
 
-  // 2. Query Komponen a & b: Pesanan Masuk pada Periode (kohort tanggal_masuk)
+/**
+ * Query bersama ringkasan pesanan masuk (kohort tanggal_masuk) — dipakai Laporan Harian & Rekap Bulanan.
+ */
+async function queryRingkasanPesananMasuk(
+  pool: Pool | PoolClient,
+  batasMulai: unknown,
+  batasAkhirEksklusif: unknown
+): Promise<DataLaporanHarian["pesanan_masuk"]> {
   const pesananMasukRes = await pool.query(
     `WITH item_agg AS (
        SELECT
@@ -277,12 +414,35 @@ export async function ambilLaporanHarian(
      WHERE o.status_pesanan <> 'Dibatalkan'
        AND o.tanggal_masuk >= $1
        AND o.tanggal_masuk < $2`,
-    [batas_mulai, batas_akhir_eksklusif]
+    [batasMulai, batasAkhirEksklusif]
   );
 
   const pm = pesananMasukRes.rows[0] ?? {};
+  return {
+    total_tiket: keJumlahAman(pm.total_tiket_masuk),
+    total_pasang: keJumlahAman(pm.total_pasang_masuk),
+    total_nominal: keNominalAman(pm.total_nominal_masuk),
+    lunas: {
+      total_tiket: keJumlahAman(pm.tiket_lunas),
+      total_pasang: keJumlahAman(pm.pasang_lunas),
+      total_nominal: keNominalAman(pm.nominal_lunas),
+    },
+    belum_bayar: {
+      total_tiket: keJumlahAman(pm.tiket_belum_bayar),
+      total_pasang: keJumlahAman(pm.pasang_belum_bayar),
+      total_nominal: keNominalAman(pm.nominal_belum_bayar),
+    },
+  };
+}
 
-  // 3. Query Komponen c: Pembayaran Diterima pada Periode (kohort tanggal_bayar)
+/**
+ * Query bersama ringkasan pembayaran diterima (kohort tanggal_bayar) — dipakai Laporan Harian & Rekap Bulanan.
+ */
+async function queryRingkasanPembayaranDiterima(
+  pool: Pool | PoolClient,
+  batasMulai: unknown,
+  batasAkhirEksklusif: unknown
+): Promise<DataLaporanHarian["pembayaran_diterima"]> {
   const pembayaranDiterimaRes = await pool.query(
     `WITH item_agg AS (
        SELECT
@@ -306,10 +466,87 @@ export async function ambilLaporanHarian(
        AND o.status_pesanan <> 'Dibatalkan'
        AND o.tanggal_bayar >= $1
        AND o.tanggal_bayar < $2`,
-    [batas_mulai, batas_akhir_eksklusif]
+    [batasMulai, batasAkhirEksklusif]
   );
 
   const pb = pembayaranDiterimaRes.rows[0] ?? {};
+  return {
+    total_tiket: keJumlahAman(pb.total_tiket_bayar),
+    total_nominal: keNominalAman(pb.total_nominal_bayar),
+    cash: {
+      total_tiket: keJumlahAman(pb.tiket_cash),
+      total_nominal: keNominalAman(pb.nominal_cash),
+      label: "Cash tercatat di sistem",
+    },
+    non_cash: {
+      total_tiket: keJumlahAman(pb.tiket_non_cash),
+      total_nominal: keNominalAman(pb.nominal_non_cash),
+    },
+  };
+}
+
+/**
+ * Menghitung rentang tanggal pintasan Rekap Bulanan ('bulan_ini' atau 'bulan_lalu')
+ * berdasarkan jam database PostgreSQL zona Asia/Jakarta atau tanggal acuan opsional (parameter fungsi).
+ */
+export async function hitungRentangPintasanRekap(
+  periode: "bulan_ini" | "bulan_lalu",
+  poolClient?: Pool | PoolClient,
+  tanggalAcuanWib?: string
+): Promise<{ dari: string; sampai: string; hari_ini: string }> {
+  const pool = poolClient ?? getPool();
+  const waktu = await ambilWaktuAcuanWib(pool, tanggalAcuanWib);
+  if (periode === "bulan_ini") {
+    return {
+      dari: waktu.bulan_ini_awal,
+      sampai: waktu.bulan_ini_akhir,
+      hari_ini: waktu.hari_ini,
+    };
+  }
+  return {
+    dari: waktu.bulan_lalu_awal,
+    sampai: waktu.bulan_lalu_akhir,
+    hari_ini: waktu.hari_ini,
+  };
+}
+
+/**
+ * Menghitung Laporan Harian Operasional dari database.
+ * Jam acuan hari ini, kemarin, dan batas waktu murni dari database PostgreSQL zona Asia/Jakarta.
+ */
+export async function ambilLaporanHarian(
+  filter: FilterLaporanHarian,
+  poolClient?: Pool | PoolClient
+): Promise<DataLaporanHarian> {
+  const pool = poolClient ?? getPool();
+
+  // 1. Tentukan tanggal acuan dan batas periode dari jam database (Asia/Jakarta)
+  const waktu = await ambilWaktuAcuanWib(pool);
+
+  let dariTgl = filter.dari;
+  let sampaiTgl = filter.sampai;
+
+  if (filter.periode === "hari_ini") {
+    dariTgl = waktu.hari_ini;
+    sampaiTgl = waktu.hari_ini;
+  } else if (filter.periode === "kemarin") {
+    dariTgl = waktu.kemarin;
+    sampaiTgl = waktu.kemarin;
+  }
+
+  const { batas_mulai, batas_akhir_eksklusif } = await hitungBatasWaktuWib(
+    pool,
+    dariTgl,
+    sampaiTgl
+  );
+
+  // 2 & 3. Ringkasan Pesanan Masuk & Pembayaran Diterima (query bersama)
+  const pesanan_masuk = await queryRingkasanPesananMasuk(pool, batas_mulai, batas_akhir_eksklusif);
+  const pembayaran_diterima = await queryRingkasanPembayaranDiterima(
+    pool,
+    batas_mulai,
+    batas_akhir_eksklusif
+  );
 
   // 4. Query Komponen d & e: Pembatalan & Pembalikan pada Periode (audit_logs)
   const auditRes = await pool.query(
@@ -319,10 +556,7 @@ export async function ambilLaporanHarian(
        -- Dibatalkan setelah sempat Lunas (jumlah saja, tanpa nominal)
        COUNT(DISTINCT al.entitas_id) FILTER (
          WHERE al.aksi = 'BATALKAN_TIKET'
-           AND (
-             al.nilai_lama->>'status_bayar' = 'Lunas'
-             OR (al.nilai_baru->>'uang_dikembalikan_di_luar_sistem')::boolean = true
-           )
+           AND al.nilai_lama->>'status_bayar' = 'Lunas'
        )::bigint AS tiket_batal_sempat_lunas,
        -- Pembalikan pembayaran dari Lunas ke Belum bayar
        COUNT(*) FILTER (
@@ -344,43 +578,142 @@ export async function ambilLaporanHarian(
     rentang: {
       dari: dariTgl,
       sampai: sampaiTgl,
-      hari_ini: hariIniDb,
+      hari_ini: waktu.hari_ini,
     },
     disclaimer: TEKS_DISCLAIMER_LAPORAN,
-    pesanan_masuk: {
-      total_tiket: keJumlahAman(pm.total_tiket_masuk),
-      total_pasang: keJumlahAman(pm.total_pasang_masuk),
-      total_nominal: keNominalAman(pm.total_nominal_masuk),
-      lunas: {
-        total_tiket: keJumlahAman(pm.tiket_lunas),
-        total_pasang: keJumlahAman(pm.pasang_lunas),
-        total_nominal: keNominalAman(pm.nominal_lunas),
-      },
-      belum_bayar: {
-        total_tiket: keJumlahAman(pm.tiket_belum_bayar),
-        total_pasang: keJumlahAman(pm.pasang_belum_bayar),
-        total_nominal: keNominalAman(pm.nominal_belum_bayar),
-      },
-    },
-    pembayaran_diterima: {
-      total_tiket: keJumlahAman(pb.total_tiket_bayar),
-      total_nominal: keNominalAman(pb.total_nominal_bayar),
-      cash: {
-        total_tiket: keJumlahAman(pb.tiket_cash),
-        total_nominal: keNominalAman(pb.nominal_cash),
-        label: "Cash tercatat di sistem",
-      },
-      non_cash: {
-        total_tiket: keJumlahAman(pb.tiket_non_cash),
-        total_nominal: keNominalAman(pb.nominal_non_cash),
-      },
-    },
+    pesanan_masuk,
+    pembayaran_diterima,
     audit_aktivitas: {
       tiket_dibatalkan: keJumlahAman(au.tiket_dibatalkan),
       tiket_batal_setelah_lunas: keJumlahAman(au.tiket_batal_sempat_lunas),
       pembalikan_pembayaran: keJumlahAman(au.jumlah_pembalikan_bayar),
       catatan_asumsi:
-        "Dihitung dari riwayat audit status pada periode ini. Pengembalian dana ditangani di luar sistem (asumsi perlu konfirmasi pemilik).",
+        "Dihitung dari riwayat audit status pada periode ini (asumsi perlu konfirmasi pemilik).",
+    },
+  };
+}
+
+/**
+ * Menghitung Rekap Bulanan dari database (Phase 7B, FR-50, FR-51, FR-52).
+ * Memakai query bersama yang identik dengan Laporan Harian 7A untuk ringkasan pesanan & pembayaran.
+ */
+export async function ambilRekapBulanan(
+  filter: FilterRekapBulanan,
+  poolClient?: Pool | PoolClient,
+  tanggalAcuanWib?: string
+): Promise<DataRekapBulanan> {
+  const pool = poolClient ?? getPool();
+  const waktu = await ambilWaktuAcuanWib(pool, tanggalAcuanWib);
+
+  let dariTgl = filter.dari;
+  let sampaiTgl = filter.sampai;
+
+  if (filter.periode === "bulan_ini") {
+    dariTgl = waktu.bulan_ini_awal;
+    sampaiTgl = waktu.bulan_ini_akhir;
+  } else if (filter.periode === "bulan_lalu") {
+    dariTgl = waktu.bulan_lalu_awal;
+    sampaiTgl = waktu.bulan_lalu_akhir;
+  }
+
+  const { batas_mulai, batas_akhir_eksklusif } = await hitungBatasWaktuWib(
+    pool,
+    dariTgl,
+    sampaiTgl
+  );
+
+  const pesanan_masuk = await queryRingkasanPesananMasuk(pool, batas_mulai, batas_akhir_eksklusif);
+  const pembayaran_diterima = await queryRingkasanPembayaranDiterima(
+    pool,
+    batas_mulai,
+    batas_akhir_eksklusif
+  );
+
+  // Layanan Terlaris: dikelompokkan per service_id, urut pasang menurun, nominal menurun, nama menaik
+  const layananRes = await pool.query(
+    `SELECT
+       s.id AS service_id,
+       s.nama AS nama_layanan,
+       s.aktif,
+       SUM(oi.jumlah)::bigint AS jumlah_pasang,
+       SUM(oi.jumlah * oi.harga_saat_transaksi)::bigint AS total_nominal
+     FROM orders o
+     JOIN order_items oi ON oi.order_id = o.id
+     JOIN services s ON s.id = oi.service_id
+     WHERE o.status_pesanan <> 'Dibatalkan'
+       AND o.tanggal_masuk >= $1
+       AND o.tanggal_masuk < $2
+     GROUP BY s.id, s.nama, s.aktif
+     ORDER BY jumlah_pasang DESC, total_nominal DESC, LOWER(s.nama) ASC, s.nama ASC, s.id ASC`,
+    [batas_mulai, batas_akhir_eksklusif]
+  );
+
+  const totalPasang = pesanan_masuk.total_pasang;
+  const semuaBaris = layananRes.rows.map((r) => ({
+    service_id: Number(r.service_id),
+    nama_layanan: String(r.nama_layanan),
+    aktif: Boolean(r.aktif),
+    jumlah_pasang: keJumlahAman(r.jumlah_pasang),
+    total_nominal: keNominalAman(r.total_nominal),
+  }));
+
+  const daftarTerbatas: BarisLayananTerlaris[] = semuaBaris
+    .slice(0, MAKS_LAYANAN_TERLARIS)
+    .map((item, idx) => ({
+      peringkat: idx + 1,
+      service_id: item.service_id,
+      nama_layanan: item.nama_layanan,
+      aktif: item.aktif,
+      jumlah_pasang: item.jumlah_pasang,
+      persentase_pasang: hitungPersentaseSatuDesimal(item.jumlah_pasang, totalPasang),
+      total_nominal: item.total_nominal,
+      adalah_lainnya: false,
+    }));
+
+  if (semuaBaris.length > MAKS_LAYANAN_TERLARIS) {
+    const sisa = semuaBaris.slice(MAKS_LAYANAN_TERLARIS);
+    const sisaPasang = sisa.reduce((acc, item) => acc + item.jumlah_pasang, 0);
+    const sisaNominal = sisa.reduce((acc, item) => acc + item.total_nominal, 0);
+    // Serap selisih pembulatan dari 100,0% di baris Lainnya agar total persentase tepat 100,0%
+    const totalTenthsTop10 = daftarTerbatas.reduce(
+      (acc, item) => acc + Math.round(item.persentase_pasang * 10),
+      0
+    );
+    const persentaseLainnya =
+      totalPasang > 0 ? Math.max(0, 1000 - totalTenthsTop10) / 10 : 0;
+
+    daftarTerbatas.push({
+      peringkat: null,
+      service_id: null,
+      nama_layanan: "Lainnya",
+      aktif: true,
+      jumlah_pasang: sisaPasang,
+      persentase_pasang: persentaseLainnya,
+      total_nominal: sisaNominal,
+      adalah_lainnya: true,
+    });
+  }
+
+  return {
+    periode: filter.periode,
+    rentang: {
+      dari: dariTgl,
+      sampai: sampaiTgl,
+      hari_ini: waktu.hari_ini,
+    },
+    disclaimer: TEKS_DISCLAIMER_LAPORAN,
+    pesanan_masuk,
+    pembayaran_diterima,
+    layanan_terlaris: {
+      total_pasang: totalPasang,
+      total_nominal: pesanan_masuk.total_nominal,
+      jumlah_layanan_unik: semuaBaris.length,
+      daftar: daftarTerbatas,
+      catatan_pembulatan: TEKS_CATATAN_PEMBULATAN_LAYANAN,
+    },
+    laba_rugi: {
+      tersedia: false,
+      pesan: TEKS_LABA_RUGI_BELUM_TERSEDIA,
     },
   };
 }

@@ -1,9 +1,17 @@
-// Absensi — bisa diakses TANPA login (dari link di halaman Login).
-// Fitur clock-in/clock-out dibangun di fase absensi; di sini hanya kerangka publik.
+// Absensi — bisa diakses TANPA login saat KARYAWAN_ABSENSI_AKTIF=true.
+// Saat KARYAWAN_ABSENSI_AKTIF=false, membalas 404 untuk semua pengunjung termasuk anonim.
 import Link from "next/link";
+import { notFound } from "next/navigation";
+import { KARYAWAN_ABSENSI_AKTIF } from "@/config/fitur";
 import { Card, CardContent } from "@/components/ui/card";
 
+export const dynamic = "force-dynamic";
+
 export default function AbsensiPage() {
+  if (!KARYAWAN_ABSENSI_AKTIF) {
+    notFound();
+  }
+
   return (
     <div className="min-h-screen bg-surface-canvas flex flex-col font-jakarta">
       <header className="w-full py-6 px-6">

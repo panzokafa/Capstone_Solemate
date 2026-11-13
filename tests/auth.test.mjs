@@ -248,9 +248,8 @@ test("kasir ditolak di semua rute owner (halaman dan API)", async () => {
   const ruteOwner = [
     "/api/laporan-harian",
     "/api/katalog",
-    "/api/karyawan",
     "/api/rekap-bulanan",
-    "/api/rekap-absensi",
+    "/api/rekap-bulanan/ekspor?format=xlsx&periode=bulan_ini",
   ];
   for (const r of ruteOwner) {
     const res = await fetch(`${BASE}${r}`, { headers: { Cookie: sc } });

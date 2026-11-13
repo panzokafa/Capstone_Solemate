@@ -145,17 +145,17 @@ Aturan login:
 | Halaman | Owner | Kasir | Publik |
 |---------|-------|-------|--------|
 | /login | ✓ | ✓ | ✓ |
-| /absensi | ✓ | ✓ | ✓ |
+| /absensi *(ditunda / nonaktif)* | – *(404)* | – *(404)* | – *(404)* |
 | /tiket (daftar) | ✓ | ✓ | – |
 | /detail-tiket | ✓ | ✓ | – |
 | /buat-tiket | – | ✓ | – |
 | /katalog | ✓ | – | – |
-| /karyawan | ✓ | – | – |
+| /karyawan *(ditunda / nonaktif)* | – *(404)* | – *(404)* | – |
 | /laporan-harian | ✓ | – | – |
-| /rekap-absensi | ✓ | – | – |
+| /rekap-absensi *(ditunda / nonaktif)* | – *(404)* | – *(404)* | – |
 | /rekap-bulanan | ✓ | – | – |
 
-Halaman terlindungi mengarahkan ke login jika belum login. Kasir yang coba akses halaman owner melihat "Akses ditolak".
+Halaman terlindungi mengarahkan ke login jika belum login. Kasir yang coba akses halaman owner aktif (seperti `/katalog`, `/laporan-harian`, `/rekap-bulanan`) melihat "Akses ditolak". Saat `KARYAWAN_ABSENSI_AKTIF = false`, rute `/karyawan`, `/rekap-absensi`, `/api/karyawan`, dan `/api/rekap-absensi` membalas `404` yang identik untuk owner maupun kasir (pengunjung anonim tetap diarahkan `307` ke `/login`), sedangkan `/absensi` membalas `404` untuk semua pengunjung termasuk anonim.
 
 ### Login audit
 
@@ -407,6 +407,16 @@ Halaman `/rekap-bulanan` (khusus **owner**) menampilkan ringkasan pesanan masuk,
 ### Persyaratan Hosting & Deployment untuk PDF (`pdfkit`)
 - `next.config.ts` mengaktifkan `serverExternalPackages: ["pdfkit"]` karena `pdfkit` membaca berkas data font standar `.afm` (`Helvetica` / `Helvetica-Bold`) secara langsung dari `node_modules/pdfkit/js/data/` saat runtime.
 - Jika melakukan deployment ke container Docker atau server terpisah, pastikan direktori `node_modules` (khususnya `pdfkit` dan dependensinya) ikut disalin/terpasang pada lingkungan runtime produksi, bukan dihilangkan oleh bundling terisolasi tanpa aset font.
+
+## Fitur Karyawan & Absensi (Ditunda — Phase 8A)
+
+Fitur Karyawan dan Absensi (`FR-70`–`FR-72`) saat ini ditunda (`KARYAWAN_ABSENSI_AKTIF = false` pada [`src/config/fitur.ts`](src/config/fitur.ts)):
+- Menu `Karyawan`, `Rekap Absensi`, dan `Absensi` (desktop sidebar, navigasi ponsel, serta tautan absen di halaman login) disembunyikan.
+- Halaman & API `/karyawan`, `/rekap-absensi`, `/api/karyawan`, dan `/api/rekap-absensi` mengembalikan HTTP `404` yang identik untuk `owner` dan `kasir`, serta tetap mengarahkan pengunjung anonim ke `/login`.
+- Halaman `/absensi` mengembalikan HTTP `404` untuk seluruh pengunjung termasuk anonim (tanpa redirect ke `/login`).
+- Berkas halaman/API, skema tabel `employees` & `attendance`, seed, dan skrip manajemen akun tetap dipertahankan tanpa dihapus.
+
+**Cara mengaktifkan kembali:** ubah `export const KARYAWAN_ABSENSI_AKTIF: boolean = false;` menjadi `true` pada `src/config/fitur.ts`, lalu build/restart server.
 
 ## Catatan
 

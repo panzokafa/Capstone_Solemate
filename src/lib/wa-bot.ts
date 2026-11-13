@@ -38,6 +38,72 @@ import {
   type SerahTerima,
 } from "../config/wa-bot.ts";
 
+export type ItemRingkasanCekWa = {
+  layanan: string;
+  jumlah: number;
+  deskripsi_barang: string;
+};
+
+const SQL_LATERAL_RINGKASAN_ITEM = `LEFT JOIN LATERAL (
+  SELECT
+    STRING_AGG(DISTINCT s.nama, ', ' ORDER BY s.nama) AS ringkasan_layanan,
+    COALESCE(
+      JSON_AGG(
+        JSON_BUILD_OBJECT(
+          'layanan', s.nama,
+          'jumlah', oi.jumlah,
+          'deskripsi_barang', oi.deskripsi_barang
+        )
+        ORDER BY oi.id
+      ),
+      '[]'::json
+    ) AS daftar_item
+  FROM order_items oi
+  JOIN services s ON s.id = oi.service_id
+  WHERE oi.order_id = o.id
+) agg ON true`;
+
+function bersihkanTeksSatuBaris(teks: string): string {
+  return teks.replace(/[\r\n\t]+/g, " ").trim();
+}
+
+/**
+ * Susun baris `Deskripsi Barang` untuk balasan cek progress WhatsApp.
+ * Satu item langsung menampilkan deskripsi (+ awalan jumlah bila > 1);
+ * multi-item menampilkan daftar berpoin `Nx Layanan — deskripsi` agar jelas tiap barang.
+ */
+export function formatBarisDeskripsiBarangWa(
+  daftarItem: unknown,
+  indentasi: string = ""
+): string {
+  const items: ItemRingkasanCekWa[] = Array.isArray(daftarItem)
+    ? daftarItem.filter(
+        (it): it is ItemRingkasanCekWa =>
+          typeof it === "object" &&
+          it !== null &&
+          typeof (it as ItemRingkasanCekWa).deskripsi_barang === "string"
+      )
+    : [];
+
+  if (items.length === 0) {
+    return `${indentasi}Deskripsi Barang: -`;
+  }
+
+  if (items.length === 1) {
+    const it = items[0];
+    const deskripsi = bersihkanTeksSatuBaris(it.deskripsi_barang) || "-";
+    const awalanJumlah = it.jumlah > 1 ? `${it.jumlah}x ` : "";
+    return `${indentasi}Deskripsi Barang: ${awalanJumlah}${deskripsi}`;
+  }
+
+  const rincian = items.map((it) => {
+    const layanan = bersihkanTeksSatuBaris(it.layanan ?? "") || "-";
+    const deskripsi = bersihkanTeksSatuBaris(it.deskripsi_barang) || "-";
+    return `${indentasi}- ${it.jumlah}x ${layanan} — ${deskripsi}`;
+  });
+  return `${indentasi}Deskripsi Barang:\n${rincian.join("\n")}`;
+}
+
 export type HasilVerifikasiWebhook =
   | { ok: true }
   | { ok: false; kode: 401 | 503; galat: string };
@@ -809,15 +875,11 @@ export async function prosesWebhookMasukWa(
            o.total,
            o.estimasi_selesai,
            o.nomor_terverifikasi,
-           COALESCE(agg.ringkasan_layanan, '') AS ringkasan_layanan
+           COALESCE(agg.ringkasan_layanan, '') AS ringkasan_layanan,
+           agg.daftar_item
          FROM orders o
          JOIN customers c ON c.id = o.customer_id
-         LEFT JOIN LATERAL (
-           SELECT STRING_AGG(DISTINCT s.nama, ', ' ORDER BY s.nama) AS ringkasan_layanan
-           FROM order_items oi
-           JOIN services s ON s.id = oi.service_id
-           WHERE oi.order_id = o.id
-         ) agg ON true
+         ${SQL_LATERAL_RINGKASAN_ITEM}
          WHERE UPPER(o.kode_tiket) = $1
            AND (
              ($2::varchar IS NOT NULL AND c.nomor_wa = $2 AND o.nomor_terverifikasi = true)
@@ -835,9 +897,11 @@ export async function prosesWebhookMasukWa(
         });
       } else {
         const t = r.rows[0];
+        const barisDeskripsi = formatBarisDeskripsiBarangWa(t.daftar_item);
         const pesanRes = `🔍 *Status Pesanan ${t.kode_tiket}*
 
 Layanan: ${t.ringkasan_layanan || "-"}
+${barisDeskripsi}
 Status Pesanan: *${t.status_pesanan}*
 Status Pembayaran: *${t.status_bayar}* (${formatRupiah(t.total)})
 Estimasi Selesai: *${t.estimasi_selesai ? formatTanggal(t.estimasi_selesai, { denganWaktu: true }) : "-"}*`;
@@ -854,15 +918,11 @@ Estimasi Selesai: *${t.estimasi_selesai ? formatTanggal(t.estimasi_selesai, { de
            o.status_pesanan,
            o.status_bayar,
            o.total,
-           COALESCE(agg.ringkasan_layanan, '') AS ringkasan_layanan
+           COALESCE(agg.ringkasan_layanan, '') AS ringkasan_layanan,
+           agg.daftar_item
          FROM orders o
          JOIN customers c ON c.id = o.customer_id
-         LEFT JOIN LATERAL (
-           SELECT STRING_AGG(DISTINCT s.nama, ', ' ORDER BY s.nama) AS ringkasan_layanan
-           FROM order_items oi
-           JOIN services s ON s.id = oi.service_id
-           WHERE oi.order_id = o.id
-         ) agg ON true
+         ${SQL_LATERAL_RINGKASAN_ITEM}
          WHERE (
            ($1::varchar IS NOT NULL AND c.nomor_wa = $1 AND o.nomor_terverifikasi = true)
            OR
@@ -882,8 +942,10 @@ Estimasi Selesai: *${t.estimasi_selesai ? formatTanggal(t.estimasi_selesai, { de
       } else {
         let teksDaftar = `👟 *Pesanan Aktif Anda (${r.rows.length})*\n\n`;
         r.rows.forEach((t, i) => {
+          const barisDeskripsi = formatBarisDeskripsiBarangWa(t.daftar_item, "   ");
           teksDaftar += `${i + 1}. *${t.kode_tiket}*\n`;
           teksDaftar += `   Layanan: ${t.ringkasan_layanan || "-"}\n`;
+          teksDaftar += `${barisDeskripsi}\n`;
           teksDaftar += `   Status: *${t.status_pesanan}*\n`;
           teksDaftar += `   Pembayaran: ${t.status_bayar} (${formatRupiah(t.total)})\n\n`;
         });

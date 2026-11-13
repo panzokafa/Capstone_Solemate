@@ -18,6 +18,7 @@ import {
   buatKunciRateLimit,
   buatChatHash,
   ekstrakStrukturPayload,
+  formatBarisDeskripsiBarangWa,
 } from "../src/lib/wa-bot.ts";
 import {
   parsePesanPemesananWa,
@@ -702,6 +703,8 @@ Antar/Jemput: Antar sendiri`,
   };
   await prosesWebhookMasukWa(payloadCekAll, "");
   assert.match(mockGateway.pesanTerkirim[0].teks, new RegExp(kodeTiket));
+  assert.match(mockGateway.pesanTerkirim[0].teks, /Layanan:\s*Cuci Standard Bot/i);
+  assert.match(mockGateway.pesanTerkirim[0].teks, /Deskripsi Barang:\s*Sepatu Lari/i);
 
   mockGateway.reset();
 
@@ -718,6 +721,8 @@ Antar/Jemput: Antar sendiri`,
   await prosesWebhookMasukWa(payloadCekKode, "");
   assert.match(mockGateway.pesanTerkirim[0].teks, /Status Pesanan/i);
   assert.match(mockGateway.pesanTerkirim[0].teks, new RegExp(kodeTiket));
+  assert.match(mockGateway.pesanTerkirim[0].teks, /Layanan:\s*Cuci Standard Bot/i);
+  assert.match(mockGateway.pesanTerkirim[0].teks, /Deskripsi Barang:\s*Sepatu Lari/i);
 });
 
 test("Cek progress: mencoba memeriksa tiket pelanggan lain ditolak (tidak ditemukan)", async () => {
@@ -914,7 +919,7 @@ test("Format pemesanan (balasan 2): bersih untuk nomor reguler, memuat Nomor WA 
   };
   await prosesWebhookMasukWa(payloadReguler, "");
   const balasanReguler = mockGateway.pesanTerkirim[0].teks;
-  assert.match(balasanReguler, /Format Pemesanan Cuci Sepatu/i);
+  assert.match(balasanReguler, /Format Pemesanan Solemate/i);
   assert.doesNotMatch(balasanReguler, /opsional jika bukan nomor tersembunyi/i);
   assert.doesNotMatch(balasanReguler, /Nomor WA:/i);
 
@@ -932,7 +937,7 @@ test("Format pemesanan (balasan 2): bersih untuk nomor reguler, memuat Nomor WA 
   };
   await prosesWebhookMasukWa(payloadLid, "");
   const balasanLid = mockGateway.pesanTerkirim[0].teks;
-  assert.match(balasanLid, /Format Pemesanan Cuci Sepatu/i);
+  assert.match(balasanLid, /Format Pemesanan Solemate/i);
   assert.match(balasanLid, /Nomor WA:/i);
   assert.match(balasanLid, /fitur privasi \(@lid\)/i);
 });
@@ -1587,4 +1592,94 @@ test("Fix 10: WAHA_BASE_URL kosong melempar galat konfigurasi yang jelas tanpa r
   } finally {
     process.env.WAHA_BASE_URL = envAsli;
   }
+});
+
+test("formatBarisDeskripsiBarangWa memformat 0, 1, dan multi-item secara konsisten", () => {
+  assert.equal(formatBarisDeskripsiBarangWa([]), "Deskripsi Barang: -");
+  assert.equal(
+    formatBarisDeskripsiBarangWa([
+      { layanan: "Outsole biasa", jumlah: 1, deskripsi_barang: "sepatu adidas\nhitam" },
+    ]),
+    "Deskripsi Barang: sepatu adidas hitam"
+  );
+  assert.equal(
+    formatBarisDeskripsiBarangWa(
+      [{ layanan: "Outsole biasa", jumlah: 2, deskripsi_barang: "sepatu adidas hitam" }],
+      "   "
+    ),
+    "   Deskripsi Barang: 2x sepatu adidas hitam"
+  );
+  assert.equal(
+    formatBarisDeskripsiBarangWa(
+      [
+        { layanan: "Outsole biasa", jumlah: 1, deskripsi_barang: "sepatu adidas hitam" },
+        { layanan: "Deep Clean", jumlah: 2, deskripsi_barang: "sneakers nike putih" },
+      ],
+      "   "
+    ),
+    "   Deskripsi Barang:\n   - 1x Outsole biasa — sepatu adidas hitam\n   - 2x Deep Clean — sneakers nike putih"
+  );
+});
+
+test("Cek pesanan aktif & cek kode tiket menampilkan deskripsi barang untuk 1 maupun multi-item tanpa membocorkan nama pelanggan", async () => {
+  mockGateway.reset();
+  const nomorWa = "6281333444555";
+  const jid = `${nomorWa}@c.us`;
+
+  await pool.query(
+    `INSERT INTO services (nama, harga, estimasi_hari, aktif)
+     VALUES ('Deep Clean Multi Tes', 55000, 3, true)
+     ON CONFLICT (nama) DO UPDATE SET aktif = true`
+  );
+
+  // Order multi-item
+  const resMulti = await prosesWebhookMasukWa(
+    {
+      event: "message",
+      payload: {
+        id: "msg-order-multi-desc",
+        from: jid,
+        body: `Nama: Pelanggan Rahasia Multi
+Barang: Cuci Standard Bot | 1 | Sepatu Adidas Hitam
+Barang: Deep Clean Multi Tes | 2 | Sneakers Nike Putih
+Antar/Jemput: Antar sendiri`,
+        fromMe: false,
+      },
+    },
+    ""
+  );
+  assert.equal(resMulti.ok, true);
+  const kodeMulti = resMulti.kodeTiket;
+
+  // Cek semua pesanan aktif ("3")
+  mockGateway.reset();
+  await prosesWebhookMasukWa(
+    {
+      event: "message",
+      payload: { id: "msg-cek-multi-list", from: jid, body: "3", fromMe: false },
+    },
+    ""
+  );
+  const balasanList = mockGateway.pesanTerkirim[0].teks;
+  assert.match(balasanList, new RegExp(kodeMulti));
+  assert.match(balasanList, /Deskripsi Barang:/);
+  assert.match(balasanList, /- 1x Cuci Standard Bot — Sepatu Adidas Hitam/);
+  assert.match(balasanList, /- 2x Deep Clean Multi Tes — Sneakers Nike Putih/);
+  assert.doesNotMatch(balasanList, /Pelanggan Rahasia Multi/);
+
+  // Cek kode tiket ("cek <KODE>")
+  mockGateway.reset();
+  await prosesWebhookMasukWa(
+    {
+      event: "message",
+      payload: { id: "msg-cek-multi-detail", from: jid, body: `cek ${kodeMulti}`, fromMe: false },
+    },
+    ""
+  );
+  const balasanDetail = mockGateway.pesanTerkirim[0].teks;
+  assert.match(balasanDetail, new RegExp(`Status Pesanan ${kodeMulti}`));
+  assert.match(balasanDetail, /Deskripsi Barang:/);
+  assert.match(balasanDetail, /- 1x Cuci Standard Bot — Sepatu Adidas Hitam/);
+  assert.match(balasanDetail, /- 2x Deep Clean Multi Tes — Sneakers Nike Putih/);
+  assert.doesNotMatch(balasanDetail, /Pelanggan Rahasia Multi/);
 });

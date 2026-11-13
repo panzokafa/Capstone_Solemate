@@ -2,7 +2,8 @@
 //   - sesi akun nonaktif tidak berlaku lagi
 //   - sesi kedaluwarsa ditolak
 //   - halaman owner (bukan hanya API) menolak kasir
-//   - /absensi bisa dibuka tanpa login
+//   - /absensi membalas 404 untuk semua pengunjung (owner, kasir, anonim); /karyawan & /rekap-absensi 404 identik untuk owner & kasir, anonim -> /login
+//   - sidebar dan halaman aktif tidak memuat kata Karyawan atau Absensi
 //   - aturan PIN baru: tepat 6 digit (000000 diterima; 5/7 digit dan huruf ditolak)
 //   - skrip create-user dan reset-pin menolak PIN bukan 6 digit
 //   - form login tidak mengirim sebelum 6 digit
@@ -202,9 +203,7 @@ test("kasir ditolak di HALAMAN owner, bukan hanya API", async () => {
 
   const halamanOwner = [
     "/katalog",
-    "/karyawan",
     "/laporan-harian",
-    "/rekap-absensi",
     "/rekap-bulanan",
   ];
   for (const rute of halamanOwner) {
@@ -235,16 +234,134 @@ test("kasir ditolak di HALAMAN owner, bukan hanya API", async () => {
   assert.notEqual(tiket.status, 302, "kasir harus bisa buka /tiket");
 });
 
-// ---------- /absensi tanpa login ----------
+// ---------- Phase 8A: Fitur Karyawan & Absensi disembunyikan (KARYAWAN_ABSENSI_AKTIF = false) ----------
 
-test("/absensi bisa dibuka tanpa login", async () => {
-  const res = await fetch(`${BASE}/absensi`, { redirect: "manual" });
-  assert.equal(res.status, 200, "/absensi harus terbuka tanpa login");
-  const body = await res.text();
-  assert.ok(/absensi/i.test(body), "halaman harus menampilkan isi absensi");
-  assert.ok(
-    !(res.headers.get("location") ?? "").includes("/login"),
-    "/absensi tidak boleh diarahkan ke /login"
+// Pola deteksi teks/href terlarang pada HTML tanpa memicu positif palsu dari kata lain (mis. "dibuat_oleh", peran "Kasir"/"Owner").
+const POLA_KARYAWAN_ABSENSI_HTML =
+  /\bkaryawan\b|\babsen(?:si)?\b|\/(?:karyawan|absensi|rekap-absensi)\b/i;
+
+function bersihkanScriptStyle(html) {
+  return html
+    .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, " ");
+}
+
+// Next.js dev menyisipkan request ID acak pada <script id="_R_">self.__next_r="..."</script>
+// serta jejak stack async di <template data-next-error-stack="...">; normalisasi hanya bagian runtime acak tersebut.
+function normalisasiHtml404Next(html) {
+  return html
+    .replace(/self\.__next_r="[^"]+"/g, 'self.__next_r="__REQ_ID__"')
+    .replace(/data-next-error-stack="[^"]*"/g, 'data-next-error-stack="__STACK__"');
+}
+
+test("/absensi membalas 404 untuk semua pengunjung termasuk anonim (tanpa redirect /login)", async () => {
+  const { cookie: ownerCookie } = await login(OWNER_NAMA, OWNER_PIN);
+  const { cookie: kasirCookie } = await login(KASIR_NAMA, KASIR_PIN);
+
+  const resAnon = await fetch(`${BASE}/absensi`, { redirect: "manual" });
+  const resOwner = await fetch(`${BASE}/absensi`, {
+    headers: { Cookie: ownerCookie },
+    redirect: "manual",
+  });
+  const resKasir = await fetch(`${BASE}/absensi`, {
+    headers: { Cookie: kasirCookie },
+    redirect: "manual",
+  });
+
+  assert.equal(resAnon.status, 404, "anonim di /absensi harus mendapat HTTP 404");
+  assert.equal(resOwner.status, 404, "owner di /absensi harus mendapat HTTP 404");
+  assert.equal(resKasir.status, 404, "kasir di /absensi harus mendapat HTTP 404");
+  assert.equal(resAnon.headers.get("location"), null, "/absensi anonim tidak boleh redirect ke /login");
+
+  const bodyAnon = await resAnon.text();
+  const bodyOwner = await resOwner.text();
+  const bodyKasir = await resKasir.text();
+  assert.equal(
+    normalisasiHtml404Next(bodyOwner),
+    normalisasiHtml404Next(bodyKasir),
+    "respons 404 /absensi owner dan kasir harus identik"
+  );
+  assert.equal(
+    normalisasiHtml404Next(bodyAnon),
+    normalisasiHtml404Next(bodyOwner),
+    "respons 404 /absensi anonim dan owner harus identik"
+  );
+  assert.doesNotMatch(bodyOwner, /Absensi Karyawan|Clock-in|Akses ditolak/i);
+});
+
+test("/karyawan, /rekap-absensi, /api/karyawan, /api/rekap-absensi: 404 identik untuk owner & kasir; anonim 307 ke /login", async () => {
+  const { cookie: ownerCookie } = await login(OWNER_NAMA, OWNER_PIN);
+  const { cookie: kasirCookie } = await login(KASIR_NAMA, KASIR_PIN);
+
+  for (const rute of ["/karyawan", "/rekap-absensi", "/api/karyawan", "/api/rekap-absensi"]) {
+    const resAnon = await fetch(`${BASE}${rute}`, { redirect: "manual" });
+    assert.ok(
+      resAnon.status === 307 || resAnon.status === 302,
+      `anonim di ${rute} harus diarahkan ke /login, dapat ${resAnon.status}`
+    );
+    assert.ok(
+      (resAnon.headers.get("location") ?? "").includes("/login"),
+      `anonim di ${rute} harus mengarah ke /login`
+    );
+
+    const resOwner = await fetch(`${BASE}${rute}`, {
+      headers: { Cookie: ownerCookie },
+      redirect: "manual",
+    });
+    const resKasir = await fetch(`${BASE}${rute}`, {
+      headers: { Cookie: kasirCookie },
+      redirect: "manual",
+    });
+    assert.equal(resOwner.status, 404, `owner di ${rute} harus HTTP 404 asli, dapat ${resOwner.status}`);
+    assert.equal(resKasir.status, 404, `kasir di ${rute} harus HTTP 404 asli, dapat ${resKasir.status}`);
+
+    const bodyOwner = await resOwner.text();
+    const bodyKasir = await resKasir.text();
+    assert.doesNotMatch(bodyOwner, /Akses ditolak/i, `${rute} owner tidak boleh berisi Akses ditolak`);
+    assert.doesNotMatch(bodyKasir, /Akses ditolak/i, `${rute} kasir tidak boleh berisi Akses ditolak`);
+    assert.equal(
+      rute.startsWith("/api/") ? bodyOwner : normalisasiHtml404Next(bodyOwner),
+      rute.startsWith("/api/") ? bodyKasir : normalisasiHtml404Next(bodyKasir),
+      `respons 404 ${rute} untuk owner dan kasir harus identik`
+    );
+  }
+});
+
+test("sidebar dan halaman utama ter-render untuk owner, kasir, dan login tidak memuat Karyawan atau Absensi", async () => {
+  const { cookie: ownerCookie } = await login(OWNER_NAMA, OWNER_PIN);
+  const { cookie: kasirCookie } = await login(KASIR_NAMA, KASIR_PIN);
+
+  const ujiOwner = ["/", "/tiket", "/laporan-harian", "/rekap-bulanan", "/katalog"];
+  for (const rute of ujiOwner) {
+    const res = await fetch(`${BASE}${rute}`, { headers: { Cookie: ownerCookie } });
+    assert.equal(res.status, 200, `owner harus bisa buka ${rute}`);
+    const html = bersihkanScriptStyle(await res.text());
+    assert.doesNotMatch(
+      html,
+      POLA_KARYAWAN_ABSENSI_HTML,
+      `halaman owner ${rute} (termasuk sidebar) tidak boleh memuat kata Karyawan/Absensi`
+    );
+  }
+
+  const ujiKasir = ["/", "/tiket", "/buat-tiket"];
+  for (const rute of ujiKasir) {
+    const res = await fetch(`${BASE}${rute}`, { headers: { Cookie: kasirCookie } });
+    assert.equal(res.status, 200, `kasir harus bisa buka ${rute}`);
+    const html = bersihkanScriptStyle(await res.text());
+    assert.doesNotMatch(
+      html,
+      POLA_KARYAWAN_ABSENSI_HTML,
+      `halaman kasir ${rute} (termasuk sidebar) tidak boleh memuat kata Karyawan/Absensi`
+    );
+  }
+
+  const resLogin = await fetch(`${BASE}/login`);
+  assert.equal(resLogin.status, 200);
+  const htmlLogin = bersihkanScriptStyle(await resLogin.text());
+  assert.doesNotMatch(
+    htmlLogin,
+    POLA_KARYAWAN_ABSENSI_HTML,
+    "halaman /login tidak boleh memuat tautan atau teks Absen Karyawan"
   );
 });
 

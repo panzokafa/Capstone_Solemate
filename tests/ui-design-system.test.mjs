@@ -13,7 +13,13 @@ import path from "node:path";
 
 import { PASANGAN_KONTRAS } from "../src/config/tokens.ts";
 import { formatRupiah, formatTanggal, formatWaktu } from "../src/lib/format.ts";
-import { MENU_OWNER, MENU_KASIR } from "../src/config/menu.ts";
+import { KARYAWAN_ABSENSI_AKTIF } from "../src/config/fitur.ts";
+import {
+  MENU_OWNER,
+  MENU_KASIR,
+  buatMenuOwner,
+  buatMenuKasir,
+} from "../src/config/menu.ts";
 import {
   STATUS_PESANAN,
   STATUS_BAYAR,
@@ -113,6 +119,33 @@ test("/dev/komponen tidak muncul di menu sidebar dan terlindungi", () => {
     /requireOwner\s*\(\s*\)/,
     "Halaman /dev/komponen harus memanggil requireOwner() untuk perlindungan peran"
   );
+});
+
+// 4b. Tes saklar fitur KARYAWAN_ABSENSI_AKTIF & penyusunan menu dari konstanta
+test("KARYAWAN_ABSENSI_AKTIF bertipe boolean=false; menu menyembunyikan Karyawan/Absensi dan bisa diaktifkan via parameter fungsi", () => {
+  assert.equal(typeof KARYAWAN_ABSENSI_AKTIF, "boolean", "KARYAWAN_ABSENSI_AKTIF harus bertipe boolean");
+  assert.equal(KARYAWAN_ABSENSI_AKTIF, false, "KARYAWAN_ABSENSI_AKTIF harus false pada Phase 8A");
+
+  const hrefTerlarang = ["/karyawan", "/absensi", "/rekap-absensi"];
+  const labelTerlarang = ["Karyawan", "Absensi", "Rekap Absensi"];
+
+  for (const m of MENU_OWNER) {
+    assert.ok(!hrefTerlarang.includes(m.href), `MENU_OWNER tidak boleh memuat ${m.href}`);
+    assert.ok(!labelTerlarang.includes(m.label), `MENU_OWNER tidak boleh memuat label ${m.label}`);
+  }
+  for (const m of MENU_KASIR) {
+    assert.ok(!hrefTerlarang.includes(m.href), `MENU_KASIR tidak boleh memuat ${m.href}`);
+    assert.ok(!labelTerlarang.includes(m.label), `MENU_KASIR tidak boleh memuat label ${m.label}`);
+  }
+
+  // Simulasi menghidupkan fitur via parameter fungsi tanpa mengubah berkas konfigurasi
+  const menuOwnerAktif = buatMenuOwner(true);
+  const menuKasirAktif = buatMenuKasir(true);
+  assert.ok(menuOwnerAktif.some((m) => m.href === "/karyawan" && m.label === "Karyawan"));
+  assert.ok(menuOwnerAktif.some((m) => m.href === "/rekap-absensi" && m.label === "Rekap Absensi"));
+  assert.ok(menuKasirAktif.some((m) => m.href === "/absensi" && m.label === "Absensi"));
+  assert.deepEqual(buatMenuOwner(false), MENU_OWNER);
+  assert.deepEqual(buatMenuKasir(false), MENU_KASIR);
 });
 
 // 5. Tes tidak ada kode warna hex hardcode

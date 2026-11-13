@@ -1,14 +1,12 @@
-// Karyawan — OWNER SAJA.
-import { requireOwner, AksesDitolakError } from "@/lib/auth";
+// Karyawan — OWNER SAJA (dinonaktifkan 404 ketika KARYAWAN_ABSENSI_AKTIF=false).
+import { pastikanHalamanKaryawanAbsensi } from "@/lib/guard-karyawan-absensi";
 import { Placeholder } from "../placeholder";
 import { AksesDitolak } from "../akses-ditolak";
 
+export const dynamic = "force-dynamic";
+
 export default async function KaryawanPage() {
-  try {
-    await requireOwner();
-  } catch (e) {
-    if (e instanceof AksesDitolakError) return <AksesDitolak />;
-    throw e;
-  }
+  const status = await pastikanHalamanKaryawanAbsensi();
+  if (status === "ditolak") return <AksesDitolak />;
   return <Placeholder judul="Karyawan" />;
 }

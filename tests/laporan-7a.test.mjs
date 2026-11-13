@@ -612,10 +612,14 @@ test("periode hari ini & dashboard: transaksi waktu nyata dihitung akurat tanpa 
   }
 });
 
-test("dashboard SSR: owner melihat grafik tren & label 'tren, bukan laporan harian', kasir melihat tombol + Buat Tiket", async () => {
+test("dashboard SSR: owner melihat grafik tren & label 'tren, bukan laporan harian', kasir melihat tombol Buat Tiket", async () => {
   const htmlKasir = await ambilHtml(kasirCookie, "/");
   assert.equal(htmlKasir.res.status, 200);
-  assert.match(htmlKasir.html, /\+ Buat Tiket/i, "Kasir melihat tombol + Buat Tiket");
+  assert.match(
+    htmlKasir.html,
+    /<a\b[^>]*href="\/buat-tiket"[^>]*>\s*<button\b[^>]*>[\s\S]*?Buat Tiket[\s\S]*?<\/button>\s*<\/a>/i,
+    "Kasir melihat tombol Buat Tiket"
+  );
   assert.doesNotMatch(htmlKasir.html, /Tren Pesanan 7 Hari Terakhir/i, "Kasir tidak melihat grafik tren 7 hari");
 
   const htmlOwner = await ambilHtml(ownerCookie, "/");

@@ -2,6 +2,7 @@
 import { redirect } from "next/navigation";
 import { getPool } from "@/lib/db";
 import { getSesi } from "@/lib/auth";
+import { KARYAWAN_ABSENSI_AKTIF } from "@/config/fitur";
 import { Card } from "@/components/ui/card";
 import { LoginForm } from "./login-form";
 
@@ -56,7 +57,19 @@ export default async function LoginPage() {
               Belum ada akun. Hubungi Owner untuk membuat akun.
             </p>
           ) : (
-            <LoginForm pengguna={pengguna} />
+            <>
+              <LoginForm pengguna={pengguna} />
+              {KARYAWAN_ABSENSI_AKTIF && (
+                <div className="mt-5 text-center">
+                  <a
+                    href="/absensi"
+                    className="text-xs text-text-muted hover:text-primary hover:underline font-jakarta"
+                  >
+                    Absen Karyawan (Clock-in / Clock-out)
+                  </a>
+                </div>
+              )}
+            </>
           )}
         </Card>
       </main>

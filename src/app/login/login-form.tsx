@@ -186,14 +186,6 @@ export function LoginForm({ pengguna }: { pengguna: Pengguna[] }) {
       >
         Masuk Sekarang
       </Button>
-
-      {/* Link absen */}
-      <a
-        href="/absensi"
-        className="text-xs text-text-muted hover:text-primary hover:underline font-jakarta"
-      >
-        Absen Karyawan (Clock-in / Clock-out)
-      </a>
     </div>
   );
 }

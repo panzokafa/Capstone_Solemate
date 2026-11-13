@@ -1,15 +1,8 @@
-// API Rekap Absensi — OWNER SAJA. Kasir harus mendapat 403.
-import { NextResponse } from "next/server";
-import { requireOwner, AksesDitolakError } from "@/lib/auth";
+// API Rekap Absensi — OWNER SAJA (membalas 404 untuk owner/kasir saat KARYAWAN_ABSENSI_AKTIF=false; anonim -> /login).
+import { tanganiApiKaryawanAbsensi } from "@/lib/guard-karyawan-absensi";
+
+export const dynamic = "force-dynamic";
 
 export async function GET() {
-  try {
-    const sesi = await requireOwner();
-    return NextResponse.json({ ok: true, peran: sesi.peran, data: "rekap-absensi" });
-  } catch (e) {
-    if (e instanceof AksesDitolakError) {
-      return NextResponse.json({ error: "Akses ditolak" }, { status: 403 });
-    }
-    throw e;
-  }
+  return tanganiApiKaryawanAbsensi("rekap-absensi");
 }

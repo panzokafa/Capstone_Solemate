@@ -114,7 +114,7 @@ export default async function DashboardPage() {
             <Link href="/buat-tiket">
               <Button variant="primary">
                 <Ikon name="add_circle" size={16} className="h-4 w-4 shrink-0" aria-hidden="true" />
-                + Buat Tiket
+                Buat Tiket
               </Button>
             </Link>
           ) : (

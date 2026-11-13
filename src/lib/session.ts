@@ -5,7 +5,7 @@ import { cookies } from "next/headers";
 import { randomUUID } from "node:crypto";
 import { getPool } from "./db";
 
-const COOKIE_NAME = "solemate_session";
+export const SESSION_COOKIE_NAME = "solemate_session";
 
 export type SesiAktif = {
   id: string;
@@ -24,10 +24,8 @@ function isProduction(): boolean {
   return process.env.NODE_ENV === "production";
 }
 
-// Ambil peran terbaru dari tabel users (bukan salinan di sesi) + status aktif.
-export async function bacaSesi(): Promise<SesiAktif | null> {
-  const store = await cookies();
-  const id = store.get(COOKIE_NAME)?.value;
+// Ambil peran terbaru dari tabel users berdasarkan ID cookie sesi + status aktif.
+export async function bacaSesiDariId(id: string | undefined): Promise<SesiAktif | null> {
   if (!id) return null;
 
   const pool = getPool();
@@ -53,6 +51,12 @@ export async function bacaSesi(): Promise<SesiAktif | null> {
   };
 }
 
+// Ambil peran terbaru dari tabel users (bukan salinan di sesi) + status aktif.
+export async function bacaSesi(): Promise<SesiAktif | null> {
+  const store = await cookies();
+  return bacaSesiDariId(store.get(SESSION_COOKIE_NAME)?.value);
+}
+
 // Buat sesi baru (ID baru tiap login). Mengembalikan ID untuk cookie.
 export async function buatSesi(
   userId: number,
@@ -70,7 +74,7 @@ export async function buatSesi(
 
 export async function setSesiCookie(id: string): Promise<void> {
   const store = await cookies();
-  store.set(COOKIE_NAME, id, {
+  store.set(SESSION_COOKIE_NAME, id, {
     httpOnly: true,
     sameSite: "lax",
     secure: isProduction(),
@@ -81,5 +85,5 @@ export async function setSesiCookie(id: string): Promise<void> {
 
 export async function hapusSesiCookie(): Promise<void> {
   const store = await cookies();
-  store.delete(COOKIE_NAME);
+  store.delete(SESSION_COOKIE_NAME);
 }

@@ -43,12 +43,12 @@ export type SerahTerima =
 // Template teks balasan bot WhatsApp
 export function buatTeksFormatPemesanan(apakahLid: boolean = false): string {
   if (apakahLid) {
-    return `📋 *Format Pemesanan Cuci Sepatu*
+    return `📋 *Format Pemesanan Solemate*
 
 Silakan kirim pesan dengan format berikut:
 
 Nama: <Nama Anda>
-Barang: <Nomor atau Nama Layanan> | <Jumlah pasang> | <Deskripsi sepatu>
+Barang: <Nomor atau Nama Layanan> | <Jumlah pasang> | <Deskripsi barang>
 Antar/Jemput: <Antar sendiri / Jemput>
 Nomor WA: <Nomor WhatsApp aktif Anda>
 
@@ -63,12 +63,12 @@ Nomor WA: 081234567890
 _Catatan: Ketik *1* untuk melihat daftar layanan aktif. Nomor layanan (1, 2, dst) mengacu pada nomor urut pricelist saat ini dan dapat berubah jika katalog diperbarui._`;
   }
 
-  return `📋 *Format Pemesanan Cuci Sepatu*
+  return `📋 *Format Pemesanan Solemate*
 
 Silakan kirim pesan dengan format berikut:
 
 Nama: <Nama Anda>
-Barang: <Nomor atau Nama Layanan> | <Jumlah pasang> | <Deskripsi sepatu>
+Barang: <Nomor atau Nama Layanan> | <Jumlah pasang> | <Deskripsi barang>
 Antar/Jemput: <Antar sendiri / Jemput>
 
 Contoh:

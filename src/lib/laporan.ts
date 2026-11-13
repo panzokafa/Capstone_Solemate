@@ -4,11 +4,14 @@
 
 import type { Pool, PoolClient } from "pg";
 import { getPool } from "./db.ts";
+import { formatTanggal } from "./format.ts";
 import {
   PERIODE_LAPORAN,
   type PeriodeLaporan,
   PERIODE_REKAP_BULANAN,
   type PeriodeRekapBulanan,
+  FORMAT_EKSPOR_REKAP,
+  type FormatEksporRekap,
   MAKS_RENTANG_HARI_LAPORAN,
   MAKS_LAYANAN_TERLARIS,
   JUMLAH_TIKET_TERBARU_DASHBOARD,
@@ -16,7 +19,6 @@ import {
   TEKS_CATATAN_PEMBULATAN_LAYANAN,
   TEKS_LABA_RUGI_BELUM_TERSEDIA,
   hitungPersentaseSatuDesimal,
-  hitungPersentaseLainnya,
   keNominalAman,
   keJumlahAman,
 } from "../config/laporan.ts";
@@ -39,6 +41,15 @@ export type FilterRekapBulanan = {
 
 export type HasilValidasiFilterRekap =
   | { ok: true; data: FilterRekapBulanan }
+  | { ok: false; kode: 400; galat: string };
+
+export type FilterEksporRekap = {
+  format: FormatEksporRekap;
+  filter: FilterRekapBulanan;
+};
+
+export type HasilValidasiEksporRekap =
+  | { ok: true; data: FilterEksporRekap }
   | { ok: false; kode: 400; galat: string };
 
 export type BarisLayananTerlaris = {
@@ -156,6 +167,7 @@ export type DataDashboard = {
 };
 
 const PARAMETER_LAPORAN_DIIZINKAN = new Set(["periode", "dari", "sampai"]);
+const PARAMETER_EKSPOR_REKAP_DIIZINKAN = new Set(["periode", "dari", "sampai", "format"]);
 
 function uraiTanggalKalender(teks: string): { tahun: number; bulan: number; hari: number } | null {
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(teks);
@@ -216,10 +228,11 @@ function validasiPasanganRentangTanggal(
 }
 
 function cekKunciParameterLaporan(
-  searchParams: URLSearchParams
+  searchParams: URLSearchParams,
+  diizinkan: ReadonlySet<string> = PARAMETER_LAPORAN_DIIZINKAN
 ): { ok: true } | { ok: false; kode: 400; galat: string } {
   for (const k of searchParams.keys()) {
-    if (!PARAMETER_LAPORAN_DIIZINKAN.has(k)) {
+    if (!diizinkan.has(k)) {
       return { ok: false, kode: 400, galat: `Parameter query tidak dikenal: ${k}.` };
     }
     if (searchParams.getAll(k).length > 1) {
@@ -279,17 +292,7 @@ export function validasiQueryLaporanHarian(
   };
 }
 
-/**
- * Validasi parameter query untuk Rekap Bulanan (FR-50).
- * Mendukung ?periode=bulan_ini | ?periode=bulan_lalu | ?periode=rentang&dari=...&sampai=...
- * atau langsung ?dari=YYYY-MM-DD&sampai=YYYY-MM-DD.
- */
-export function validasiQueryRekapBulanan(
-  searchParams: URLSearchParams
-): HasilValidasiFilterRekap {
-  const cekKunci = cekKunciParameterLaporan(searchParams);
-  if (!cekKunci.ok) return cekKunci;
-
+function validasiBagianPeriodeRekap(searchParams: URLSearchParams): HasilValidasiFilterRekap {
   const periodeRaw = searchParams.get("periode");
   const dariRaw = searchParams.get("dari");
   const sampaiRaw = searchParams.get("sampai");
@@ -328,6 +331,50 @@ export function validasiQueryRekapBulanan(
       periode,
       dari,
       sampai,
+    },
+  };
+}
+
+/**
+ * Validasi parameter query untuk Rekap Bulanan (FR-50).
+ * Mendukung ?periode=bulan_ini | ?periode=bulan_lalu | ?periode=rentang&dari=...&sampai=...
+ * atau langsung ?dari=YYYY-MM-DD&sampai=YYYY-MM-DD.
+ */
+export function validasiQueryRekapBulanan(
+  searchParams: URLSearchParams
+): HasilValidasiFilterRekap {
+  const cekKunci = cekKunciParameterLaporan(searchParams);
+  if (!cekKunci.ok) return cekKunci;
+  return validasiBagianPeriodeRekap(searchParams);
+}
+
+/**
+ * Validasi parameter query untuk Ekspor Rekap Bulanan (FR-53).
+ * Wajib menyertakan ?format=xlsx atau ?format=pdf; menolak parameter asing/duplikat.
+ */
+export function validasiQueryEksporRekap(
+  searchParams: URLSearchParams
+): HasilValidasiEksporRekap {
+  const cekKunci = cekKunciParameterLaporan(searchParams, PARAMETER_EKSPOR_REKAP_DIIZINKAN);
+  if (!cekKunci.ok) return cekKunci;
+
+  const formatRaw = searchParams.get("format");
+  if (!formatRaw || !(FORMAT_EKSPOR_REKAP as readonly string[]).includes(formatRaw)) {
+    return {
+      ok: false,
+      kode: 400,
+      galat: "Parameter format ekspor wajib diisi dengan xlsx atau pdf.",
+    };
+  }
+
+  const hasilPeriode = validasiBagianPeriodeRekap(searchParams);
+  if (!hasilPeriode.ok) return hasilPeriode;
+
+  return {
+    ok: true,
+    data: {
+      format: formatRaw as FormatEksporRekap,
+      filter: hasilPeriode.data,
     },
   };
 }
@@ -675,11 +722,8 @@ export async function ambilRekapBulanan(
     const sisa = semuaBaris.slice(MAKS_LAYANAN_TERLARIS);
     const sisaPasang = sisa.reduce((acc, item) => acc + item.jumlah_pasang, 0);
     const sisaNominal = sisa.reduce((acc, item) => acc + item.total_nominal, 0);
-    // Serap selisih pembulatan dari 100,0% di baris Lainnya, dijaga minimal 0,0% (tidak pernah negatif)
-    const persentaseLainnya = hitungPersentaseLainnya(
-      daftarTerbatas.map((item) => item.persentase_pasang),
-      totalPasang
-    );
+    // Pembulatan jujur: baris Lainnya dibulatkan dari porsi pasang aslinya terhadap total pasang
+    const persentaseLainnya = hitungPersentaseSatuDesimal(sisaPasang, totalPasang);
 
     daftarTerbatas.push({
       peringkat: null,
@@ -715,6 +759,18 @@ export async function ambilRekapBulanan(
       pesan: TEKS_LABA_RUGI_BELUM_TERSEDIA,
     },
   };
+}
+
+/**
+ * Mengambil cap waktu pembuatan laporan dari jam database zona Asia/Jakarta (WIB).
+ */
+export async function ambilJamBuatDbWib(poolClient?: Pool | PoolClient): Promise<string> {
+  const pool = poolClient ?? getPool();
+  const res = await pool.query(`
+    SELECT to_char(now() AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS waktu_utc
+  `);
+  const formatted = formatTanggal(res.rows[0]?.waktu_utc, { denganWaktu: true });
+  return formatted === "-" ? "" : formatted;
 }
 
 /**

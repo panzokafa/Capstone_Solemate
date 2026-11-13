@@ -26,6 +26,7 @@ import {
   History,
   User,
   Eye,
+  Download,
   type LucideIcon,
 } from "lucide-react";
 
@@ -55,6 +56,7 @@ export const PEMETAAN_IKON: Record<string, LucideIcon> = {
   history: History,
   user: User,
   eye: Eye,
+  download: Download,
 };
 
 export type NamaIkon = keyof typeof PEMETAAN_IKON;

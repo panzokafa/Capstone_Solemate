@@ -17,7 +17,7 @@ import {
   ambilRekapBulanan,
   ambilLaporanHarian,
 } from "../src/lib/laporan.ts";
-import { hitungPersentaseSatuDesimal, hitungPersentaseLainnya } from "../src/config/laporan.ts";
+import { hitungPersentaseSatuDesimal } from "../src/config/laporan.ts";
 
 const { Pool } = pg;
 const BASE = process.env.BASE_URL ?? "http://localhost:3000";
@@ -110,7 +110,7 @@ after(async () => {
 
 // ---------- 1. Otorisasi, Keamanan Rute, Privasi, & Anti-Cache ----------
 
-test("otorisasi & keamanan rekap bulanan: hanya owner, kasir ditolak, tanpa login redirect, no-store, tanpa ekspor/PII", async () => {
+test("otorisasi & keamanan rekap bulanan: hanya owner, kasir ditolak, tanpa login redirect, no-store, tanpa PII", async () => {
   // API tanpa login -> 307 ke /login
   const apiAnon = await api(null, "GET", "/api/rekap-bulanan");
   assert.equal(apiAnon.res.status, 307);
@@ -163,7 +163,9 @@ test("otorisasi & keamanan rekap bulanan: hanya owner, kasir ditolak, tanpa logi
   assert.match(ssrOwner.html, /Dihitung otomatis dari data tiket/i);
   assert.match(ssrOwner.html, /Angka dihitung dari data tiket saat ini/i);
   assert.match(ssrOwner.html, /Belum tersedia: sumber data pengeluaran belum ditentukan/i);
-  assert.doesNotMatch(ssrOwner.html, /Ekspor Data/i, "Tidak boleh ada tombol ekspor");
+  assert.match(ssrOwner.html, /Unduh Excel/i, "Tombol Unduh Excel harus tersedia di Rekap Bulanan");
+  assert.match(ssrOwner.html, /Unduh PDF/i, "Tombol Unduh PDF harus tersedia di Rekap Bulanan");
+  assert.doesNotMatch(ssrOwner.html, /Ekspor CSV|Cetak Rekap/i, "Tidak boleh ada tombol ekspor format lain");
 });
 
 // ---------- 2. Validasi Parameter Query & Rentang 366 vs 367 Hari ----------
@@ -555,19 +557,24 @@ test("rekap bulanan lengkap, tes silang 7A, XSS, layanan kembar nonaktif, >10 la
   assert.equal(daftar[5].aktif, true);
   assert.equal(daftar[5].jumlah_pasang, 3);
 
-  // Baris ke-11 adalah "Lainnya" (gabungan S11 + S12) yang total pasang, nominal, & persentasenya tepat 100,0%
+  // Baris ke-11 adalah "Lainnya" (gabungan S11 + S12) dengan pembulatan jujur per baris
   const lainnya = daftar[10];
   assert.equal(lainnya.adalah_lainnya, true);
   assert.equal(lainnya.nama_layanan, "Lainnya");
   assert.equal(lainnya.jumlah_pasang, 2); // S11 (1) + S12 (1)
   assert.equal(lainnya.total_nominal, 25_000); // 15k + 10k
+  assert.equal(lainnya.persentase_pasang, hitungPersentaseSatuDesimal(2, 34)); // 5.9%
 
   const jumlahPasangDaftar = daftar.reduce((acc, r) => acc + r.jumlah_pasang, 0);
   const jumlahNominalDaftar = daftar.reduce((acc, r) => acc + r.total_nominal, 0);
   const jumlahTenthsPersen = daftar.reduce((acc, r) => acc + Math.round(r.persentase_pasang * 10), 0);
   assert.equal(jumlahPasangDaftar, EXPECT_PASANG_MASUK, "Total pasang daftar + Lainnya wajib sama");
   assert.equal(jumlahNominalDaftar, EXPECT_NOMINAL_MASUK, "Total nominal daftar + Lainnya wajib sama");
-  assert.equal(jumlahTenthsPersen, 1000, "Total persentase Top 10 + Lainnya wajib tepat 100,0%");
+  // Pembulatan jujur 34 psg: 17.6 + 3*11.8 + 2*8.8 + 4*5.9 + 5.9 = 100.1% (dalam rentang 99.9..100.1%)
+  assert.ok(
+    jumlahTenthsPersen >= 999 && jumlahTenthsPersen <= 1001,
+    `Total porsi pembulatan jujur berada di sekitar 99,9%–100,1% (didapat ${jumlahTenthsPersen / 10}%)`
+  );
 
   // Verifikasi pintasan bulan_lalu pada tanggal acuan 2026-09-05 juga mengembalikan rekap Agustus persis sama
   const rekapViaPintasan = await ambilRekapBulanan(
@@ -722,17 +729,16 @@ test("rekap bulanan lengkap, tes silang 7A, XSS, layanan kembar nonaktif, >10 la
   assert.equal(rekap.layanan_terlaris.daftar[0].service_id, s1.id);
 });
 
-// ---------- 5. Pembulatan Naik Top 10 (>100%) Tidak Pernah Membuat Baris "Lainnya" Negatif ----------
+// ---------- 5. Pembulatan Jujur Baris "Lainnya" (9x27, 1x22, 1x1 psg = 266 psg) ----------
 
-test("baris Lainnya tidak pernah negatif saat pembulatan naik pada 11 layanan melampaui 100%", async () => {
-  // Verifikasi fungsi murni: 9 * 10.2 + 8.3 = 100.1% -> tanpa penjagaan menjadi -0.1%
-  assert.equal(
-    hitungPersentaseLainnya([10.2, 10.2, 10.2, 10.2, 10.2, 10.2, 10.2, 10.2, 10.2, 8.3], 266),
-    0
-  );
+test("pembulatan jujur baris Lainnya pada 11 layanan (9x27, 1x22, 1x1) tampil ~0,4% (tidak 0,0% / negatif)", async () => {
+  // Verifikasi porsi asli 1/266 = 0,3759% -> dibulatkan 1 desimal menjadi 0,4% (bukan 0,0% atau negatif)
+  assert.equal(hitungPersentaseSatuDesimal(27, 266), 10.2);
+  assert.equal(hitungPersentaseSatuDesimal(22, 266), 8.3);
+  assert.equal(hitungPersentaseSatuDesimal(1, 266), 0.4);
 
   // Verifikasi ujung-ke-ujung lewat database pada bulan terisolasi 2025-11:
-  // 9 layanan x 27 psg (10,2%), 1 layanan x 22 psg (8,3%), 1 layanan x 1 psg -> total 266 psg.
+  // 9 layanan x 27 psg (10,2%), 1 layanan x 22 psg (8,3%), 1 layanan x 1 psg (0,4%) -> total 266 psg.
   const suf = `${Date.now()}_nov`;
   const daftarSvc = [];
   for (let i = 1; i <= 11; i++) {
@@ -779,13 +785,24 @@ test("baris Lainnya tidak pernah negatif saat pembulatan naik pada 11 layanan me
   assert.equal(rekapNov.layanan_terlaris.total_pasang, 266);
   assert.equal(rekapNov.layanan_terlaris.jumlah_layanan_unik, 11);
   assert.equal(rekapNov.layanan_terlaris.daftar.length, 11); // 10 teratas + Lainnya
+  assert.match(rekapNov.layanan_terlaris.catatan_pembulatan, /99,9.*100,1/);
+
+  for (let i = 0; i < 9; i++) {
+    assert.equal(rekapNov.layanan_terlaris.daftar[i].persentase_pasang, 10.2);
+  }
+  assert.equal(rekapNov.layanan_terlaris.daftar[9].persentase_pasang, 8.3);
 
   const lainnya = rekapNov.layanan_terlaris.daftar[10];
   assert.equal(lainnya.adalah_lainnya, true);
   assert.equal(lainnya.jumlah_pasang, 1);
-  assert.ok(
-    lainnya.persentase_pasang >= 0,
-    `Persentase Lainnya tidak boleh negatif (didapat ${lainnya.persentase_pasang})`
+  assert.equal(lainnya.persentase_pasang, 0.4, "Lainnya berisi 1/266 pasang wajib tampil 0,4%, bukan 0,0%");
+
+  // Verifikasi halaman /rekap-bulanan menampilkan 0,4% dan catatan pembulatan
+  const ssrNov = await ambilHtml(
+    ownerCookie,
+    "/rekap-bulanan?periode=rentang&dari=2025-11-01&sampai=2025-11-30"
   );
-  assert.equal(lainnya.persentase_pasang, 0);
+  assert.equal(ssrNov.res.status, 200);
+  assert.match(ssrNov.html, /0,4%/);
+  assert.match(ssrNov.html, /99,9%–100,1%/);
 });

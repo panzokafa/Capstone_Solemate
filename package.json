@@ -24,23 +24,28 @@
     "test:wa-6b": "START_TEST_SERVER=1 node --env-file=.env scripts/with-test-db.mjs --experimental-strip-types --test 'tests/wa-notifikasi-6b.test.mjs'",
     "test:laporan-7a": "START_TEST_SERVER=1 node --env-file=.env scripts/with-test-db.mjs --experimental-strip-types --test 'tests/laporan-7a.test.mjs'",
     "test:rekap-7b": "START_TEST_SERVER=1 node --env-file=.env scripts/with-test-db.mjs --experimental-strip-types --test 'tests/rekap-7b.test.mjs'",
-    "test": "npm run test:ui; a=$?; npm run test:db; b=$?; npm run test:auth; c=$?; npm run test:katalog; d=$?; npm run test:tiket; e=$?; npm run test:tiket-5b; f=$?; npm run test:wa-6a; g=$?; npm run test:wa-6b; h=$?; npm run test:laporan-7a; i=$?; npm run test:rekap-7b; j=$?; exit $((a || b || c || d || e || f || g || h || i || j))"
+    "test:ekspor-7b": "START_TEST_SERVER=1 node --env-file=.env scripts/with-test-db.mjs --experimental-strip-types --test 'tests/ekspor-rekap-7b.test.mjs'",
+    "test": "npm run test:ui; a=$?; npm run test:db; b=$?; npm run test:auth; c=$?; npm run test:katalog; d=$?; npm run test:tiket; e=$?; npm run test:tiket-5b; f=$?; npm run test:wa-6a; g=$?; npm run test:wa-6b; h=$?; npm run test:laporan-7a; i=$?; npm run test:rekap-7b; j=$?; npm run test:ekspor-7b; k=$?; exit $((a || b || c || d || e || f || g || h || i || j || k))"
   },
   "dependencies": {
     "argon2": "^0.45.1",
     "lucide-react": "1.67.0",
     "next": "16.4.3",
+    "pdfkit": "0.20.2",
     "react": "19.3.0",
-    "react-dom": "19.3.0"
+    "react-dom": "19.3.0",
+    "write-excel-file": "4.1.1"
   },
   "devDependencies": {
     "@tailwindcss/turbopack": "^4",
     "@types/node": "^20",
+    "@types/pdfkit": "0.17.7",
     "@types/pg": "^8.23.1",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.4.3",
+    "fflate": "0.8.3",
     "node-pg-migrate": "^7.9.1",
     "pg": "^8.23.1",
     "tailwindcss": "^4",

@@ -13,6 +13,8 @@ export const JUMLAH_TIKET_TERBARU_DASHBOARD = 5;
 
 export const PERIODE_REKAP_BULANAN = ["bulan_ini", "bulan_lalu", "rentang"] as const;
 export type PeriodeRekapBulanan = (typeof PERIODE_REKAP_BULANAN)[number];
+export const FORMAT_EKSPOR_REKAP = ["xlsx", "pdf"] as const;
+export type FormatEksporRekap = (typeof FORMAT_EKSPOR_REKAP)[number];
 export const MAKS_LAYANAN_TERLARIS = 10;
 export const TEKS_LABA_RUGI_BELUM_TERSEDIA =
   "Belum tersedia: sumber data pengeluaran belum ditentukan";
@@ -29,9 +31,10 @@ export const TEKS_LABA_RUGI_BELUM_TERSEDIA =
  *      Hanya menghitung jumlah tiket yang sempat Lunas lalu dibatalkan (tanpa nominal).
  *    - Pembalikan pembayaran dihitung dari audit 'UBAH_PEMBAYARAN' (dari Lunas ke Belum bayar).
  * 4. Layanan Terlaris (Rekap Bulanan): Dikelompokkan per service_id menggunakan nama layanan saat ini
- *    dan nominal dari order_items.harga_saat_transaksi. Persentase memakai pembulatan 1 desimal
- *    dari total pasang masuk (0 bila total pasang nol); bila lebih dari 10 layanan, baris "Lainnya"
- *    menyerap selisih pembulatan dari 100,0% agar total persentase tepat 100,0%.
+ *    dan nominal dari order_items.harga_saat_transaksi. Memakai pembulatan jujur 1 desimal untuk
+ *    setiap baris (termasuk baris "Lainnya") dari porsi aslinya terhadap total pasang (0 bila total
+ *    pasang nol), sehingga baris "Lainnya" yang berisi pasang tidak menjadi 0,0% ataupun negatif
+ *    dan total porsi yang tampil wajar berada di sekitar 99,9%–100,1% (bisa sedikit berbeda saat banyak baris).
  * 5. Keterbatasan Keadaan Sekarang (Live State vs Snapshot):
  *    Laporan dihitung dari data tiket saat ini (bukan snapshot pembekuan saat tutup toko).
  *    Perubahan setelah periode berlalu (seperti tiket kemarin yang baru dilunasi atau dibatalkan hari ini)
@@ -42,7 +45,7 @@ export const TEKS_DISCLAIMER_LAPORAN =
   "Angka dihitung dari data tiket saat ini; perubahan setelah periode berlalu dapat menggeser angka hari lampau.";
 
 export const TEKS_CATATAN_PEMBULATAN_LAYANAN =
-  "Persentase dihitung terhadap total pasang masuk (1 desimal). Jika terdapat lebih dari 10 layanan, baris Lainnya menyerap selisih pembulatan agar total mencapai 100,0% (dijaga minimal 0,0%, tidak pernah negatif).";
+  "Persentase dibulatkan satu desimal per baris (termasuk Lainnya) dari porsi aslinya terhadap total pasang; total dapat berkisar 99,9%–100,1% akibat pembulatan.";
 
 /**
  * Hitung persentase dengan pembulatan 1 angka di belakang koma.
@@ -51,22 +54,6 @@ export const TEKS_CATATAN_PEMBULATAN_LAYANAN =
 export function hitungPersentaseSatuDesimal(bagian: number, total: number): number {
   if (!Number.isFinite(total) || total <= 0) return 0;
   return Math.round((bagian * 1000) / total) / 10;
-}
-
-/**
- * Hitung persentase baris "Lainnya" (>10 layanan) sehingga tidak pernah bernilai negatif
- * apabila pembulatan naik pada 10 layanan teratas sudah mencapai atau sedikit melampaui 100,0%.
- */
-export function hitungPersentaseLainnya(
-  daftarPersentaseTop: readonly number[],
-  totalPasang: number
-): number {
-  if (!Number.isFinite(totalPasang) || totalPasang <= 0) return 0;
-  const totalTenthsTop = daftarPersentaseTop.reduce(
-    (acc, p) => acc + Math.round((Number.isFinite(p) && p >= 0 ? p : 0) * 10),
-    0
-  );
-  return Math.max(0, 1000 - totalTenthsTop) / 10;
 }
 
 /**

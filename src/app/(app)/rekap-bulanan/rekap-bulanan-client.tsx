@@ -1,9 +1,10 @@
 "use client";
 
-// Komponen interaktif Rekap Bulanan (Phase 7B, FR-50, FR-51, FR-52, NFR-07).
+// Komponen interaktif Rekap Bulanan (Phase 7B, FR-50, FR-51, FR-52, FR-53, NFR-07).
 // Susunan mengikuti referensi stitch_export dengan gaya @/components/ui & token semantik.
 // Responsif penuh untuk ponsel (tabel layanan menjadi kartu di layar kecil).
-// Tanpa tombol ekspor/cetak, tanpa nama pelanggan/nomor WA, tanpa daftar per tiket.
+// Mendukung ekspor Excel (.xlsx) & PDF dengan rentang tanggal yang sedang ditampilkan.
+// Tanpa nama pelanggan/nomor WA dan tanpa daftar per tiket.
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
@@ -45,6 +46,58 @@ export function RekapBulananClient({ data, galatQuery }: RekapBulananClientProps
   const [dari, setDari] = React.useState(data.rentang.dari);
   const [sampai, setSampai] = React.useState(data.rentang.sampai);
   const [galatForm, setGalatForm] = React.useState<string | null>(galatQuery ?? null);
+  const [sedangEkspor, setSedangEkspor] = React.useState<"xlsx" | "pdf" | null>(null);
+
+  async function handleEkspor(format: "xlsx" | "pdf") {
+    if (sedangEkspor !== null) return;
+    setGalatForm(null);
+    setSedangEkspor(format);
+
+    try {
+      const url = `/api/rekap-bulanan/ekspor?format=${format}&periode=rentang&dari=${encodeURIComponent(
+        data.rentang.dari
+      )}&sampai=${encodeURIComponent(data.rentang.sampai)}`;
+
+      const res = await fetch(url, {
+        method: "GET",
+        credentials: "same-origin",
+      });
+
+      const contentType = res.headers.get("content-type") ?? "";
+      if (!res.ok || contentType.includes("application/json")) {
+        let pesanGalat = "Gagal mengunduh berkas ekspor rekap.";
+        try {
+          const body = (await res.json()) as { error?: string };
+          if (typeof body?.error === "string" && body.error.trim()) {
+            pesanGalat = body.error;
+          }
+        } catch {
+          // Abaikan kesalahan parsing JSON
+        }
+        setGalatForm(pesanGalat);
+        return;
+      }
+
+      const blob = await res.blob();
+      const disposisi = res.headers.get("content-disposition") ?? "";
+      const cocokNama = /filename="([^"]+)"/i.exec(disposisi);
+      const namaDefault = `rekap-solemate_${data.rentang.dari}_sd_${data.rentang.sampai}.${format}`;
+      const namaFile = cocokNama?.[1] ?? namaDefault;
+
+      const objectUrl = URL.createObjectURL(blob);
+      const tautan = document.createElement("a");
+      tautan.href = objectUrl;
+      tautan.download = namaFile;
+      document.body.appendChild(tautan);
+      tautan.click();
+      document.body.removeChild(tautan);
+      window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+    } catch {
+      setGalatForm("Koneksi terputus saat mengunduh berkas ekspor.");
+    } finally {
+      setSedangEkspor(null);
+    }
+  }
 
   const navigasikan = React.useCallback(
     (targetPeriode: "bulan_ini" | "bulan_lalu" | "rentang", d?: string, s?: string) => {
@@ -107,6 +160,30 @@ export function RekapBulananClient({ data, galatQuery }: RekapBulananClientProps
           <div className="flex flex-wrap items-center gap-2">
             <Badge variant="primary">Dihitung otomatis dari data tiket</Badge>
             <Badge variant="default">Hanya-baca</Badge>
+          </div>
+        }
+        actions={
+          <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+            <Button
+              type="button"
+              variant="secondary"
+              disabled={sedangEkspor !== null}
+              onClick={() => handleEkspor("xlsx")}
+              className="flex-1 sm:flex-initial min-h-[44px] gap-2"
+            >
+              <Ikon name="download" size={16} className="h-4 w-4 shrink-0" aria-hidden="true" />
+              <span>{sedangEkspor === "xlsx" ? "Menyiapkan Excel..." : "Unduh Excel"}</span>
+            </Button>
+            <Button
+              type="button"
+              variant="primary"
+              disabled={sedangEkspor !== null}
+              onClick={() => handleEkspor("pdf")}
+              className="flex-1 sm:flex-initial min-h-[44px] gap-2"
+            >
+              <Ikon name="download" size={16} className="h-4 w-4 shrink-0" aria-hidden="true" />
+              <span>{sedangEkspor === "pdf" ? "Menyiapkan PDF..." : "Unduh PDF"}</span>
+            </Button>
           </div>
         }
       />

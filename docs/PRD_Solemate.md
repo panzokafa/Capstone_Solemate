@@ -53,7 +53,7 @@ Asumsi: Owner hanya melihat tiket (tidak mengubah status), karena pengubahan sta
 - Integrasi atau pencocokan dengan Olsera.
 - Pembayaran online (QRIS, transfer, payment gateway) dan verifikasi pembayaran.
 - Pengaturan QRIS, rekening bank, atau gambar pricelist (pricelist bot diambil dari katalog).
-- Ekspor PDF atau Excel.
+- Ekspor CSV maupun ekspor/cetak untuk Laporan Harian Operasional (ekspor Excel & PDF ditambahkan khusus untuk Rekap Bulanan melalui FR-53).
 - Peran admin, teknisi, kurir, atau pencuci dengan akun sendiri.
 - Kas awal dan kas akhir shift.
 - Penghapusan tiket.
@@ -187,7 +187,7 @@ Setiap bagian di bawah bisa ditempel satu per satu ke Stitch, bersama panduan de
 **Catatan:** tampilan harus nyaman di ponsel karena pemilik membukanya dari jarak jauh (NFR-07).
 
 ### 7.8 Rekap Bulanan — Should
-**Tujuan:** rekap keuangan akhir bulan untuk rentang tanggal bebas (FR-50 sampai FR-52).
+**Tujuan:** rekap keuangan akhir bulan untuk rentang tanggal bebas (FR-50 sampai FR-53).
 **Akses:** owner saja.
 **Komponen:**
 - Pemilih rentang tanggal (misal 1 sampai 31 Oktober) dengan pintasan "Bulan ini" dan "Bulan lalu".
@@ -195,6 +195,7 @@ Setiap bagian di bawah bisa ditempel satu per satu ke Stitch, bersama panduan de
 - **Layanan atau produk terlaris:** daftar atau diagram batang horizontal diurutkan dari terbanyak.
 - **Total per metode pembayaran:** cash dan non-cash (diagram donat atau dua kartu).
 - Kartu **Laba rugi** (Could): ditandai "Belum tersedia" sampai sumber data pengeluaran diputuskan (lihat bagian 13).
+- Tombol **Unduh Excel** dan **Unduh PDF** (FR-53, Could — *tambahan tim*): mengekspor rentang tanggal yang sedang ditampilkan ke Excel (`.xlsx`, sheet Ringkasan & Layanan Terlaris) atau PDF (A4 portrait), khusus owner dan tercatat pada audit log `EKSPOR_REKAP`.
 **State:** rentang kosong, loading.
 
 ### 7.9 Katalog Layanan dan Harga
@@ -266,6 +267,7 @@ Selalu sediakan jawaban teks sebagai cadangan, misalnya pelanggan mengetik `1`, 
 | Laporan harian | FR-43 rincian cash dan non-cash | Should |
 | Rekap bulanan | FR-50 rentang tanggal bebas; FR-51 terlaris dan per metode pembayaran | Should |
 | Rekap bulanan | FR-52 laba rugi | Could |
+| Rekap bulanan | FR-53 ekspor rekap bulanan ke Excel (.xlsx) dan PDF *(tambahan tim)* | Could |
 | Katalog | FR-60 kelola layanan; FR-61 harga disimpan per tiket | Must |
 | Karyawan dan absensi | FR-70 kelola karyawan; FR-71 clock-in dan clock-out dengan PIN; FR-72 rekap absensi | Should |
 | Pembayaran | FR-80 status Belum bayar dan Lunas; FR-82 hanya mencatat pembayaran | Must |
@@ -314,7 +316,7 @@ Aturan data: laporan dihitung dari orders dan order_items, tidak disimpan sebaga
 
 1. **Must:** login dan peran, tiket (buat, daftar, filter, ubah status), log audit, bot menu dan pembuatan tiket otomatis, click-to-chat, dashboard lima tiket terbaru, laporan harian, katalog.
 2. **Should:** notifikasi otomatis saat selesai, cek progress, tren 7 hari, rekap bulanan, rincian cash dan non-cash, karyawan dan absensi, tiket lama belum diambil.
-3. **Could:** laba rugi, cetak resi dari sistem.
+3. **Could:** laba rugi, cetak resi dari sistem, ekspor rekap bulanan ke Excel dan PDF (FR-53, tambahan tim).
 
 Jika fitur terlalu sulit, pemilik setuju fitur tersebut dipangkas atau ditunda.
 

@@ -479,7 +479,7 @@ test("laporan harian operasional: hitungan manual vs SQL agregat pada tanggal te
     dari: TGL_KEMARIN_UJI,
     sampai: TGL_KEMARIN_UJI,
   }, appPool);
-  assert.equal(lapKemarin.pesanan_masuk.total_tiket, 1, "T7 masuk di kohort kemarin");
+  assert.equal(lapKemarin.pesanan_masuk.total_tiket, 1, "T7 masuk di kelompok kemarin");
   assert.equal(lapKemarin.pesanan_masuk.total_pasang, t7_pasang);
 });
 

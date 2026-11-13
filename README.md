@@ -393,6 +393,21 @@ Pengujian otomatis Phase 6B dijalankan pada database uji `solemate_test` dengan 
 START_TEST_SERVER=1 node --env-file=.env scripts/with-test-db.mjs --experimental-strip-types --test 'tests/wa-notifikasi-6b.test.mjs'
 ```
 
+## Rekap Bulanan & Ekspor Laporan (Phase 7B & FR-53)
+
+Halaman `/rekap-bulanan` (khusus **owner**) menampilkan ringkasan pesanan masuk, pembayaran diterima (cash & non-cash), layanan terlaris, kartu Laba Rugi (FR-52), serta fitur tambahan tim **FR-53: Ekspor ke Excel (`.xlsx`) dan PDF**.
+
+### Cara Menggunakan Ekspor
+1. Login sebagai `owner` dan buka `/rekap-bulanan`.
+2. Pilih periode **Bulan ini**, **Bulan lalu**, atau **Rentang tanggal** (`dari` s/d `sampai`, maks 366 hari) dan klik **Terapkan**.
+3. Klik **Unduh Excel** atau **Unduh PDF** pada header halaman. Sistem mengirimkan rentang tanggal yang sedang ditampilkan (`periode=rentang&dari=...&sampai=...`) ke endpoint `GET /api/rekap-bulanan/ekspor`, sehingga berkas yang diunduh selalu sesuai dengan tanggal di layar meski berganti bulan.
+4. Setiap ekspor dicatat ke `audit_logs` dengan aksi `EKSPOR_REKAP` (*fail-closed*: jika pencatatan audit gagal, berkas tidak dikirim). Berkas ekspor tidak memuat data pribadi pelanggan (`nama_pelanggan`, `nomor_wa`) maupun daftar per tiket.
+5. **Catatan Pembulatan:** Persentase setiap baris layanan terlaris (termasuk baris `Lainnya`) menggunakan pembulatan jujur 1 desimal dari porsi aslinya terhadap total pasang sehingga baris `Lainnya` yang berisi pasang tidak bernilai `0,0%` atau negatif; total persentase yang tampil dapat berkisar `99,9%–100,1%`. Catatan ini ditampilkan konsisten pada halaman web, Excel, maupun PDF.
+
+### Persyaratan Hosting & Deployment untuk PDF (`pdfkit`)
+- `next.config.ts` mengaktifkan `serverExternalPackages: ["pdfkit"]` karena `pdfkit` membaca berkas data font standar `.afm` (`Helvetica` / `Helvetica-Bold`) secara langsung dari `node_modules/pdfkit/js/data/` saat runtime.
+- Jika melakukan deployment ke container Docker atau server terpisah, pastikan direktori `node_modules` (khususnya `pdfkit` dan dependensinya) ikut disalin/terpasang pada lingkungan runtime produksi, bukan dihilangkan oleh bundling terisolasi tanpa aset font.
+
 ## Catatan
 
 - Password database **hanya** ada di `.env` (diabaikan git) dan dibaca `docker-compose.yml` dari sana. Tidak ada password di file yang di-commit.

@@ -1,6 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  serverExternalPackages: ["pdfkit"],
   /* config options here */
   // cacheComponents & partialPrefetching dimatikan: tidak ada fitur `use cache`
   // yang dipakai, dan cacheComponents membuat `export const dynamic` di halaman

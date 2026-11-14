@@ -29,14 +29,17 @@ const BASE = process.env.BASE_URL ?? "http://localhost:3000";
 
 const pin6 = () => String(Math.floor(Math.random() * 900000) + 100000);
 const OWNER_NAMA = `Owner Katalog ${Date.now()}`;
+const OWNER2_NAMA = `Owner Katalog Dua ${Date.now()}`;
 const KASIR_NAMA = `Kasir Katalog ${Date.now()}`;
 const OWNER_PIN = pin6();
+const OWNER2_PIN = pin6();
 const KASIR_PIN = pin6();
 
 let admin; // koneksi admin (DATABASE_URL): menyiapkan dan memeriksa data
 let app; // koneksi solemate_app (DATABASE_URL_APP): hak yang sama dengan aplikasi
 let ownerId;
 let ownerCookie;
+let owner2Cookie;
 let kasirCookie;
 let n = 0;
 const nama = (awalan = "Layanan") => `${awalan} Uji ${++n} ${Math.random().toString(36).slice(2, 7)}`;
@@ -44,7 +47,7 @@ const nama = (awalan = "Layanan") => `${awalan} Uji ${++n} ${Math.random().toStr
 async function login(username, pin) {
   const res = await fetch(`${BASE}/api/login`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", Origin: BASE },
     body: JSON.stringify({ username, pin }),
   });
   assert.equal(res.status, 200, `login ${username} harus berhasil, dapat ${res.status}`);
@@ -90,8 +93,10 @@ before(async () => {
   admin = new Pool({ connectionString: process.env.DATABASE_URL });
   app = new Pool({ connectionString: process.env.DATABASE_URL_APP });
   ownerId = await buatAkunUji(OWNER_NAMA, "owner", OWNER_PIN);
+  await buatAkunUji(OWNER2_NAMA, "owner", OWNER2_PIN);
   await buatAkunUji(KASIR_NAMA, "kasir", KASIR_PIN);
   ownerCookie = await login(OWNER_NAMA, OWNER_PIN);
+  owner2Cookie = await login(OWNER2_NAMA, OWNER2_PIN);
   kasirCookie = await login(KASIR_NAMA, KASIR_PIN);
 });
 
@@ -247,27 +252,27 @@ test("validasi menolak data tidak valid dan tidak membuat baris", async () => {
   for (const [label, isi] of buruk) {
     const nm = nama("Buruk");
     const body = Array.isArray(isi) ? isi : { ...isi, ...(isi.nama === "x" ? { nama: nm } : {}) };
-    const { res } = await buat(ownerCookie, body);
+    const { res } = await buat(owner2Cookie, body);
     assert.equal(res.status, 400, `${label} harus 400, dapat ${res.status}`);
   }
-  const rusak = await api(ownerCookie, "POST", "/api/katalog", undefined, { mentah: "{bukan json" });
+  const rusak = await api(owner2Cookie, "POST", "/api/katalog", undefined, { mentah: "{bukan json" });
   assert.equal(rusak.res.status, 400, "JSON rusak harus 400");
   const sesudah = Number((await admin.query(`SELECT count(*) FROM services`)).rows[0].count);
   assert.equal(sesudah, sebelum, "tidak ada baris baru dari data tidak valid");
 
   // Batas atas yang sah diterima.
-  const ok = await buat(ownerCookie, { nama: nama("Batas"), harga: 100_000_000, estimasi_hari: 365 });
+  const ok = await buat(owner2Cookie, { nama: nama("Batas"), harga: 100_000_000, estimasi_hari: 365 });
   assert.equal(ok.res.status, 201);
-  const nol = await buat(ownerCookie, { nama: nama("Nol"), harga: 0, estimasi_hari: 0 });
+  const nol = await buat(owner2Cookie, { nama: nama("Nol"), harga: 0, estimasi_hari: 0 });
   assert.equal(nol.res.status, 201);
 
   // PUT, PATCH, dan ID juga divalidasi.
   const id = ok.data.data.id;
-  assert.equal((await api(ownerCookie, "PUT", `/api/katalog/${id}`, { nama: "x", harga: "1", estimasi_hari: 1 })).res.status, 400);
-  assert.equal((await api(ownerCookie, "PATCH", `/api/katalog/${id}`, { aktif: "false" })).res.status, 400);
-  assert.equal((await api(ownerCookie, "PATCH", `/api/katalog/${id}`, {})).res.status, 400);
-  assert.equal((await api(ownerCookie, "PATCH", `/api/katalog/abc`, { aktif: true })).res.status, 400);
-  assert.equal((await api(ownerCookie, "PATCH", `/api/katalog/999999`, { aktif: true })).res.status, 404);
+  assert.equal((await api(owner2Cookie, "PUT", `/api/katalog/${id}`, { nama: "x", harga: "1", estimasi_hari: 1 })).res.status, 400);
+  assert.equal((await api(owner2Cookie, "PATCH", `/api/katalog/${id}`, { aktif: "false" })).res.status, 400);
+  assert.equal((await api(owner2Cookie, "PATCH", `/api/katalog/${id}`, {})).res.status, 400);
+  assert.equal((await api(owner2Cookie, "PATCH", `/api/katalog/abc`, { aktif: true })).res.status, 400);
+  assert.equal((await api(owner2Cookie, "PATCH", `/api/katalog/999999`, { aktif: true })).res.status, 404);
 });
 
 test("nama kembar ditolak tanpa membedakan huruf besar/kecil dan spasi pinggir (409)", async () => {
@@ -310,7 +315,7 @@ test("dua pembuatan nama sama serentak: hanya satu berhasil", async () => {
   const nm = nama("Serentak");
   const hasil = await Promise.all(
     Array.from({ length: 6 }, (_, i) =>
-      buat(ownerCookie, { nama: i % 2 ? nm : nm.toUpperCase(), harga: 1000, estimasi_hari: 1 })
+      buat(owner2Cookie, { nama: i % 2 ? nm : nm.toUpperCase(), harga: 1000, estimasi_hari: 1 })
     )
   );
   const status = hasil.map((h) => h.res.status).sort();

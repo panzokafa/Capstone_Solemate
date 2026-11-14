@@ -3,8 +3,13 @@
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { daftarLayananAktif } from "@/lib/katalog";
+import { tanganiGalatRoute } from "@/lib/request-guard";
 
 export async function GET() {
-  await requireAuth();
-  return NextResponse.json({ ok: true, data: await daftarLayananAktif() });
+  try {
+    await requireAuth();
+    return NextResponse.json({ ok: true, data: await daftarLayananAktif() });
+  } catch (e) {
+    return tanganiGalatRoute("GET /api/katalog/aktif gagal", e);
+  }
 }

@@ -43,7 +43,7 @@ function waUnik08() {
 async function login(username, pin) {
   const res = await fetch(`${BASE}/api/login`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", Origin: BASE },
     body: JSON.stringify({ username, pin }),
   });
   assert.equal(res.status, 200, `Login ${username} harus 200`);

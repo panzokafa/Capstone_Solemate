@@ -40,7 +40,11 @@ export function Sidebar({
   }, []);
 
   async function keluar() {
-    await fetch("/api/logout", { method: "POST" });
+    await fetch("/api/logout", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: "{}",
+    });
     router.push("/login");
     router.refresh();
   }

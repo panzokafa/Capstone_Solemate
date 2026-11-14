@@ -1,18 +1,20 @@
-import { NextResponse } from "next/server";
+// POST /api/logout — cabut sesi aktif di database dan hapus cookie sesi.
 import { cookies } from "next/headers";
-import { getPool } from "@/lib/db";
+import { NextRequest, NextResponse } from "next/server";
+import { periksaPermintaanUbah, tanganiGalatRoute } from "@/lib/request-guard";
+import { hapusSesiCookie, hapusSesiDariDb, namaCookieSesi } from "@/lib/session";
 
-export async function POST() {
-  const jar = await cookies();
-  const sesiId = jar.get("solemate_session")?.value;
+export async function POST(req: NextRequest) {
+  const tolak = periksaPermintaanUbah(req);
+  if (tolak) return tolak;
 
-  if (sesiId) {
-    const pool = getPool();
-    await pool.query(`DELETE FROM sessions WHERE id = $1`, [sesiId]);
+  try {
+    const jar = await cookies();
+    const sesiId = jar.get(namaCookieSesi())?.value;
+    await hapusSesiDariDb(sesiId);
+    await hapusSesiCookie();
+    return NextResponse.json({ ok: true });
+  } catch (e) {
+    return tanganiGalatRoute("POST /api/logout gagal", e);
   }
-
-  // Hapus cookie.
-  jar.delete("solemate_session");
-
-  return NextResponse.json({ ok: true });
 }

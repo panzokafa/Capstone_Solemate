@@ -44,7 +44,7 @@ before(async () => {
 test("login owner berhasil, menyimpan sesi, dan login ulang ubah ID sesi", async () => {
   const res = await fetch(`${BASE}/api/login`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", Origin: BASE },
     body: JSON.stringify({ username: OWNER_NAMA, pin: OWNER_PIN }),
   });
   assert.equal(res.status, 200);
@@ -68,7 +68,7 @@ test("login owner berhasil, menyimpan sesi, dan login ulang ubah ID sesi", async
   // Login ulang → ID sesi baru.
   await fetch(`${BASE}/api/login`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", Origin: BASE },
     body: JSON.stringify({ username: OWNER_NAMA, pin: OWNER_PIN }),
   });
   const r2 = await pool.query(
@@ -88,7 +88,7 @@ test("login owner berhasil, menyimpan sesi, dan login ulang ubah ID sesi", async
 test("login gagal: PIN salah ditolak, tidak ada PIN di body gagal", async () => {
   const res = await fetch(`${BASE}/api/login`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", Origin: BASE, "X-Forwarded-For": "198.51.100.11" },
     body: JSON.stringify({ username: OWNER_NAMA, pin: "000000" }),
   });
   assert.equal(res.status, 403);
@@ -98,7 +98,7 @@ test("login gagal: PIN salah ditolak, tidak ada PIN di body gagal", async () => 
   // Pesan seragam: tidak membedakan PIN salah vs akun tidak ada.
   const res2 = await fetch(`${BASE}/api/login`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", Origin: BASE, "X-Forwarded-For": "198.51.100.11" },
     body: JSON.stringify({ username: "tidak-ada", pin: "000000" }),
   });
   assert.equal(res2.status, 403);
@@ -112,7 +112,7 @@ test("login gagal tidak menyimpan PIN di audit_logs", async () => {
   const pinUji = `pinrahasia${Date.now()}`;
   await fetch(`${BASE}/api/login`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", Origin: BASE, "X-Forwarded-For": "198.51.100.12" },
     body: JSON.stringify({ username: OWNER_NAMA, pin: pinUji }),
   });
 
@@ -134,7 +134,7 @@ test("pembatasan percobaan per akun memblokir setelah batas", async () => {
   for (let i = 0; i < 5; i++) {
     const res = await fetch(`${BASE}/api/login`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", Origin: BASE, "X-Forwarded-For": "198.51.100.13" },
       body: JSON.stringify({ username: RATE_OWNER_NAMA, pin: "000000" }),
     });
     assert.equal(res.status, 403);
@@ -143,7 +143,7 @@ test("pembatasan percobaan per akun memblokir setelah batas", async () => {
   // Percobaan ke-6 harus diblokir (akun terkunci), walau PIN benar.
   const res = await fetch(`${BASE}/api/login`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", Origin: BASE, "X-Forwarded-For": "198.51.100.13" },
     body: JSON.stringify({ username: RATE_OWNER_NAMA, pin: RATE_OWNER_PIN }),
   });
   assert.equal(res.status, 403);
@@ -155,7 +155,7 @@ test("selama akun terkunci, PIN yang benar pun ditolak", async () => {
   // Akun rate-limit masih terkunci dari tes sebelumnya.
   const res = await fetch(`${BASE}/api/login`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", Origin: BASE, "X-Forwarded-For": "198.51.100.13" },
     body: JSON.stringify({ username: RATE_OWNER_NAMA, pin: RATE_OWNER_PIN }),
   });
   assert.equal(res.status, 403);
@@ -177,7 +177,7 @@ test("kunci berakhir sesuai masa kunci (counter direset setelah jendela lewat)",
   // Setelah jendela lewat, PIN benar harus diterima lagi.
   const res = await fetch(`${BASE}/api/login`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", Origin: BASE, "X-Forwarded-For": "198.51.100.13" },
     body: JSON.stringify({ username: RATE_OWNER_NAMA, pin: RATE_OWNER_PIN }),
   });
   assert.equal(res.status, 200);
@@ -196,7 +196,7 @@ test("10 percobaan serentak tidak melewati batas 5", async () => {
     Array.from({ length: 10 }, () =>
       fetch(`${BASE}/api/login`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", Origin: BASE, "X-Forwarded-For": "198.51.100.14" },
         body: JSON.stringify({ username: NAMA, pin: "000000" }),
       }).then((r) => r.status)
     )
@@ -221,7 +221,7 @@ test("10 percobaan serentak tidak melewati batas 5", async () => {
 test("owner bisa memanggil rute owner", async () => {
   const loginRes = await fetch(`${BASE}/api/login`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", Origin: BASE },
     body: JSON.stringify({ username: OWNER_NAMA, pin: OWNER_PIN }),
   });
   const sc = loginRes.headers.get("set-cookie") ?? "";
@@ -238,7 +238,7 @@ test("owner bisa memanggil rute owner", async () => {
 test("kasir ditolak di semua rute owner (halaman dan API)", async () => {
   const loginRes = await fetch(`${BASE}/api/login`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", Origin: BASE },
     body: JSON.stringify({ username: KASIR_NAMA, pin: KASIR_PIN }),
   });
   assert.equal(loginRes.status, 200);
@@ -280,7 +280,7 @@ test("kasir ditolak di semua rute owner (halaman dan API)", async () => {
 
   const ownerLogin = await fetch(`${BASE}/api/login`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", Origin: BASE },
     body: JSON.stringify({ username: OWNER_NAMA, pin: OWNER_PIN }),
   });
   const scOwner = ownerLogin.headers.get("set-cookie") ?? "";
@@ -301,7 +301,7 @@ test("logout menghapus sesi dan cookie", async () => {
 
   const loginRes = await fetch(`${BASE}/api/login`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", Origin: BASE },
     body: JSON.stringify({ username: OWNER_NAMA, pin: OWNER_PIN }),
   });
   const sc = loginRes.headers.get("set-cookie") ?? "";
@@ -314,7 +314,8 @@ test("logout menghapus sesi dan cookie", async () => {
 
   const logoutRes = await fetch(`${BASE}/api/logout`, {
     method: "POST",
-    headers: { Cookie: sc },
+    headers: { Cookie: sc, "Content-Type": "application/json", Origin: BASE },
+    body: "{}",
   });
   assert.equal(logoutRes.status, 200);
 
@@ -408,7 +409,15 @@ test("tanpa sesi, halaman dan API mengarahkan ke Login", async () => {
     ["/api/katalog", "GET"],
     ["/api/tiket", "POST"],
   ]) {
-    const res = await fetch(`${BASE}${rute}`, { method: metode, redirect: "manual" });
+    const res = await fetch(`${BASE}${rute}`, {
+      method: metode,
+      headers:
+        metode === "POST"
+          ? { "Content-Type": "application/json", Origin: BASE }
+          : undefined,
+      body: metode === "POST" ? "{}" : undefined,
+      redirect: "manual",
+    });
     assert.ok(
       res.status === 401 || res.status === 403 || res.status === 302 || res.status === 307,
       `API ${rute} tanpa sesi harus ditolak, dapat ${res.status}`
@@ -425,7 +434,7 @@ test("PIN uji acak tidak muncul di file log server dan audit_logs", async () => 
   const pinUnik = `pinlog${Date.now()}${Math.floor(Math.random() * 1e6)}`;
   await fetch(`${BASE}/api/login`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", Origin: BASE, "X-Forwarded-For": "198.51.100.15" },
     body: JSON.stringify({ username: OWNER_NAMA, pin: pinUnik }),
   });
 
@@ -461,7 +470,7 @@ test("batas pencatatan audit dihitung per IP dan per akun, bukan global", async 
   for (let i = 0; i < N; i++) {
     await fetch(`${BASE}/api/login`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", "X-Forwarded-For": ip1 },
+      headers: { "Content-Type": "application/json", Origin: BASE, "X-Forwarded-For": ip1 },
       body: JSON.stringify({ username: akunA, pin: "000000" }),
     });
   }
@@ -483,7 +492,7 @@ test("batas pencatatan audit dihitung per IP dan per akun, bukan global", async 
   // meski akunA sudah mentok. (Kalau batas global, ini akan 0.)
   await fetch(`${BASE}/api/login`, {
     method: "POST",
-    headers: { "Content-Type": "application/json", "X-Forwarded-For": ip1 },
+    headers: { "Content-Type": "application/json", Origin: BASE, "X-Forwarded-For": ip1 },
     body: JSON.stringify({ username: akunB, pin: "000000" }),
   });
   const b = await pool.query(
@@ -496,7 +505,7 @@ test("batas pencatatan audit dihitung per IP dan per akun, bukan global", async 
   // Akun A dari IP2: batasnya terpisah per IP.
   await fetch(`${BASE}/api/login`, {
     method: "POST",
-    headers: { "Content-Type": "application/json", "X-Forwarded-For": ip2 },
+    headers: { "Content-Type": "application/json", Origin: BASE, "X-Forwarded-For": ip2 },
     body: JSON.stringify({ username: akunA, pin: "000000" }),
   });
   const a2 = await pool.query(

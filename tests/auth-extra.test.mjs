@@ -41,7 +41,7 @@ async function json(res) {
 async function login(username, pin, headers = {}) {
   const res = await fetch(`${BASE}/api/login`, {
     method: "POST",
-    headers: { "Content-Type": "application/json", ...headers },
+    headers: { "Content-Type": "application/json", Origin: BASE, ...headers },
     body: JSON.stringify({ username, pin }),
   });
   return { res, cookie: res.headers.get("set-cookie") ?? "" };
@@ -116,7 +116,7 @@ test("akun nonaktif tidak bisa login dan pesannya tidak membocorkan status", asy
   const pool = new Pool({ connectionString: process.env.DATABASE_URL });
   await pool.query(`UPDATE users SET aktif = false WHERE id = $1`, [nonaktifId]);
   try {
-    const { res } = await login(NONAKTIF_NAMA, NONAKTIF_PIN);
+    const { res } = await login(NONAKTIF_NAMA, NONAKTIF_PIN, { "X-Forwarded-For": "198.51.100.21" });
     assert.equal(res.status, 403, "akun nonaktif harus ditolak");
     const data = await json(res);
     assert.ok(
@@ -385,7 +385,7 @@ test("API menolak PIN yang bukan tepat 6 digit angka", async () => {
   for (const pin of ["12345", "1234567", "12345a"]) {
     const res = await fetch(`${BASE}/api/login`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", Origin: BASE },
       body: JSON.stringify({ username: OWNER_NAMA, pin }),
     });
     assert.equal(res.status, 400, `PIN "${pin}" harus ditolak server (400)`);
@@ -491,7 +491,7 @@ test("skrip reset-pin mengganti PIN dan membuka kunci akun", async () => {
     for (let i = 0; i < 5; i++) {
       await fetch(`${BASE}/api/login`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", Origin: BASE, "X-Forwarded-For": "198.51.100.22" },
         body: JSON.stringify({ username: namaUji, pin: "000000" }),
       });
     }
@@ -504,7 +504,7 @@ test("skrip reset-pin mengganti PIN dan membuka kunci akun", async () => {
     // PIN lama ditolak (akun terkunci).
     const resLama = await fetch(`${BASE}/api/login`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", Origin: BASE, "X-Forwarded-For": "198.51.100.22" },
       body: JSON.stringify({ username: namaUji, pin: pinLama }),
     });
     assert.equal(resLama.status, 403, "akun terkunci harus ditolak");
@@ -529,14 +529,14 @@ test("skrip reset-pin mengganti PIN dan membuka kunci akun", async () => {
     // PIN baru diterima, PIN lama ditolak.
     const resBaru = await fetch(`${BASE}/api/login`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", Origin: BASE, "X-Forwarded-For": "198.51.100.22" },
       body: JSON.stringify({ username: namaUji, pin: pinBaru }),
     });
     assert.equal(resBaru.status, 200, "PIN baru harus bisa login");
 
     const resLama2 = await fetch(`${BASE}/api/login`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", Origin: BASE, "X-Forwarded-For": "198.51.100.22" },
       body: JSON.stringify({ username: namaUji, pin: pinLama }),
     });
     assert.equal(resLama2.status, 403, "PIN lama harus ditolak setelah reset");
@@ -562,29 +562,34 @@ test("IP tidak diketahui: batas per-IP dilewati, akun lain tidak ikut terkunci",
   await buatAkunUji(akunA, "owner", pinA);
   await buatAkunUji(akunB, "owner", pinB);
   try {
-    // Server tes TRUST_PROXY=true. Tanpa header XFF → ambilIp = null.
-    // 6 percobaan salah untuk akun A tanpa IP.
+    // Server tes TRUST_PROXY=true. Di next dev, ketiadaan header XFF diisi loopback `::1`;
+    // header XFF non-IP ("tidak-diketahui") ditolak validasi isIP() sehingga ambilIp = null.
+    // 6 percobaan salah untuk akun A dengan IP tidak diketahui.
     for (let i = 0; i < 6; i++) {
       await fetch(`${BASE}/api/login`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Origin: BASE,
+          "X-Forwarded-For": "tidak-diketahui",
+        },
         body: JSON.stringify({ username: akunA, pin: "000000" }),
       });
     }
 
-    const { res: resA } = await login(akunA, pinA);
+    const { res: resA } = await login(akunA, pinA, { "X-Forwarded-For": "tidak-diketahui" });
     assert.equal(resA.status, 403, "akun A harus terkunci (batas per-akun)");
 
-    // Akun B tanpa IP harus tetap bisa login. Kalau IP tak dikenal dipakai
+    // Akun B tanpa IP diketahui harus tetap bisa login. Kalau IP tak dikenal dipakai
     // sebagai satu keranjang bersama, B ikut terkunci.
-    const { res: resB } = await login(akunB, pinB);
+    const { res: resB } = await login(akunB, pinB, { "X-Forwarded-For": "tidak-diketahui" });
     assert.equal(resB.status, 200, `akun B harus tetap bisa login, dapat ${resB.status}`);
 
-    // Tidak boleh ada kunci IP kosong di database.
+    // Tidak boleh ada kunci IP kosong atau string invalid di database.
     const kosong = await pool.query(
-      `SELECT count(*)::int n FROM login_rate_limit WHERE tipe = 'ip' AND kunci = ''`
+      `SELECT count(*)::int n FROM login_rate_limit WHERE tipe = 'ip' AND kunci IN ('', 'tidak-diketahui')`
     );
-    assert.equal(kosong.rows[0].n, 0, "IP tak dikenal tidak boleh jadi kunci kosong");
+    assert.equal(kosong.rows[0].n, 0, "IP tak dikenal tidak boleh jadi kunci di login_rate_limit");
   } finally {
     await pool.end();
   }

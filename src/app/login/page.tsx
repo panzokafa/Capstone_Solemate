@@ -1,27 +1,17 @@
-// Halaman Login. Server component: baca daftar pengguna aktif, render form.
+// Halaman Login. Server component: periksa sesi aktif, render form masuk tanpa mengekspose daftar akun.
 import { redirect } from "next/navigation";
-import { getPool } from "@/lib/db";
 import { getSesi } from "@/lib/auth";
 import { KARYAWAN_ABSENSI_AKTIF } from "@/config/fitur";
 import { Card } from "@/components/ui/card";
 import { LoginForm } from "./login-form";
 
-// Halaman ini membaca cookie & database per request, jangan di-prerender statis.
+// Halaman ini membaca cookie sesi per request, jangan di-prerender statis.
 export const dynamic = "force-dynamic";
 
 export default async function LoginPage() {
   // Sudah login? langsung ke dashboard.
   const sesi = await getSesi();
   if (sesi) redirect("/");
-
-  const r = await getPool().query(
-    `SELECT id, nama, peran FROM users WHERE aktif = true ORDER BY peran, nama`
-  );
-  const pengguna = r.rows.map((u: { id: number; nama: string; peran: "owner" | "kasir" }) => ({
-    id: u.id,
-    nama: u.nama,
-    peran: u.peran,
-  }));
 
   return (
     <div className="min-h-screen bg-surface-canvas flex flex-col">
@@ -52,24 +42,16 @@ export default async function LoginPage() {
             </p>
           </div>
 
-          {pengguna.length === 0 ? (
-            <p className="text-center text-sm text-text-muted">
-              Belum ada akun. Hubungi Owner untuk membuat akun.
-            </p>
-          ) : (
-            <>
-              <LoginForm pengguna={pengguna} />
-              {KARYAWAN_ABSENSI_AKTIF && (
-                <div className="mt-5 text-center">
-                  <a
-                    href="/absensi"
-                    className="text-xs text-text-muted hover:text-primary hover:underline font-jakarta"
-                  >
-                    Absen Karyawan (Clock-in / Clock-out)
-                  </a>
-                </div>
-              )}
-            </>
+          <LoginForm />
+          {KARYAWAN_ABSENSI_AKTIF && (
+            <div className="mt-5 text-center">
+              <a
+                href="/absensi"
+                className="text-xs text-text-muted hover:text-primary hover:underline font-jakarta"
+              >
+                Absen Karyawan (Clock-in / Clock-out)
+              </a>
+            </div>
           )}
         </Card>
       </main>

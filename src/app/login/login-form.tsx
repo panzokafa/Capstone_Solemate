@@ -1,34 +1,68 @@
-// Komponen form login: pilih pengguna + keypad PIN.
+// Komponen form login: input nama pengguna manual (+ ingat di perangkat) + keypad PIN 6 digit.
 "use client";
 
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback, useRef, useEffect, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
+import { MAKS_PANJANG_USERNAME } from "@/config/keamanan";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
-type Pengguna = { id: number; nama: string; peran: "owner" | "kasir" };
+const KUNCI_USERNAME_TERAKHIR = "solemate_username_terakhir";
 
-export function LoginForm({ pengguna }: { pengguna: Pengguna[] }) {
+function bacaUsernameTersimpan(): string {
+  try {
+    const tersimpan = window.localStorage.getItem(KUNCI_USERNAME_TERAKHIR);
+    if (typeof tersimpan === "string" && tersimpan.trim().length > 0) {
+      return tersimpan.slice(0, MAKS_PANJANG_USERNAME);
+    }
+  } catch {
+    // Abaikan jika localStorage tidak tersedia atau diblokir browser.
+  }
+  return "";
+}
+
+function langgananStorage(onChange: () => void): () => void {
+  window.addEventListener("storage", onChange);
+  return () => window.removeEventListener("storage", onChange);
+}
+
+export function LoginForm() {
   const router = useRouter();
-  const [terpilih, setTerpilih] = useState<Pengguna | null>(
-    pengguna.length === 1 ? pengguna[0] : null
+  const usernameTersimpan = useSyncExternalStore(
+    langgananStorage,
+    bacaUsernameTersimpan,
+    () => ""
   );
+  const [usernameEdit, setUsernameEdit] = useState<string | null>(null);
+  const username = usernameEdit ?? usernameTersimpan;
+
   const [pin, setPin] = useState("");
   const [showPin, setShowPin] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const errRef = useRef<HTMLParagraphElement>(null);
+  const usernameInputRef = useRef<HTMLInputElement>(null);
+
+  const usernameBersih = username.trim();
+  const dapatKirim = usernameBersih.length > 0 && pin.length === 6 && !loading;
 
   const kirim = useCallback(async () => {
-    if (!terpilih || !pin) return;
+    const nama = username.trim();
+    if (!nama || pin.length !== 6) return;
     setLoading(true);
     setError(null);
     try {
       const res = await fetch("/api/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username: terpilih.nama, pin }),
+        body: JSON.stringify({ username: nama, pin }),
       });
       if (res.ok) {
+        try {
+          window.localStorage.setItem(KUNCI_USERNAME_TERAKHIR, nama);
+        } catch {
+          // Abaikan jika localStorage tidak tersedia atau diblokir browser.
+        }
         router.push("/");
         router.refresh();
         return;
@@ -40,7 +74,31 @@ export function LoginForm({ pengguna }: { pengguna: Pengguna[] }) {
     } finally {
       setLoading(false);
     }
-  }, [terpilih, pin, router]);
+  }, [username, pin, router]);
+
+  function ubahUsername(nilai: string) {
+    setUsernameEdit(nilai);
+    setError(null);
+    if (nilai.trim().length === 0) {
+      try {
+        window.localStorage.removeItem(KUNCI_USERNAME_TERAKHIR);
+      } catch {
+        // Abaikan jika localStorage tidak tersedia atau diblokir browser.
+      }
+    }
+  }
+
+  function kosongkanUsername() {
+    if (loading) return;
+    setUsernameEdit("");
+    setError(null);
+    try {
+      window.localStorage.removeItem(KUNCI_USERNAME_TERAKHIR);
+    } catch {
+      // Abaikan jika localStorage tidak tersedia atau diblokir browser.
+    }
+    usernameInputRef.current?.focus();
+  }
 
   function tekan(k: string) {
     if (loading) return;
@@ -57,10 +115,21 @@ export function LoginForm({ pengguna }: { pengguna: Pengguna[] }) {
     }
   }
 
-  // Keyboard support: Enter untuk submit (hanya saat PIN sudah 6 digit)
+  // Keyboard support: Enter untuk submit (hanya saat PIN sudah 6 digit),
+  // jangan bajak tombol ketik saat fokus berada di dalam kolom input teks.
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if (e.key === "Enter" && terpilih && pin.length === 6) void kirim();
+      const target = e.target as HTMLElement | null;
+      const fokusDiInput =
+        target?.tagName === "INPUT" ||
+        target?.tagName === "TEXTAREA" ||
+        Boolean(target?.isContentEditable);
+      if (fokusDiInput) return;
+
+      if (e.key === "Enter" && username.trim().length > 0 && pin.length === 6) {
+        e.preventDefault();
+        void kirim();
+      }
       if (/^[0-9]$/.test(e.key)) tekan(e.key);
       if (e.key === "Backspace") tekan("⌫");
       if (e.key === "Escape") tekan("C");
@@ -70,48 +139,48 @@ export function LoginForm({ pengguna }: { pengguna: Pengguna[] }) {
   });
 
   return (
-    <div className="flex flex-col items-center gap-6 w-full max-w-sm">
-      {/* Pilih pengguna */}
-      <div className="w-full">
-        <p className="font-outfit text-xs font-semibold text-text-muted uppercase tracking-wider mb-2">
-          Pilih Pengguna
-        </p>
-        <div className="flex flex-col gap-2">
-          {pengguna.map((u) => (
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (dapatKirim) void kirim();
+      }}
+      noValidate
+      className="flex flex-col items-center gap-6 w-full max-w-sm"
+    >
+      {/* Input nama pengguna manual */}
+      <div className="w-full flex flex-col gap-1.5">
+        <div className="flex items-center justify-between w-full">
+          <label
+            htmlFor="login-username"
+            className="font-outfit text-xs font-semibold text-text-muted uppercase tracking-wider"
+          >
+            Nama Pengguna
+          </label>
+          {username.length > 0 && (
             <button
-              key={u.id}
               type="button"
-              onClick={() => {
-                setTerpilih(u);
-                setPin("");
-              }}
-              className={`flex items-center gap-3 p-3.5 rounded-2xl text-left transition-all min-h-[44px] cursor-pointer focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:outline-none ${
-                terpilih?.id === u.id
-                  ? "bg-primary text-white shadow-sm"
-                  : "bg-surface-card text-text-body border border-border-card hover:bg-surface-hover"
-              }`}
+              onClick={kosongkanUsername}
+              disabled={loading}
+              className="text-xs text-primary hover:underline font-jakarta font-medium cursor-pointer disabled:opacity-50"
             >
-              <span
-                className={`w-9 h-9 rounded-full flex items-center justify-center font-bold font-outfit text-sm ${
-                  terpilih?.id === u.id ? "bg-white/20 text-white" : "bg-surface-subtle text-primary"
-                }`}
-              >
-                {u.nama.charAt(0)}
-              </span>
-              <span className="flex-1">
-                <span className="block font-semibold text-sm font-jakarta">{u.nama}</span>
-                <span
-                  className={`block text-xs font-jakarta ${
-                    terpilih?.id === u.id ? "text-primary-light" : "text-text-muted"
-                  }`}
-                >
-                  {u.peran === "owner" ? "Owner" : "Kasir"}
-                </span>
-              </span>
-              {terpilih?.id === u.id && <span className="font-bold">✓</span>}
+              Kosongkan
             </button>
-          ))}
+          )}
         </div>
+        <Input
+          ref={usernameInputRef}
+          id="login-username"
+          name="username"
+          type="text"
+          value={username}
+          onChange={(e) => ubahUsername(e.target.value)}
+          placeholder="Masukkan nama pengguna"
+          autoComplete="username"
+          autoCapitalize="none"
+          spellCheck={false}
+          maxLength={MAKS_PANJANG_USERNAME}
+          disabled={loading}
+        />
       </div>
 
       {/* PIN display */}
@@ -177,15 +246,14 @@ export function LoginForm({ pengguna }: { pengguna: Pengguna[] }) {
 
       {/* Submit */}
       <Button
-        type="button"
-        onClick={() => void kirim()}
-        disabled={!terpilih || pin.length !== 6 || loading}
+        type="submit"
+        disabled={usernameBersih.length === 0 || pin.length !== 6 || loading}
         loading={loading}
         size="lg"
         className="w-full"
       >
         Masuk Sekarang
       </Button>
-    </div>
+    </form>
   );
 }

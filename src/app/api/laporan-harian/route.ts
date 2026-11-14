@@ -4,11 +4,9 @@
 // Respons dinamis tanpa cache lintas pengguna (Cache-Control: no-store).
 
 import { NextRequest, NextResponse } from "next/server";
-import { requireOwner, AksesDitolakError } from "@/lib/auth.ts";
-import {
-  validasiQueryLaporanHarian,
-  ambilLaporanHarian,
-} from "@/lib/laporan.ts";
+import { requireOwner } from "@/lib/auth";
+import { validasiQueryLaporanHarian, ambilLaporanHarian } from "@/lib/laporan";
+import { tanganiGalatRoute } from "@/lib/request-guard";
 
 export const dynamic = "force-dynamic";
 
@@ -36,20 +34,6 @@ export async function GET(req: NextRequest) {
       { status: 200, headers: HEADER_NO_STORE }
     );
   } catch (e) {
-    if (e instanceof AksesDitolakError) {
-      return NextResponse.json(
-        { error: "Akses ditolak" },
-        { status: 403, headers: HEADER_NO_STORE }
-      );
-    }
-    // Jika redirect Next.js (mis. belum login diarahkan ke /login)
-    if (typeof e === "object" && e !== null && "digest" in e) {
-      throw e;
-    }
-    console.error("GET /api/laporan-harian galat:", e instanceof Error ? e.name : "GALAT");
-    return NextResponse.json(
-      { error: "Terjadi kesalahan pada server." },
-      { status: 500, headers: HEADER_NO_STORE }
-    );
+    return tanganiGalatRoute("GET /api/laporan-harian gagal", e, HEADER_NO_STORE);
   }
 }

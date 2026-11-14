@@ -48,7 +48,7 @@ function waUnik08() {
 async function login(username, pin) {
   const res = await fetch(`${BASE}/api/login`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", Origin: BASE },
     body: JSON.stringify({ username, pin }),
   });
   assert.equal(res.status, 200, `login ${username} harus 200, dapat ${res.status}`);
@@ -93,8 +93,8 @@ async function ambilHtml(cookie, url) {
   return { res, html };
 }
 
-async function buatTiketBaru(tambahan = {}) {
-  const { res, data } = await api(kasir1Cookie, "POST", "/api/tiket", {
+async function buatTiketBaru(tambahan = {}, cookie = kasir1Cookie) {
+  const { res, data } = await api(cookie, "POST", "/api/tiket", {
     nama_pelanggan: tambahan.nama_pelanggan ?? "Pelanggan Uji Lima B",
     nomor_wa: tambahan.nomor_wa ?? waUnik08(),
     items: tambahan.items ?? [
@@ -282,10 +282,10 @@ test("alur transisi maju, koreksi mundur 1 langkah, lompat langkah 409, dan siap
   const tiket = await buatTiketBaru({
     status_bayar: "Lunas",
     metode_bayar: "Cash",
-  });
+  }, kasir2Cookie);
 
   // Lompat langkah Belum dicuci -> Siap diambil ditolak 409
-  const lompat1 = await api(kasir1Cookie, "PATCH", `/api/tiket/${tiket.id}`, {
+  const lompat1 = await api(kasir2Cookie, "PATCH", `/api/tiket/${tiket.id}`, {
     jenis: "status_pesanan",
     status_pesanan: "Siap diambil",
     status_sebelumnya: "Belum dicuci",
@@ -293,7 +293,7 @@ test("alur transisi maju, koreksi mundur 1 langkah, lompat langkah 409, dan siap
   assert.equal(lompat1.res.status, 409);
 
   // Lompat langkah Belum dicuci -> Sudah diambil ditolak 409
-  const lompat2 = await api(kasir1Cookie, "PATCH", `/api/tiket/${tiket.id}`, {
+  const lompat2 = await api(kasir2Cookie, "PATCH", `/api/tiket/${tiket.id}`, {
     jenis: "status_pesanan",
     status_pesanan: "Sudah diambil",
     status_sebelumnya: "Belum dicuci",
@@ -301,7 +301,7 @@ test("alur transisi maju, koreksi mundur 1 langkah, lompat langkah 409, dan siap
   assert.equal(lompat2.res.status, 409);
 
   // 1. Maju: Belum dicuci -> Diproses
-  const r1 = await api(kasir1Cookie, "PATCH", `/api/tiket/${tiket.id}`, {
+  const r1 = await api(kasir2Cookie, "PATCH", `/api/tiket/${tiket.id}`, {
     jenis: "status_pesanan",
     status_pesanan: "Diproses",
     status_sebelumnya: "Belum dicuci",
@@ -311,7 +311,7 @@ test("alur transisi maju, koreksi mundur 1 langkah, lompat langkah 409, dan siap
   assert.equal(r1.data.data.siap_diambil_pada, null);
 
   // Lompat Diproses -> Sudah diambil ditolak 409
-  const lompat3 = await api(kasir1Cookie, "PATCH", `/api/tiket/${tiket.id}`, {
+  const lompat3 = await api(kasir2Cookie, "PATCH", `/api/tiket/${tiket.id}`, {
     jenis: "status_pesanan",
     status_pesanan: "Sudah diambil",
     status_sebelumnya: "Diproses",
@@ -319,7 +319,7 @@ test("alur transisi maju, koreksi mundur 1 langkah, lompat langkah 409, dan siap
   assert.equal(lompat3.res.status, 409);
 
   // 2. Maju: Diproses -> Siap diambil (mengisi siap_diambil_pada pertama kali)
-  const r2 = await api(kasir1Cookie, "PATCH", `/api/tiket/${tiket.id}`, {
+  const r2 = await api(kasir2Cookie, "PATCH", `/api/tiket/${tiket.id}`, {
     jenis: "status_pesanan",
     status_pesanan: "Siap diambil",
     status_sebelumnya: "Diproses",
@@ -330,7 +330,7 @@ test("alur transisi maju, koreksi mundur 1 langkah, lompat langkah 409, dan siap
   assert.ok(jamSiapAwal, "siap_diambil_pada wajib terisi saat masuk Siap diambil");
 
   // Lompat mundur 2 langkah Siap diambil -> Belum dicuci ditolak 409
-  const lompatMundur = await api(kasir1Cookie, "PATCH", `/api/tiket/${tiket.id}`, {
+  const lompatMundur = await api(kasir2Cookie, "PATCH", `/api/tiket/${tiket.id}`, {
     jenis: "status_pesanan",
     status_pesanan: "Belum dicuci",
     status_sebelumnya: "Siap diambil",
@@ -338,7 +338,7 @@ test("alur transisi maju, koreksi mundur 1 langkah, lompat langkah 409, dan siap
   assert.equal(lompatMundur.res.status, 409);
 
   // 3. Koreksi mundur 1 langkah: Siap diambil -> Diproses (siap_diambil_pada TIDAK dikosongkan)
-  const rMundur = await api(kasir1Cookie, "PATCH", `/api/tiket/${tiket.id}`, {
+  const rMundur = await api(kasir2Cookie, "PATCH", `/api/tiket/${tiket.id}`, {
     jenis: "status_pesanan",
     status_pesanan: "Diproses",
     status_sebelumnya: "Siap diambil",
@@ -355,7 +355,7 @@ test("alur transisi maju, koreksi mundur 1 langkah, lompat langkah 409, dan siap
   await new Promise((resolve) => setTimeout(resolve, 40));
 
   // 4. Maju kembali: Diproses -> Siap diambil (siap_diambil_pada TIDAK bergeser!)
-  const rMajuLagi = await api(kasir1Cookie, "PATCH", `/api/tiket/${tiket.id}`, {
+  const rMajuLagi = await api(kasir2Cookie, "PATCH", `/api/tiket/${tiket.id}`, {
     jenis: "status_pesanan",
     status_pesanan: "Siap diambil",
     status_sebelumnya: "Diproses",
@@ -368,7 +368,7 @@ test("alur transisi maju, koreksi mundur 1 langkah, lompat langkah 409, dan siap
   );
 
   // 5. Maju: Siap diambil -> Sudah diambil
-  const rAmbil = await api(kasir1Cookie, "PATCH", `/api/tiket/${tiket.id}`, {
+  const rAmbil = await api(kasir2Cookie, "PATCH", `/api/tiket/${tiket.id}`, {
     jenis: "status_pesanan",
     status_pesanan: "Sudah diambil",
     status_sebelumnya: "Siap diambil",
@@ -377,7 +377,7 @@ test("alur transisi maju, koreksi mundur 1 langkah, lompat langkah 409, dan siap
   assert.equal(rAmbil.data.data.status_pesanan, "Sudah diambil");
 
   // 6. Koreksi mundur 1 langkah dari Sudah diambil -> Siap diambil diizinkan
-  const rKoreksiAmbil = await api(kasir1Cookie, "PATCH", `/api/tiket/${tiket.id}`, {
+  const rKoreksiAmbil = await api(kasir2Cookie, "PATCH", `/api/tiket/${tiket.id}`, {
     jenis: "status_pesanan",
     status_pesanan: "Siap diambil",
     status_sebelumnya: "Sudah diambil",
@@ -538,9 +538,9 @@ test("pembayaran: Lunas tanpa metode 400; Lunas->Lunas beda metode 409; balik Lu
 
 test("pembatalan: wajib alasan valid; tiket Lunas wajib konfirmasi & dicatat di luar sistem; Sudah diambil tidak bisa batal; Dibatalkan bersifat final", async () => {
   // Bagian A: Batal tanpa alasan / karakter terlarang ditolak 400
-  const t1 = await buatTiketBaru();
+  const t1 = await buatTiketBaru({}, kasir2Cookie);
   for (const alasanSalah of [undefined, "", "  ", "a".repeat(201), "Batal\nbaris", "Batal\u202E"]) {
-    const r = await api(kasir1Cookie, "PATCH", `/api/tiket/${t1.id}`, {
+    const r = await api(kasir2Cookie, "PATCH", `/api/tiket/${t1.id}`, {
       jenis: "batalkan",
       ...(alasanSalah !== undefined ? { alasan_batal: alasanSalah } : {}),
       status_sebelumnya: "Belum dicuci",
@@ -550,9 +550,9 @@ test("pembatalan: wajib alasan valid; tiket Lunas wajib konfirmasi & dicatat di 
   }
 
   // Bagian B: Tiket Lunas dibatalkan tanpa konfirmasi_sudah_lunas -> 409; dengan konfirmasi -> 200 + catatan audit
-  const tLunas = await buatTiketBaru({ status_bayar: "Lunas", metode_bayar: "Cash" });
+  const tLunas = await buatTiketBaru({ status_bayar: "Lunas", metode_bayar: "Cash" }, kasir2Cookie);
 
-  const batalTanpaKonfirmasi = await api(kasir1Cookie, "PATCH", `/api/tiket/${tLunas.id}`, {
+  const batalTanpaKonfirmasi = await api(kasir2Cookie, "PATCH", `/api/tiket/${tLunas.id}`, {
     jenis: "batalkan",
     alasan_batal: "Pelanggan batal jadi mencuci",
     status_sebelumnya: "Belum dicuci",
@@ -560,7 +560,7 @@ test("pembatalan: wajib alasan valid; tiket Lunas wajib konfirmasi & dicatat di 
   assert.equal(batalTanpaKonfirmasi.res.status, 409);
   assert.equal(batalTanpaKonfirmasi.data?.kode_konflik, "BUTUH_KONFIRMASI_LUNAS");
 
-  const batalDenganKonfirmasi = await api(kasir1Cookie, "PATCH", `/api/tiket/${tLunas.id}`, {
+  const batalDenganKonfirmasi = await api(kasir2Cookie, "PATCH", `/api/tiket/${tLunas.id}`, {
     jenis: "batalkan",
     alasan_batal: "Pelanggan batal jadi mencuci",
     konfirmasi_sudah_lunas: true,
@@ -578,14 +578,14 @@ test("pembatalan: wajib alasan valid; tiket Lunas wajib konfirmasi & dicatat di 
   assert.equal(auditBatal.nilai_baru?.uang_dikembalikan_di_luar_sistem, true);
 
   // Bagian C: Dibatalkan bersifat final — ubah status, ubah bayar, atau batal ulang dari Dibatalkan semuanya 409
-  const ubahSetelahBatal = await api(kasir1Cookie, "PATCH", `/api/tiket/${tLunas.id}`, {
+  const ubahSetelahBatal = await api(kasir2Cookie, "PATCH", `/api/tiket/${tLunas.id}`, {
     jenis: "status_pesanan",
     status_pesanan: "Diproses",
     status_sebelumnya: "Dibatalkan",
   });
   assert.equal(ubahSetelahBatal.res.status, 409);
 
-  const bayarSetelahBatal = await api(kasir1Cookie, "PATCH", `/api/tiket/${tLunas.id}`, {
+  const bayarSetelahBatal = await api(kasir2Cookie, "PATCH", `/api/tiket/${tLunas.id}`, {
     jenis: "pembayaran",
     status_bayar: "Belum bayar",
     alasan: "Coba ubah setelah batal",
@@ -593,7 +593,7 @@ test("pembatalan: wajib alasan valid; tiket Lunas wajib konfirmasi & dicatat di 
   });
   assert.equal(bayarSetelahBatal.res.status, 409);
 
-  const batalLagi = await api(kasir1Cookie, "PATCH", `/api/tiket/${tLunas.id}`, {
+  const batalLagi = await api(kasir2Cookie, "PATCH", `/api/tiket/${tLunas.id}`, {
     jenis: "batalkan",
     alasan_batal: "Alasan baru setelah batal",
     konfirmasi_sudah_lunas: true,
@@ -602,24 +602,24 @@ test("pembatalan: wajib alasan valid; tiket Lunas wajib konfirmasi & dicatat di 
   assert.equal(batalLagi.res.status, 409);
 
   // Bagian D: Tiket berstatus "Sudah diambil" tidak bisa dibatalkan -> 409
-  const tAmbil = await buatTiketBaru({ status_bayar: "Lunas", metode_bayar: "Non-cash" });
-  await api(kasir1Cookie, "PATCH", `/api/tiket/${tAmbil.id}`, {
+  const tAmbil = await buatTiketBaru({ status_bayar: "Lunas", metode_bayar: "Non-cash" }, kasir2Cookie);
+  await api(kasir2Cookie, "PATCH", `/api/tiket/${tAmbil.id}`, {
     jenis: "status_pesanan",
     status_pesanan: "Diproses",
     status_sebelumnya: "Belum dicuci",
   });
-  await api(kasir1Cookie, "PATCH", `/api/tiket/${tAmbil.id}`, {
+  await api(kasir2Cookie, "PATCH", `/api/tiket/${tAmbil.id}`, {
     jenis: "status_pesanan",
     status_pesanan: "Siap diambil",
     status_sebelumnya: "Diproses",
   });
-  await api(kasir1Cookie, "PATCH", `/api/tiket/${tAmbil.id}`, {
+  await api(kasir2Cookie, "PATCH", `/api/tiket/${tAmbil.id}`, {
     jenis: "status_pesanan",
     status_pesanan: "Sudah diambil",
     status_sebelumnya: "Siap diambil",
   });
 
-  const batalSudahDiambil = await api(kasir1Cookie, "PATCH", `/api/tiket/${tAmbil.id}`, {
+  const batalSudahDiambil = await api(kasir2Cookie, "PATCH", `/api/tiket/${tAmbil.id}`, {
     jenis: "batalkan",
     alasan_batal: "Mencoba membatalkan tiket yang sudah diambil",
     status_sebelumnya: "Sudah diambil",
@@ -631,7 +631,7 @@ test("pembatalan: wajib alasan valid; tiket Lunas wajib konfirmasi & dicatat di 
 // ---------- 6. Idempotensi (Tidak Menimbulkan Audit Ganda) ----------
 
 test("idempoten: mengirim target status pesanan, pembayaran, atau pembatalan yang sama dua kali tidak membuat baris audit ganda", async () => {
-  const tiket = await buatTiketBaru();
+  const tiket = await buatTiketBaru({}, kasir2Cookie);
 
   async function hitungAudit() {
     const r = await admin.query(
@@ -645,7 +645,7 @@ test("idempoten: mengirim target status pesanan, pembayaran, atau pembatalan yan
   assert.equal(awal, 1); // TAMBAH_TIKET
 
   // 1. Kirim ubah status ke Diproses dua kali (baik retry body identik maupun status_sebelumnya = Diproses)
-  const s1 = await api(kasir1Cookie, "PATCH", `/api/tiket/${tiket.id}`, {
+  const s1 = await api(kasir2Cookie, "PATCH", `/api/tiket/${tiket.id}`, {
     jenis: "status_pesanan",
     status_pesanan: "Diproses",
     status_sebelumnya: "Belum dicuci",
@@ -654,7 +654,7 @@ test("idempoten: mengirim target status pesanan, pembayaran, atau pembatalan yan
   assert.equal(s1.data.idempoten, false);
   assert.equal(await hitungAudit(), 2);
 
-  const s2 = await api(kasir1Cookie, "PATCH", `/api/tiket/${tiket.id}`, {
+  const s2 = await api(kasir2Cookie, "PATCH", `/api/tiket/${tiket.id}`, {
     jenis: "status_pesanan",
     status_pesanan: "Diproses",
     status_sebelumnya: "Belum dicuci",
@@ -663,7 +663,7 @@ test("idempoten: mengirim target status pesanan, pembayaran, atau pembatalan yan
   assert.equal(s2.data.idempoten, true);
   assert.equal(await hitungAudit(), 2, "audit tidak boleh bertambah saat idempoten");
 
-  const s3 = await api(kasir1Cookie, "PATCH", `/api/tiket/${tiket.id}`, {
+  const s3 = await api(kasir2Cookie, "PATCH", `/api/tiket/${tiket.id}`, {
     jenis: "status_pesanan",
     status_pesanan: "Diproses",
     status_sebelumnya: "Diproses",
@@ -673,7 +673,7 @@ test("idempoten: mengirim target status pesanan, pembayaran, atau pembatalan yan
   assert.equal(await hitungAudit(), 2);
 
   // 2. Kirim pembayaran Lunas (Cash) dua kali
-  const p1 = await api(kasir1Cookie, "PATCH", `/api/tiket/${tiket.id}`, {
+  const p1 = await api(kasir2Cookie, "PATCH", `/api/tiket/${tiket.id}`, {
     jenis: "pembayaran",
     status_bayar: "Lunas",
     metode_bayar: "Cash",
@@ -682,7 +682,7 @@ test("idempoten: mengirim target status pesanan, pembayaran, atau pembatalan yan
   assert.equal(p1.res.status, 200);
   assert.equal(await hitungAudit(), 3);
 
-  const p2 = await api(kasir1Cookie, "PATCH", `/api/tiket/${tiket.id}`, {
+  const p2 = await api(kasir2Cookie, "PATCH", `/api/tiket/${tiket.id}`, {
     jenis: "pembayaran",
     status_bayar: "Lunas",
     metode_bayar: "Cash",
@@ -693,7 +693,7 @@ test("idempoten: mengirim target status pesanan, pembayaran, atau pembatalan yan
   assert.equal(await hitungAudit(), 3, "audit pembayaran tidak boleh ganda");
 
   // 3. Kirim pembatalan yang persis sama dua kali (retry jaringan)
-  const b1 = await api(kasir1Cookie, "PATCH", `/api/tiket/${tiket.id}`, {
+  const b1 = await api(kasir2Cookie, "PATCH", `/api/tiket/${tiket.id}`, {
     jenis: "batalkan",
     alasan_batal: "Pelanggan membatalkan via telepon",
     konfirmasi_sudah_lunas: true,
@@ -702,7 +702,7 @@ test("idempoten: mengirim target status pesanan, pembayaran, atau pembatalan yan
   assert.equal(b1.res.status, 200);
   assert.equal(await hitungAudit(), 4);
 
-  const b2 = await api(kasir1Cookie, "PATCH", `/api/tiket/${tiket.id}`, {
+  const b2 = await api(kasir2Cookie, "PATCH", `/api/tiket/${tiket.id}`, {
     jenis: "batalkan",
     alasan_batal: "Pelanggan membatalkan via telepon",
     konfirmasi_sudah_lunas: true,

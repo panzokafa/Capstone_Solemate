@@ -3,8 +3,12 @@
 // Menolak (409) alasan opt-out pelanggan, nomor tidak terverifikasi, dan nomor tidak terdaftar WA.
 
 import { NextRequest, NextResponse } from "next/server";
-import { requireKasir, AksesDitolakError } from "@/lib/auth";
-import { periksaPermintaanUbah } from "@/lib/request-guard";
+import { requireKasir } from "@/lib/auth";
+import {
+  periksaPermintaanUbah,
+  tanganiGalatRoute,
+  tegakkanBatasLajuApi,
+} from "@/lib/request-guard";
 import { validasiIdTiket } from "@/lib/tiket-validasi";
 import { ambilDetailTiket } from "@/lib/tiket";
 import { getPool } from "@/lib/db";
@@ -15,32 +19,17 @@ import {
   type StatusNotifikasi,
 } from "@/lib/wa-notifikasi";
 
-const DITOLAK = () => NextResponse.json({ error: "Akses ditolak" }, { status: 403 });
-const GALAT_SERVER = () =>
-  NextResponse.json({ error: "Terjadi kesalahan pada server." }, { status: 500 });
-
 type Konteks = { params: Promise<{ id: string }> };
 
-function apakahRedirectNext(e: unknown): boolean {
-  return typeof e === "object" && e !== null && "digest" in e;
-}
-
-function logGalatAman(label: string, e: unknown): void {
-  const kode =
-    typeof e === "object" && e !== null && "code" in e
-      ? String((e as { code?: unknown }).code)
-      : e instanceof Error
-        ? e.name
-        : "GALAT";
-  console.error(`${label}:`, kode);
-}
-
 export async function POST(req: NextRequest, ctx: Konteks) {
+  const tolak = periksaPermintaanUbah(req);
+  if (tolak) return tolak;
+
   try {
     const sesi = await requireKasir();
 
-    const tolak = periksaPermintaanUbah(req);
-    if (tolak) return tolak;
+    const tolakLaju = await tegakkanBatasLajuApi("ubah_data", sesi.userId);
+    if (tolakLaju) return tolakLaju;
 
     const { id: teksId } = await ctx.params;
     const id = validasiIdTiket(teksId);
@@ -119,9 +108,6 @@ export async function POST(req: NextRequest, ctx: Konteks) {
       { status: 200 }
     );
   } catch (e) {
-    if (e instanceof AksesDitolakError) return DITOLAK();
-    if (apakahRedirectNext(e)) throw e;
-    logGalatAman("POST /api/tiket/[id]/notifikasi gagal", e);
-    return GALAT_SERVER();
+    return tanganiGalatRoute("POST /api/tiket/[id]/notifikasi gagal", e);
   }
 }

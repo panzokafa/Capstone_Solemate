@@ -95,14 +95,18 @@ async function main() {
   });
 
   try {
-    // Ganti PIN dan buka kunci rate-limit akun dalam satu transaksi.
+    // Ganti PIN, cabut seluruh sesi aktif pengguna, dan buka kunci rate-limit akun dalam satu transaksi.
+    const userId = ada.rows[0].id;
     await pool.query("BEGIN");
-    await pool.query(`UPDATE users SET pin_hash = $1 WHERE nama = $2`, [hash, nama.trim()]);
+    await pool.query(`UPDATE users SET pin_hash = $1 WHERE id = $2`, [hash, userId]);
+    await pool.query(`DELETE FROM sessions WHERE user_id = $1`, [userId]);
     await pool.query(`DELETE FROM login_rate_limit WHERE tipe = 'akun' AND kunci = $1`, [
       nama.trim(),
     ]);
     await pool.query("COMMIT");
-    console.log(`\nPIN akun "${nama.trim()}" sudah diganti dan kuncinya dibuka.`);
+    console.log(
+      `\nPIN akun "${nama.trim()}" sudah diganti, seluruh sesi aktif dicabut, dan kuncinya dibuka.`
+    );
   } catch (e) {
     await pool.query("ROLLBACK").catch(() => {});
     console.error("Gagal reset PIN:", e.message);

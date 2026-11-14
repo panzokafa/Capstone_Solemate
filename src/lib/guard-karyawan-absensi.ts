@@ -2,7 +2,8 @@
 import { notFound } from "next/navigation";
 import { NextResponse } from "next/server";
 import { KARYAWAN_ABSENSI_AKTIF } from "@/config/fitur";
-import { requireAuth, requireOwner, AksesDitolakError } from "./auth";
+import { AksesDitolakError, requireAuth, requireOwner } from "./auth";
+import { tanganiGalatRoute } from "./request-guard";
 
 /**
  * Penjaga halaman owner untuk fitur Karyawan & Rekap Absensi:
@@ -37,9 +38,6 @@ export async function tanganiApiKaryawanAbsensi(namaData: string): Promise<NextR
     const sesi = await requireOwner();
     return NextResponse.json({ ok: true, peran: sesi.peran, data: namaData });
   } catch (e) {
-    if (e instanceof AksesDitolakError) {
-      return NextResponse.json({ error: "Akses ditolak" }, { status: 403 });
-    }
-    throw e;
+    return tanganiGalatRoute(`GET /api/${namaData} gagal`, e);
   }
 }

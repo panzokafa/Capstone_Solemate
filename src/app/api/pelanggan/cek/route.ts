@@ -1,23 +1,26 @@
 // POST /api/pelanggan/cek — Pemeriksaan pelanggan berdasarkan nomor WhatsApp untuk kasir.
 // Menggunakan POST dengan body JSON (bukan GET query URL) supaya nomor WhatsApp tidak muncul di URL/log akses,
-// serta dilindungi requireKasir() dan periksaPermintaanUbah() (Content-Type JSON & Origin).
+// serta dilindungi periksaPermintaanUbah(), requireKasir(), dan batas laju per pengguna.
 
 import { NextRequest, NextResponse } from "next/server";
-import { requireKasir, AksesDitolakError } from "@/lib/auth";
-import { periksaPermintaanUbah } from "@/lib/request-guard";
+import { requireKasir } from "@/lib/auth";
+import {
+  periksaPermintaanUbah,
+  tanganiGalatRoute,
+  tegakkanBatasLajuApi,
+} from "@/lib/request-guard";
 import { validasiCekPelanggan } from "@/lib/tiket-validasi";
 import { cekPelangganByNomorWa } from "@/lib/tiket";
 
-const DITOLAK = () => NextResponse.json({ error: "Akses ditolak" }, { status: 403 });
-const GALAT_SERVER = () =>
-  NextResponse.json({ error: "Terjadi kesalahan pada server." }, { status: 500 });
-
 export async function POST(req: NextRequest) {
-  try {
-    await requireKasir();
+  const tolak = periksaPermintaanUbah(req);
+  if (tolak) return tolak;
 
-    const tolak = periksaPermintaanUbah(req);
-    if (tolak) return tolak;
+  try {
+    const sesi = await requireKasir();
+
+    const tolakLaju = await tegakkanBatasLajuApi("pelanggan_cek", sesi.userId);
+    if (tolakLaju) return tolakLaju;
 
     let body: unknown;
     try {
@@ -44,9 +47,6 @@ export async function POST(req: NextRequest) {
       data: hasil.pelanggan ? { nama: hasil.pelanggan.nama } : null,
     });
   } catch (e) {
-    if (e instanceof AksesDitolakError) return DITOLAK();
-    if (typeof e === "object" && e !== null && "digest" in e) throw e;
-    console.error("POST /api/pelanggan/cek gagal:", e instanceof Error ? e.name : "GALAT");
-    return GALAT_SERVER();
+    return tanganiGalatRoute("POST /api/pelanggan/cek gagal", e);
   }
 }

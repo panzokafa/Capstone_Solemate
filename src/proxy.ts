@@ -8,7 +8,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { KARYAWAN_ABSENSI_AKTIF } from "./config/fitur";
 import { apakahRuteDevTerblokir } from "./lib/env-produksi";
-import { SESSION_COOKIE_NAME, bacaSesiDariId } from "./lib/session";
+import { namaCookieSesi, bacaSesiDariId } from "./lib/session";
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -30,7 +30,7 @@ export async function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-  const sesi = await bacaSesiDariId(request.cookies.get(SESSION_COOKIE_NAME)?.value);
+  const sesi = await bacaSesiDariId(request.cookies.get(namaCookieSesi())?.value);
   if (!sesi) {
     return NextResponse.redirect(new URL("/login", request.url), 307);
   }

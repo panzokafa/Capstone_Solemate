@@ -33,15 +33,18 @@ const pin6 = () => String(Math.floor(Math.random() * 900000) + 100000);
 const OWNER_NAMA = `Owner Tiket ${Date.now()}`;
 const KASIR_NAMA = `Kasir Tiket ${Date.now()}`;
 const KASIR2_NAMA = `Kasir Tiket Dua ${Date.now()}`;
+const KASIR3_NAMA = `Kasir Tiket Tiga ${Date.now()}`;
 const OWNER_PIN = pin6();
 const KASIR_PIN = pin6();
 const KASIR2_PIN = pin6();
+const KASIR3_PIN = pin6();
 
 let admin;
 let app;
 let ownerCookie;
 let kasirCookie;
 let kasir2Cookie;
+let kasir3Cookie;
 let kasirUserId;
 let layananA; // Rp 30.000, 2 hari, aktif
 let layananB; // Rp 75.000, 5 hari, aktif
@@ -56,7 +59,7 @@ function waUnik08() {
 async function login(username, pin) {
   const res = await fetch(`${BASE}/api/login`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", Origin: BASE },
     body: JSON.stringify({ username, pin }),
   });
   assert.equal(res.status, 200, `login ${username} harus 200, dapat ${res.status}`);
@@ -96,11 +99,13 @@ before(async () => {
   await buatAkunUji(OWNER_NAMA, "owner", OWNER_PIN);
   const k1 = await buatAkunUji(KASIR_NAMA, "kasir", KASIR_PIN);
   await buatAkunUji(KASIR2_NAMA, "kasir", KASIR2_PIN);
+  await buatAkunUji(KASIR3_NAMA, "kasir", KASIR3_PIN);
   kasirUserId = k1;
 
   ownerCookie = await login(OWNER_NAMA, OWNER_PIN);
   kasirCookie = await login(KASIR_NAMA, KASIR_PIN);
   kasir2Cookie = await login(KASIR2_NAMA, KASIR2_PIN);
+  kasir3Cookie = await login(KASIR3_NAMA, KASIR3_PIN);
 
   const s1 = await api(ownerCookie, "POST", "/api/katalog", {
     nama: `Deep Clean Uji ${Date.now()}`,
@@ -418,10 +423,10 @@ test("validasi input menolak seluruh muatan tidak sah (400) dan menerima toleran
 
   const sebelum = Number((await admin.query(`SELECT COUNT(*) FROM orders`)).rows[0].count);
   for (const [label, body] of kasusBuruk) {
-    const { res } = await api(kasirCookie, "POST", "/api/tiket", body);
+    const { res } = await api(kasir2Cookie, "POST", "/api/tiket", body);
     assert.equal(res.status, 400, `${label} harus 400, dapat ${res.status}`);
   }
-  const jsonRusak = await api(kasirCookie, "POST", "/api/tiket", undefined, {
+  const jsonRusak = await api(kasir2Cookie, "POST", "/api/tiket", undefined, {
     mentah: "{rusak",
   });
   assert.equal(jsonRusak.res.status, 400);
@@ -430,7 +435,7 @@ test("validasi input menolak seluruh muatan tidak sah (400) dan menerima toleran
 
   // Tanggal masuk +3 menit (masih dalam toleransi 5 menit) diterima
   const tigaMenitDepan = new Date(Date.now() + 3 * 60_000).toISOString();
-  const okToleransi = await api(kasirCookie, "POST", "/api/tiket", {
+  const okToleransi = await api(kasir2Cookie, "POST", "/api/tiket", {
     ...dasar,
     nomor_wa: waUnik08(),
     tanggal_masuk: tigaMenitDepan,
@@ -692,7 +697,7 @@ test("filter tanggal Daftar Tiket memakai tanggal_masuk zona Asia/Jakarta secara
   ];
 
   for (const [kode, tglMasuk] of jadwalUji) {
-    const r = await api(kasirCookie, "POST", "/api/tiket", {
+    const r = await api(kasir2Cookie, "POST", "/api/tiket", {
       nama_pelanggan: `${penanda}_${kode}`,
       nomor_wa: waUnik08(),
       tanggal_masuk: tglMasuk,
@@ -703,7 +708,7 @@ test("filter tanggal Daftar Tiket memakai tanggal_masuk zona Asia/Jakarta secara
   }
 
   const f11 = await api(
-    kasirCookie,
+    kasir2Cookie,
     "GET",
     `/api/tiket?periode=rentang&dari=${tgl11}&sampai=${tgl11}&cari=${encodeURIComponent(penanda)}`
   );
@@ -712,7 +717,7 @@ test("filter tanggal Daftar Tiket memakai tanggal_masuk zona Asia/Jakarta secara
   assert.deepEqual(nama11, [`${penanda}_M11_AKHIR`, `${penanda}_M11_AWAL`]);
 
   const f10 = await api(
-    kasirCookie,
+    kasir2Cookie,
     "GET",
     `/api/tiket?periode=rentang&dari=${tgl10}&sampai=${tgl10}&cari=${encodeURIComponent(penanda)}`
   );
@@ -726,7 +731,7 @@ test("filter tanggal Daftar Tiket memakai tanggal_masuk zona Asia/Jakarta secara
   const kemarin = geserHariKalender(hariIni, -1);
   const penandaRel = `RELWIB_${Date.now()}`;
 
-  const rKemarinAkhir = await api(kasirCookie, "POST", "/api/tiket", {
+  const rKemarinAkhir = await api(kasir2Cookie, "POST", "/api/tiket", {
     nama_pelanggan: `${penandaRel}_KEMARIN_2359`,
     nomor_wa: waUnik08(),
     tanggal_masuk: `${kemarin}T23:59:00+07:00`,
@@ -735,7 +740,7 @@ test("filter tanggal Daftar Tiket memakai tanggal_masuk zona Asia/Jakarta secara
   });
   assert.equal(rKemarinAkhir.res.status, 201);
 
-  const rHariIniAwal = await api(kasirCookie, "POST", "/api/tiket", {
+  const rHariIniAwal = await api(kasir2Cookie, "POST", "/api/tiket", {
     nama_pelanggan: `${penandaRel}_HARIINI_0000`,
     nomor_wa: waUnik08(),
     tanggal_masuk: `${hariIni}T00:00:01+07:00`,
@@ -745,7 +750,7 @@ test("filter tanggal Daftar Tiket memakai tanggal_masuk zona Asia/Jakarta secara
   assert.equal(rHariIniAwal.res.status, 201);
 
   const resHariIni = await api(
-    kasirCookie,
+    kasir2Cookie,
     "GET",
     `/api/tiket?periode=hari_ini&cari=${encodeURIComponent(penandaRel)}`
   );
@@ -756,7 +761,7 @@ test("filter tanggal Daftar Tiket memakai tanggal_masuk zona Asia/Jakarta secara
   );
 
   const resKemarin = await api(
-    kasirCookie,
+    kasir2Cookie,
     "GET",
     `/api/tiket?periode=kemarin&cari=${encodeURIComponent(penandaRel)}`
   );
@@ -796,13 +801,13 @@ test("urutan Belum bayar dilakukan di SQL sebelum LIMIT/OFFSET dengan pembeda id
       status_bayar: sb,
       ...(mb ? { metode_bayar: mb } : {}),
     };
-    const r = await api(kasirCookie, "POST", "/api/tiket", body);
+    const r = await api(kasir2Cookie, "POST", "/api/tiket", body);
     assert.equal(r.res.status, 201);
   }
 
   // Tanpa belum_bayar: halaman 1 (ukuran=2) berisi LUNAS_3 dan LUNAS_2; BB_TUA di halaman 2
   const normalHal1 = await api(
-    kasirCookie,
+    kasir2Cookie,
     "GET",
     `/api/tiket?cari=${encodeURIComponent(penanda)}&ukuran=2&halaman=1`
   );
@@ -813,7 +818,7 @@ test("urutan Belum bayar dilakukan di SQL sebelum LIMIT/OFFSET dengan pembeda id
 
   // Dengan belum_bayar=true: BB_TUA yang tadinya di halaman 2 ditarik ke baris pertama halaman 1!
   const prioHal1 = await api(
-    kasirCookie,
+    kasir2Cookie,
     "GET",
     `/api/tiket?cari=${encodeURIComponent(penanda)}&belum_bayar=true&ukuran=2&halaman=1`
   );
@@ -824,14 +829,14 @@ test("urutan Belum bayar dilakukan di SQL sebelum LIMIT/OFFSET dengan pembeda id
 
   // Tambahkan 2 tiket Belum bayar lagi dengan tanggal_masuk SAMA PERSIS (menguji pembeda id DESC
   // dan memastikan tiket Belum bayar ke-3 di halaman kedua tetap mendahului semua tiket Lunas!)
-  const rSama1 = await api(kasirCookie, "POST", "/api/tiket", {
+  const rSama1 = await api(kasir2Cookie, "POST", "/api/tiket", {
     nama_pelanggan: `${penanda}_BB_SAMA_1`,
     nomor_wa: waUnik08(),
     tanggal_masuk: `${tglSama}T10:00:00+07:00`,
     items: [{ service_id: layananA.id, deskripsi_barang: "Sama 1", jumlah: 1 }],
     status_bayar: "Belum bayar",
   });
-  const rSama2 = await api(kasirCookie, "POST", "/api/tiket", {
+  const rSama2 = await api(kasir2Cookie, "POST", "/api/tiket", {
     nama_pelanggan: `${penanda}_BB_SAMA_2`,
     nomor_wa: waUnik08(),
     tanggal_masuk: `${tglSama}T10:00:00+07:00`,
@@ -1432,7 +1437,7 @@ test("tolak karakter kontrol, byte nol, tab, newline, dan pembalik arah teks bid
 
   for (const [label, ch] of karakterKotor) {
     // 1. Pada nama pelanggan
-    const resNama = await api(kasirCookie, "POST", "/api/tiket", {
+    const resNama = await api(kasir3Cookie, "POST", "/api/tiket", {
       ...dasar,
       nomor_wa: waUnik08(),
       nama_pelanggan: `Budi${ch}Santoso`,
@@ -1446,7 +1451,7 @@ test("tolak karakter kontrol, byte nol, tab, newline, dan pembalik arah teks bid
     assert.equal(resNama.data?.field, "nama_pelanggan");
 
     // 2. Pada deskripsi barang
-    const resDesk = await api(kasirCookie, "POST", "/api/tiket", {
+    const resDesk = await api(kasir3Cookie, "POST", "/api/tiket", {
       ...dasar,
       nomor_wa: waUnik08(),
       items: [{ ...itemDasar, deskripsi_barang: `Sepatu${ch}Putih` }],
@@ -1475,7 +1480,7 @@ test("batas tanggal: tanggal_masuk maks 30 hari lampau dan 5 menit ke depan, est
   // Batas tanggal masuk:
   // Tepat ~30 hari yang lalu (diterima)
   const tgl30HariLalu = new Date(sekarang - 30 * 86_400_000 + 60_000).toISOString();
-  const res30Hari = await api(kasirCookie, "POST", "/api/tiket", {
+  const res30Hari = await api(kasir3Cookie, "POST", "/api/tiket", {
     ...dasar,
     nomor_wa: waUnik08(),
     tanggal_masuk: tgl30HariLalu,
@@ -1484,7 +1489,7 @@ test("batas tanggal: tanggal_masuk maks 30 hari lampau dan 5 menit ke depan, est
 
   // Lebih dari 30 hari yang lalu (31 hari) -> ditolak 400
   const tgl31HariLalu = new Date(sekarang - 31 * 86_400_000).toISOString();
-  const res31Hari = await api(kasirCookie, "POST", "/api/tiket", {
+  const res31Hari = await api(kasir3Cookie, "POST", "/api/tiket", {
     ...dasar,
     nomor_wa: waUnik08(),
     tanggal_masuk: tgl31HariLalu,
@@ -1495,7 +1500,7 @@ test("batas tanggal: tanggal_masuk maks 30 hari lampau dan 5 menit ke depan, est
 
   // Toleransi 5 menit masa depan: 4 menit ke depan (diterima)
   const tgl4MenitDepan = new Date(sekarang + 4 * 60_000).toISOString();
-  const res4Menit = await api(kasirCookie, "POST", "/api/tiket", {
+  const res4Menit = await api(kasir3Cookie, "POST", "/api/tiket", {
     ...dasar,
     nomor_wa: waUnik08(),
     tanggal_masuk: tgl4MenitDepan,
@@ -1504,7 +1509,7 @@ test("batas tanggal: tanggal_masuk maks 30 hari lampau dan 5 menit ke depan, est
 
   // Lebih dari 5 menit masa depan: 6 menit ke depan (ditolak)
   const tgl6MenitDepan = new Date(sekarang + 6 * 60_000).toISOString();
-  const res6Menit = await api(kasirCookie, "POST", "/api/tiket", {
+  const res6Menit = await api(kasir3Cookie, "POST", "/api/tiket", {
     ...dasar,
     nomor_wa: waUnik08(),
     tanggal_masuk: tgl6MenitDepan,
@@ -1517,7 +1522,7 @@ test("batas tanggal: tanggal_masuk maks 30 hari lampau dan 5 menit ke depan, est
   // Tepat tanggal masuk + 365 hari (diterima)
   const tglMasuk = new Date(sekarang);
   const tglEst365 = new Date(tglMasuk.getTime() + 365 * 86_400_000 - 60_000).toISOString();
-  const resEst365 = await api(kasirCookie, "POST", "/api/tiket", {
+  const resEst365 = await api(kasir3Cookie, "POST", "/api/tiket", {
     ...dasar,
     nomor_wa: waUnik08(),
     tanggal_masuk: tglMasuk.toISOString(),
@@ -1527,7 +1532,7 @@ test("batas tanggal: tanggal_masuk maks 30 hari lampau dan 5 menit ke depan, est
 
   // Lebih dari 365 hari setelah tanggal masuk (366 hari) -> ditolak
   const tglEst366 = new Date(tglMasuk.getTime() + 366 * 86_400_000).toISOString();
-  const resEst366 = await api(kasirCookie, "POST", "/api/tiket", {
+  const resEst366 = await api(kasir3Cookie, "POST", "/api/tiket", {
     ...dasar,
     nomor_wa: waUnik08(),
     tanggal_masuk: tglMasuk.toISOString(),
@@ -1539,7 +1544,7 @@ test("batas tanggal: tanggal_masuk maks 30 hari lampau dan 5 menit ke depan, est
 
   // Estimasi sebelum tanggal masuk -> ditolak
   const tglEstSebelum = new Date(tglMasuk.getTime() - 86_400_000).toISOString();
-  const resEstSebelum = await api(kasirCookie, "POST", "/api/tiket", {
+  const resEstSebelum = await api(kasir3Cookie, "POST", "/api/tiket", {
     ...dasar,
     nomor_wa: waUnik08(),
     tanggal_masuk: tglMasuk.toISOString(),
@@ -1552,7 +1557,7 @@ test("batas tanggal: tanggal_masuk maks 30 hari lampau dan 5 menit ke depan, est
 
 test("galat validasi server mengembalikan kode field terstruktur dan klien memetakan kolom dengan tepat", async () => {
   // 1. Galat barang baris ke-2: jumlah tidak valid (melebihi 20)
-  const resJml = await api(kasirCookie, "POST", "/api/tiket", {
+  const resJml = await api(kasir3Cookie, "POST", "/api/tiket", {
     nama_pelanggan: "Test Field",
     nomor_wa: waUnik08(),
     items: [
@@ -1569,7 +1574,7 @@ test("galat validasi server mengembalikan kode field terstruktur dan klien memet
   assert.equal(peta1.peta["item_1_jumlah"], resJml.data.error);
 
   // 2. Galat estimasi_selesai
-  const resEst = await api(kasirCookie, "POST", "/api/tiket", {
+  const resEst = await api(kasir3Cookie, "POST", "/api/tiket", {
     nama_pelanggan: "Test Field",
     nomor_wa: waUnik08(),
     items: [{ service_id: layananA.id, deskripsi_barang: "Barang Satu", jumlah: 1 }],
@@ -1583,7 +1588,7 @@ test("galat validasi server mengembalikan kode field terstruktur dan klien memet
   assert.equal(peta2.peta.estimasi_selesai, resEst.data.error);
 
   // 3. Layanan nonaktif pada baris ke-2 (bukan baris ke-1)
-  const resNonaktif = await api(kasirCookie, "POST", "/api/tiket", {
+  const resNonaktif = await api(kasir3Cookie, "POST", "/api/tiket", {
     nama_pelanggan: "Test Field",
     nomor_wa: waUnik08(),
     items: [

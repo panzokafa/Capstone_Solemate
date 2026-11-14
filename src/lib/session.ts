@@ -3,9 +3,20 @@
 // ulang di setiap request agar peran/status aktif selalu terkini.
 import { cookies } from "next/headers";
 import { randomUUID } from "node:crypto";
-import { getPool } from "./db";
+import {
+  SESSION_COOKIE_NAME_DEV,
+  SESSION_COOKIE_NAME_PROD,
+  adalahUuidSesiValid,
+  namaCookieSesi,
+} from "../config/keamanan.ts";
+import { getPool } from "./db.ts";
 
-export const SESSION_COOKIE_NAME = "solemate_session";
+export {
+  SESSION_COOKIE_NAME_DEV,
+  SESSION_COOKIE_NAME_PROD,
+  adalahUuidSesiValid,
+  namaCookieSesi,
+};
 
 export type SesiAktif = {
   id: string;
@@ -26,7 +37,7 @@ function isProduction(): boolean {
 
 // Ambil peran terbaru dari tabel users berdasarkan ID cookie sesi + status aktif.
 export async function bacaSesiDariId(id: string | undefined): Promise<SesiAktif | null> {
-  if (!id) return null;
+  if (!adalahUuidSesiValid(id)) return null;
 
   const pool = getPool();
   const r = await pool.query(
@@ -54,17 +65,35 @@ export async function bacaSesiDariId(id: string | undefined): Promise<SesiAktif 
 // Ambil peran terbaru dari tabel users (bukan salinan di sesi) + status aktif.
 export async function bacaSesi(): Promise<SesiAktif | null> {
   const store = await cookies();
-  return bacaSesiDariId(store.get(SESSION_COOKIE_NAME)?.value);
+  return bacaSesiDariId(store.get(namaCookieSesi())?.value);
 }
 
-// Buat sesi baru (ID baru tiap login). Mengembalikan ID untuk cookie.
+// Hapus sesi tertentu dari database (hanya jika berformat UUID valid).
+export async function hapusSesiDariDb(id: string | undefined | null): Promise<void> {
+  if (!adalahUuidSesiValid(id)) return;
+  await getPool().query(`DELETE FROM sessions WHERE id = $1`, [id]);
+}
+
+// Buat sesi baru (ID baru tiap login). Sekaligus menghapus sesi lama dari cookie
+// bila dibawa serta membersihkan sesi yang sudah kedaluwarsa.
 export async function buatSesi(
   userId: number,
   peran: string,
-  ip: string | null
+  ip: string | null,
+  sesiLamaId?: string | null
 ): Promise<string> {
+  const pool = getPool();
+  if (adalahUuidSesiValid(sesiLamaId)) {
+    await pool.query(
+      `DELETE FROM sessions WHERE id = $1 OR kedaluwarsa_pada <= now()`,
+      [sesiLamaId]
+    );
+  } else {
+    await pool.query(`DELETE FROM sessions WHERE kedaluwarsa_pada <= now()`);
+  }
+
   const id = randomUUID();
-  await getPool().query(
+  await pool.query(
     `INSERT INTO sessions (id, user_id, peran, ip, kedaluwarsa_pada)
      VALUES ($1, $2, $3, $4, now() + make_interval(secs => $5))`,
     [id, userId, peran, ip, ttlDetik()]
@@ -74,7 +103,7 @@ export async function buatSesi(
 
 export async function setSesiCookie(id: string): Promise<void> {
   const store = await cookies();
-  store.set(SESSION_COOKIE_NAME, id, {
+  store.set(namaCookieSesi(), id, {
     httpOnly: true,
     sameSite: "lax",
     secure: isProduction(),
@@ -85,5 +114,5 @@ export async function setSesiCookie(id: string): Promise<void> {
 
 export async function hapusSesiCookie(): Promise<void> {
   const store = await cookies();
-  store.delete(SESSION_COOKIE_NAME);
+  store.delete(namaCookieSesi());
 }

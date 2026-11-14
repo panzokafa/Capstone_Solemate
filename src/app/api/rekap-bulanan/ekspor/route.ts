@@ -4,9 +4,10 @@
 // Semua error selalu mengembalikan JSON (tidak pernah mengirim file korup).
 
 import { NextRequest, NextResponse } from "next/server";
-import { requireOwner, AksesDitolakError } from "@/lib/auth.ts";
-import { validasiQueryEksporRekap } from "@/lib/laporan.ts";
-import { eksporRekapDenganAudit } from "@/lib/rekap-ekspor.ts";
+import { requireOwner } from "@/lib/auth";
+import { validasiQueryEksporRekap } from "@/lib/laporan";
+import { eksporRekapDenganAudit } from "@/lib/rekap-ekspor";
+import { tanganiGalatRoute, tegakkanBatasLajuApi } from "@/lib/request-guard";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -25,6 +26,13 @@ const MIME_EKSPOR = {
 export async function GET(req: NextRequest) {
   try {
     const sesi = await requireOwner();
+
+    const tolakLaju = await tegakkanBatasLajuApi(
+      "ekspor_rekap",
+      sesi.userId,
+      HEADER_KEAMANAN
+    );
+    if (tolakLaju) return tolakLaju;
 
     const validasi = validasiQueryEksporRekap(req.nextUrl.searchParams);
     if (!validasi.ok) {
@@ -53,19 +61,6 @@ export async function GET(req: NextRequest) {
       },
     });
   } catch (e) {
-    if (e instanceof AksesDitolakError) {
-      return NextResponse.json(
-        { error: "Akses ditolak" },
-        { status: 403, headers: HEADER_KEAMANAN }
-      );
-    }
-    if (typeof e === "object" && e !== null && "digest" in e) {
-      throw e;
-    }
-    console.error("GET /api/rekap-bulanan/ekspor galat:", e instanceof Error ? e.name : "GALAT");
-    return NextResponse.json(
-      { error: "Gagal mengekspor rekap bulanan." },
-      { status: 500, headers: HEADER_KEAMANAN }
-    );
+    return tanganiGalatRoute("GET /api/rekap-bulanan/ekspor gagal", e, HEADER_KEAMANAN);
   }
 }

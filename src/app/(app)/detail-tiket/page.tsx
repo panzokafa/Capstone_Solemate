@@ -1,6 +1,8 @@
 // Pengalihan rute lama /detail-tiket ke /tiket/[id] atau /tiket.
-import { redirect } from "next/navigation";
+// Di produksi (Phase 9A), rute stub ini dinonaktifkan (404 untuk semua pengunjung).
+import { notFound, redirect } from "next/navigation";
 import { requireAuth, AksesDitolakError } from "@/lib/auth";
+import { apakahRuteDevTerblokir } from "@/lib/env-produksi";
 import { validasiIdTiket } from "@/lib/tiket-validasi";
 import { AksesDitolak } from "../akses-ditolak";
 
@@ -11,6 +13,13 @@ export default async function DetailTiketRedirectPage({
 }: {
   searchParams: SearchParamsProp;
 }) {
+  if (
+    process.env.NODE_ENV === "production" ||
+    apakahRuteDevTerblokir("/detail-tiket")
+  ) {
+    notFound();
+  }
+
   try {
     await requireAuth();
   } catch (e) {

@@ -3,6 +3,7 @@
 // Tidak ada DELETE: layanan hanya dinonaktifkan.
 import { NextRequest, NextResponse } from "next/server";
 import { requireOwner, AksesDitolakError } from "@/lib/auth";
+import { ekstrakKodeGalatAman } from "@/lib/env-produksi";
 import { ubahLayanan, aturStatusLayanan, type HasilUbah } from "@/lib/katalog";
 import { validasiUbah, validasiStatus, validasiId } from "@/lib/katalog-validasi";
 import { periksaPermintaanUbah } from "@/lib/request-guard";
@@ -42,7 +43,7 @@ function tanganiGalat(e: unknown, nama: string): NextResponse {
   if (e instanceof AksesDitolakError) return DITOLAK();
   // Redirect ke /login (belum login) dilempar Next sebagai error khusus: teruskan.
   if (typeof e === "object" && e !== null && "digest" in e) throw e;
-  console.error(`${nama} /api/katalog/[id] gagal:`, e);
+  console.error(`${nama} /api/katalog/[id] gagal:`, ekstrakKodeGalatAman(e));
   return GALAT_SERVER();
 }
 

@@ -1,6 +1,7 @@
 // API Katalog — OWNER SAJA. Kasir mendapat 403 (kasir membaca layanan aktif lewat /api/katalog/aktif).
 import { NextRequest, NextResponse } from "next/server";
 import { requireOwner, AksesDitolakError } from "@/lib/auth";
+import { ekstrakKodeGalatAman } from "@/lib/env-produksi";
 import { daftarSemuaLayanan, tambahLayanan } from "@/lib/katalog";
 import { validasiTambah } from "@/lib/katalog-validasi";
 import { periksaPermintaanUbah } from "@/lib/request-guard";
@@ -54,7 +55,7 @@ export async function POST(req: NextRequest) {
     if (e instanceof AksesDitolakError) return DITOLAK();
     // Redirect ke /login (belum login) dilempar Next sebagai error khusus: teruskan.
     if (typeof e === "object" && e !== null && "digest" in e) throw e;
-    console.error("POST /api/katalog gagal:", e);
+    console.error("POST /api/katalog gagal:", ekstrakKodeGalatAman(e));
     return GALAT_SERVER();
   }
 }

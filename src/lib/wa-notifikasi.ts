@@ -4,6 +4,10 @@
 
 import type { Pool, PoolClient } from "pg";
 import { getPool } from "./db.ts";
+import {
+  apakahSinkronNotifikasiDiizinkan,
+  apakahWaGatewayNonaktif,
+} from "./env-produksi.ts";
 import { ambilWaGateway } from "./wa-gateway.ts";
 import { periksaRateLimitAtomik } from "./wa-bot.ts";
 import {
@@ -45,22 +49,28 @@ export type OpsiProsesNotifikasi = {
 
 /**
  * Memeriksa status saklar notifikasi WhatsApp.
- * Di lingkungan produksi, wajib WA_NOTIFIKASI_AKTIF === "true".
- * Di lingkungan tes (START_TEST_SERVER=1 / NEXT_DIST_DIR=.next-test / NODE_ENV=test),
- * saklar aktif secara bawaan kecuali bila secara eksplisit disetel ke "false".
+ * - Jika WA_GATEWAY_MODE='nonaktif' (atau di produksi bukan 'waha'), saklar otomatis mati (false).
+ * - Di lingkungan produksi, wajib WA_NOTIFIKASI_AKTIF === "true".
+ * - Di lingkungan tes (START_TEST_SERVER=1 / NEXT_DIST_DIR=.next-test / NODE_ENV=test),
+ *   saklar aktif secara bawaan kecuali bila secara eksplisit disetel ke "mati".
  */
-export function cekSaklarNotifikasiAktif(): boolean {
+export function cekSaklarNotifikasiAktif(
+  env: Record<string, string | undefined> = process.env
+): boolean {
+  if (apakahWaGatewayNonaktif(env)) {
+    return false;
+  }
   const adalahModeTes =
-    process.env.NODE_ENV === "test" ||
-    process.env.NEXT_DIST_DIR === ".next-test" ||
-    process.env.START_TEST_SERVER === "1";
+    env.NODE_ENV === "test" ||
+    env.NEXT_DIST_DIR === ".next-test" ||
+    env.START_TEST_SERVER === "1";
   if (adalahModeTes) {
     // Di lingkungan tes, saklar aktif secara bawaan agar seluruh skenario pengiriman teruji,
     // tidak terpengaruh oleh nilai WA_NOTIFIKASI_AKTIF di .env.
-    if (process.env.WA_NOTIFIKASI_MODE_UJI === "mati") return false;
+    if (env.WA_NOTIFIKASI_MODE_UJI === "mati") return false;
     return true;
   }
-  return process.env.WA_NOTIFIKASI_AKTIF === "true";
+  return env.WA_NOTIFIKASI_AKTIF === "true";
 }
 
 /**
@@ -154,7 +164,8 @@ export function periksaKelayakanKirimUlang(
 export async function prosesNotifikasiSiapDiambil(
   orderId: number,
   opts?: OpsiProsesNotifikasi,
-  poolClient?: Pool | PoolClient
+  poolClient?: Pool | PoolClient,
+  env: Record<string, string | undefined> = process.env
 ): Promise<HasilProsesNotifikasi> {
   const pool = poolClient ?? getPool();
 
@@ -245,8 +256,8 @@ export async function prosesNotifikasiSiapDiambil(
 
     const ord = ordRes.rows[0];
 
-    // 3. Pengecekan Saklar Utama (WA_NOTIFIKASI_AKTIF)
-    const saklarAktif = cekSaklarNotifikasiAktif();
+    // 3. Pengecekan Saklar Utama (WA_NOTIFIKASI_AKTIF & WA_GATEWAY_MODE)
+    const saklarAktif = cekSaklarNotifikasiAktif(env);
     if (!saklarAktif) {
       await pool.query(
         `UPDATE wa_notifikasi
@@ -506,5 +517,83 @@ export async function ambilNotifikasiTiket(
     percobaan: row.percobaan,
     terkirim_pada: row.terkirim_pada ? row.terkirim_pada.toISOString() : null,
     diperbarui_pada: row.diperbarui_pada ? row.diperbarui_pada.toISOString() : null,
+  };
+}
+
+export type ParameterJadwalNotifikasi<TTiket> = {
+  orderId: number;
+  notifikasiDibuat: boolean;
+  tiketAwal: TTiket;
+  headerSync: string | null | undefined;
+  env?: Record<string, string | undefined>;
+  jadwalkanAfter: (tugas: () => Promise<void> | void) => void;
+  kirimNotifikasi?: (
+    orderId: number,
+    opts: OpsiProsesNotifikasi
+  ) => Promise<HasilProsesNotifikasi>;
+  muatUlangTiket: (orderId: number) => Promise<TTiket | null>;
+  catatGalat?: (err: unknown) => void;
+};
+
+export type HasilJadwalNotifikasi<TTiket> = {
+  tiketFinal: TTiket;
+  modeEksekusi: "tidak_perlu" | "sinkron" | "after";
+};
+
+/**
+ * Orkestrator penjadwalan pengiriman notifikasi "Siap diambil" setelah transaksi PATCH selesai:
+ * - Di produksi (`NODE_ENV === "production"`), header `x-sync-notifikasi` SELALU diabaikan dan
+ *   pengiriman wajib dijadwalkan di dalam `after()` (`next/server`) agar fungsi serverless tidak
+ *   membeku sebelum pengiriman selesai dan tidak ada floating promise di luar `after()`.
+ * - Di non-produksi (`NODE_ENV !== "production"`), jika `x-sync-notifikasi: 1` dikirim, pengiriman
+ *   ditunggu secara sinkron untuk kebutuhan pengujian integrasi; bila tidak ada header tersebut,
+ *   pengiriman juga tetap memakai `after()`.
+ */
+export async function jadwalkanPengirimanNotifikasiSiapDiambil<TTiket>(
+  params: ParameterJadwalNotifikasi<TTiket>
+): Promise<HasilJadwalNotifikasi<TTiket>> {
+  if (!params.notifikasiDibuat) {
+    return {
+      tiketFinal: params.tiketAwal,
+      modeEksekusi: "tidak_perlu",
+    };
+  }
+
+  const env = params.env ?? process.env;
+  const kirim =
+    params.kirimNotifikasi ??
+    ((orderId: number, opts: OpsiProsesNotifikasi) =>
+      prosesNotifikasiSiapDiambil(orderId, opts, undefined, env));
+
+  const sinkronDiizinkan = apakahSinkronNotifikasiDiizinkan(
+    params.headerSync,
+    env
+  );
+  const lewatiJeda =
+    env.NODE_ENV === "test" ||
+    env.NEXT_DIST_DIR === ".next-test" ||
+    env.START_TEST_SERVER === "1" ||
+    sinkronDiizinkan;
+
+  if (sinkronDiizinkan) {
+    await kirim(params.orderId, { lewatiJeda: true }).catch((err) => {
+      params.catatGalat?.(err);
+    });
+    const diperbarui = await params.muatUlangTiket(params.orderId);
+    return {
+      tiketFinal: diperbarui ?? params.tiketAwal,
+      modeEksekusi: "sinkron",
+    };
+  }
+
+  params.jadwalkanAfter(async () => {
+    await kirim(params.orderId, { lewatiJeda }).catch((err) => {
+      params.catatGalat?.(err);
+    });
+  });
+
+  return {
+    tiketFinal: params.tiketAwal,
+    modeEksekusi: "after",
   };
 }

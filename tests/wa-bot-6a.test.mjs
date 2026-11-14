@@ -17,7 +17,6 @@ import {
   prosesWebhookMasukWa,
   buatKunciRateLimit,
   buatChatHash,
-  ekstrakStrukturPayload,
   formatBarisDeskripsiBarangWa,
 } from "../src/lib/wa-bot.ts";
 import {
@@ -1008,64 +1007,6 @@ test("Gateway: pemetaan lid ke nomor telepon dengan validasi ketat & cache in-me
   mockGateway.lidCache.clear();
   mockGateway.setMockLid(lidPnInvalid, "invalid_phone_number", 200);
   assert.equal(await mockGateway.petakanLidKeNomor(lidPnInvalid), null);
-});
-
-test("Alat diagnosis sementara: WA_LOG_PAYLOAD_STRUCTURE mencatat struktur tanpa nilai (Phase 6A.1)", async () => {
-  // 1. Uji fungsi murni ekstraksi struktur
-  const contohObj = {
-    event: "message",
-    session: "default",
-    payload: {
-      id: "msg_12345",
-      timestamp: 1713801234,
-      from: "628123456789@c.us",
-      fromMe: false,
-      body: "Ini isi pesan rahasia pelanggan",
-      items: ["item1", "item2"],
-      metadata: null,
-    },
-  };
-  const struktur = ekstrakStrukturPayload(contohObj);
-  const strukturJson = JSON.stringify(struktur);
-
-  // Harus memuat nama kunci dan tipe data
-  assert.match(strukturJson, /"event":"string"/);
-  assert.match(strukturJson, /"timestamp":"number"/);
-  assert.match(strukturJson, /"fromMe":"boolean"/);
-  assert.match(strukturJson, /"metadata":"null"/);
-  assert.match(strukturJson, /"items":\["string"\]/);
-
-  // SAMA SEKALI TIDAK BOLEH memuat nilai asli
-  assert.ok(!strukturJson.includes("Ini isi pesan rahasia pelanggan"));
-  assert.ok(!strukturJson.includes("628123456789"));
-  assert.ok(!strukturJson.includes("msg_12345"));
-
-  // 2. Uji integrasi sakelar environment variable
-  const logAsli = console.log;
-  let logDitangkap = [];
-  console.log = (...args) => {
-    logDitangkap.push(args.join(" "));
-  };
-
-  try {
-    // A. Tanpa WA_LOG_PAYLOAD_STRUCTURE (atau bukan "true"): tidak ada log diagnosis
-    delete process.env.WA_LOG_PAYLOAD_STRUCTURE;
-    logDitangkap = [];
-    await prosesWebhookMasukWa({ event: "message", payload: { from: "628111111111@c.us", body: "MENU" } });
-    assert.equal(logDitangkap.some((l) => l.includes("[WA_DIAGNOSTIC_STRUCTURE]")), false);
-
-    // B. Dengan WA_LOG_PAYLOAD_STRUCTURE = "true": log struktur dicatat
-    process.env.WA_LOG_PAYLOAD_STRUCTURE = "true";
-    logDitangkap = [];
-    await prosesWebhookMasukWa({ event: "message", payload: { from: "628111111111@c.us", body: "MENU" } });
-    const logDiag = logDitangkap.find((l) => l.includes("[WA_DIAGNOSTIC_STRUCTURE]"));
-    assert.ok(logDiag, "Log diagnosis wajib tercatat saat env var aktif");
-    assert.ok(!logDiag.includes("628111111111"), "Log diagnosis tidak boleh memuat nomor telepon");
-    assert.ok(!logDiag.includes("MENU"), "Log diagnosis tidak boleh memuat isi pesan");
-  } finally {
-    console.log = logAsli;
-    delete process.env.WA_LOG_PAYLOAD_STRUCTURE;
-  }
 });
 
 test("Phase 6A.1: Cek progress satu kondisi: nomor terverifikasi ATAU chat_hash (tiket lama & baru)", async () => {

@@ -55,7 +55,7 @@ export function formatTanggal(
       timeZone: ZONA_WAKTU,
       hour: "2-digit",
       minute: "2-digit",
-      hour12: false,
+      hourCycle: "h23",
     });
     const teksJam = formatterJam.format(tgl).replace(":", ".");
     return `${teksTgl}, ${teksJam} WIB`;
@@ -76,8 +76,60 @@ export function formatWaktu(input: Date | string | number | null | undefined): s
     timeZone: ZONA_WAKTU,
     hour: "2-digit",
     minute: "2-digit",
-    hour12: false,
+    hourCycle: "h23",
   });
   return `${formatterJam.format(tgl).replace(":", ".")} WIB`;
 }
+
+/**
+ * Format tanggal kalender YYYY-MM-DD secara eksplisit dalam zona waktu Asia/Jakarta (WIB).
+ * Tidak bergantung pada zona waktu mesin/server (aman di server UTC).
+ */
+export function formatTanggalYmdWib(input: Date | string | number = new Date()): string {
+  const tgl = typeof input === "object" && input instanceof Date ? input : new Date(input);
+  if (isNaN(tgl.getTime())) {
+    throw new Error("Input tanggal tidak valid untuk formatTanggalYmdWib.");
+  }
+  const bagian = new Intl.DateTimeFormat("en-CA", {
+    timeZone: ZONA_WAKTU,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(tgl);
+
+  const ambil = (tipe: string) => bagian.find((b) => b.type === tipe)?.value ?? "00";
+  return `${ambil("year")}-${ambil("month")}-${ambil("day")}`;
+}
+
+/**
+ * Format bagian tanggal untuk kode tiket (YYYYMMDD) secara eksplisit dalam zona Asia/Jakarta (WIB).
+ * Contoh: "2026-11-14T17:30:00Z" -> "20261115".
+ */
+export function formatKodeTanggalWib(input: Date | string | number = new Date()): string {
+  return formatTanggalYmdWib(input).replace(/-/g, "");
+}
+
+/**
+ * Format nilai untuk elemen <input type="datetime-local"> (YYYY-MM-DDTHH:mm) dalam zona Asia/Jakarta (WIB)
+ * menggunakan hourCycle "h23" (tengah malam = 00:00).
+ */
+export function formatDatetimeLocalWib(input: Date | string | number = new Date()): string {
+  const tgl = typeof input === "object" && input instanceof Date ? input : new Date(input);
+  if (isNaN(tgl.getTime())) {
+    throw new Error("Input tanggal tidak valid untuk formatDatetimeLocalWib.");
+  }
+  const bagian = new Intl.DateTimeFormat("en-CA", {
+    timeZone: ZONA_WAKTU,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(tgl);
+
+  const ambil = (tipe: string) => bagian.find((b) => b.type === tipe)?.value ?? "00";
+  return `${ambil("year")}-${ambil("month")}-${ambil("day")}T${ambil("hour")}:${ambil("minute")}`;
+}
+
 

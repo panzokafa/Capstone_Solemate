@@ -1,53 +1,26 @@
 // Penjaga endpoint yang mengubah data (POST/PUT/PATCH):
 //  - Content-Type wajib application/json (form lintas-situs tidak bisa mengirim ini tanpa preflight).
 //  - Header Origin wajib ada dan harus sama dengan alamat aplikasi.
-// Alamat aplikasi = header Host permintaan. Kalau di belakang proxy tepercaya (TRUST_PROXY=true)
-// X-Forwarded-Host juga diterima. Opsional: APP_ORIGIN (daftar origin dipisah koma) untuk
-// alamat tetap, mis. https://solemate.example.
+//  - TIDAK PERNAH mempercayai X-Forwarded-Host karena dapat dipalsukan klien di sejumlah konfigurasi proxy.
+//  - Di produksi (NODE_ENV === "production"), APP_ORIGIN wajib diisi (https://...) dan menjadi
+//    satu-satunya acuan origin yang diizinkan.
+//  - Di pengembangan/tes (non-produksi), menerima header Host permintaan atau daftar APP_ORIGIN.
 import { NextRequest, NextResponse } from "next/server";
+import {
+  apakahOriginDiizinkan,
+  evaluasiPermintaanUbah,
+} from "./env-produksi.ts";
 
-function hostDiizinkan(req: NextRequest): Set<string> {
-  const set = new Set<string>();
-  const host = req.headers.get("host");
-  if (host) set.add(host.toLowerCase());
-  if (process.env.TRUST_PROXY === "true") {
-    const xfh = req.headers.get("x-forwarded-host")?.split(",")[0]?.trim();
-    if (xfh) set.add(xfh.toLowerCase());
-  }
-  for (const o of (process.env.APP_ORIGIN ?? "").split(",")) {
-    const t = o.trim();
-    if (!t) continue;
-    try {
-      set.add(new URL(t).host.toLowerCase());
-    } catch {
-      // abaikan nilai APP_ORIGIN yang salah format
-    }
-  }
-  return set;
-}
+export { apakahOriginDiizinkan, evaluasiPermintaanUbah };
 
 // Mengembalikan response galat, atau null kalau permintaan lolos.
-export function periksaPermintaanUbah(req: NextRequest): NextResponse | null {
-  const ct = req.headers.get("content-type") ?? "";
-  if (!/^application\/json\s*(;|$)/i.test(ct)) {
-    return NextResponse.json(
-      { error: "Content-Type harus application/json." },
-      { status: 415 }
-    );
-  }
-
-  const origin = req.headers.get("origin");
-  if (!origin) {
-    return NextResponse.json({ error: "Asal permintaan tidak valid." }, { status: 403 });
-  }
-  let hostOrigin: string;
-  try {
-    hostOrigin = new URL(origin).host.toLowerCase();
-  } catch {
-    return NextResponse.json({ error: "Asal permintaan tidak valid." }, { status: 403 });
-  }
-  if (!hostDiizinkan(req).has(hostOrigin)) {
-    return NextResponse.json({ error: "Asal permintaan tidak valid." }, { status: 403 });
+export function periksaPermintaanUbah(
+  req: NextRequest,
+  env: Record<string, string | undefined> = process.env
+): NextResponse | null {
+  const hasil = evaluasiPermintaanUbah(req, env);
+  if (!hasil.ok) {
+    return NextResponse.json({ error: hasil.error }, { status: hasil.status });
   }
   return null;
 }

@@ -2,11 +2,14 @@
 // Dipanggil langsung oleh WAHA (atau gateway alternatif di masa depan) tanpa n8n.
 // Melakukan verifikasi HMAC-SHA512, pembatasan ukuran payload, dan perlindungan usia pesan.
 
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
+import { getPool } from "@/lib/db";
+import { apakahWaGatewayNonaktif } from "@/lib/env-produksi";
 import {
   verifikasiTandaTanganWebhookWa,
   periksaUsiaPayload,
   prosesWebhookMasukWa,
+  bersihkanCatatanWaUsang,
 } from "@/lib/wa-bot";
 import { MAKS_BYTES_WEBHOOK_WA } from "@/config/wa-bot";
 
@@ -14,6 +17,17 @@ export const dynamic = "force-dynamic";
 
 export async function POST(req: Request) {
   try {
+    // 0. Mode WA_GATEWAY_MODE=nonaktif: balas 503 tanpa memproses
+    if (apakahWaGatewayNonaktif()) {
+      return NextResponse.json(
+        {
+          ok: false,
+          galat: "Layanan WhatsApp sedang dinonaktifkan.",
+        },
+        { status: 503 }
+      );
+    }
+
     const rawBody = await req.text();
 
     // 1. Batas ukuran payload masuk (Zero Trust)
@@ -96,6 +110,13 @@ export async function POST(req: Request) {
         { ok: false, galat: hasil.galat },
         { status: 503 }
       );
+    }
+
+    // 6. Pembersihan oportunistik catatan usang dijadwalkan di dalam after() (next/server)
+    if (hasil.ok && hasil.kodeTiket) {
+      after(async () => {
+        await bersihkanCatatanWaUsang(getPool());
+      });
     }
 
     return NextResponse.json(

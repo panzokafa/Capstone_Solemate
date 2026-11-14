@@ -2,6 +2,7 @@
 // Hanya tersedia di lingkungan non-produksi dan hanya untuk peran Owner.
 import { notFound } from "next/navigation";
 import { requireOwner } from "@/lib/auth";
+import { apakahRuteDevTerblokir } from "@/lib/env-produksi";
 import {
   Button,
   Input,
@@ -21,7 +22,10 @@ import { STATUS_PESANAN, STATUS_BAYAR } from "@/config/status";
 
 export default async function DevKomponenPage() {
   // Wajib 404 di production
-  if (process.env.NODE_ENV === "production") {
+  if (
+    process.env.NODE_ENV === "production" ||
+    apakahRuteDevTerblokir("/dev/komponen")
+  ) {
     notFound();
   }
 

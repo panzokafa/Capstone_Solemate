@@ -1,6 +1,8 @@
 // Adapter antarmuka pengiriman pesan WhatsApp (NFR-05).
 // Memisahkan pengirim pesan di balik interface agar WAHA dapat diganti ke gateway resmi di masa depan.
 
+import { tentukanModeWaGateway } from "./env-produksi.ts";
+
 export type KirimTeksParams = {
   chatId: string;
   teks: string;
@@ -330,14 +332,15 @@ export class WahaGatewayAdapter implements WaGatewayAdapter {
 
 let instanceGatewayAktif: WaGatewayAdapter | null = null;
 
-export function ambilWaGateway(): WaGatewayAdapter {
+export function ambilWaGateway(
+  env: Record<string, string | undefined> = process.env
+): WaGatewayAdapter {
   if (instanceGatewayAktif) return instanceGatewayAktif;
-  if (
-    process.env.NODE_ENV === "test" ||
-    process.env.NEXT_DIST_DIR === ".next-test" ||
-    process.env.START_TEST_SERVER === "1" ||
-    process.env.WA_GATEWAY_MODE === "mock"
-  ) {
+  const mode = tentukanModeWaGateway(env);
+  if (mode === "nonaktif") {
+    throw new Error("Gateway WhatsApp sedang dinonaktifkan (WA_GATEWAY_MODE=nonaktif).");
+  }
+  if (mode === "mock") {
     instanceGatewayAktif = new MockWaGatewayAdapter();
   } else {
     instanceGatewayAktif = new WahaGatewayAdapter();

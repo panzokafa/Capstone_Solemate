@@ -29,10 +29,10 @@ import {
   type PeriodeFilterTiket,
 } from "../config/tiket.ts";
 import { normalisasiNomorWa } from "./nomor-wa.ts";
+import { formatTanggalYmdWib } from "./format.ts";
 
 const BATAS_ID_INT = 2_147_483_647;
 const MS_PER_HARI = 86_400_000;
-const OFFSET_WIB_MS = 7 * 3_600_000;
 
 // Karakter terlarang pada input teks pengguna (nama pelanggan, deskripsi barang):
 // - Karakter kontrol (0x00-0x1F, 0x7F-0x9F), termasuk tab (\t), baris baru (\r, \n), dan byte nol (\0).
@@ -246,7 +246,7 @@ function uraiTanggalKalender(
 }
 
 export function tanggalHariIniWib(sekarang: Date = new Date()): string {
-  return new Date(sekarang.getTime() + OFFSET_WIB_MS).toISOString().slice(0, 10);
+  return formatTanggalYmdWib(sekarang);
 }
 
 export function geserHariKalender(tglYmd: string, deltaHari: number): string {

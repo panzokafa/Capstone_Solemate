@@ -20,7 +20,7 @@ import {
 } from "@/config/tiket";
 import type { MetodeBayar, StatusBayar } from "@/config/order-status";
 import { normalisasiNomorWa, buatUrlWaMe, buatPesanWaTiket } from "@/lib/nomor-wa";
-import { formatRupiah, formatTanggal } from "@/lib/format";
+import { formatDatetimeLocalWib, formatRupiah, formatTanggal } from "@/lib/format";
 import {
   petakanGalatServer,
   apakahSesiDialihkanKeLogin,
@@ -52,22 +52,6 @@ type BarisBarangForm = {
 type InfoPelangganCek = {
   nama: string;
 };
-
-function formatDatetimeLocalWib(tgl: Date): string {
-  const bagian = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Asia/Jakarta",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  }).formatToParts(tgl);
-
-  const ambil = (tipe: string) => bagian.find((b) => b.type === tipe)?.value ?? "00";
-  const jam = ambil("hour") === "24" ? "00" : ambil("hour");
-  return `${ambil("year")}-${ambil("month")}-${ambil("day")}T${jam}:${ambil("minute")}`;
-}
 
 function uraiInputDatetimeWib(nilai: string): Date | null {
   const bersih = nilai.trim();

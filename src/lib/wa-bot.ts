@@ -5,6 +5,10 @@
 import crypto from "node:crypto";
 import type { Pool, PoolClient } from "pg";
 import { getPool } from "./db.ts";
+import {
+  apakahWaGatewayNonaktif,
+  ekstrakKodeGalatAman,
+} from "./env-produksi.ts";
 import { daftarLayananAktif } from "./katalog.ts";
 import { ambilWaGateway } from "./wa-gateway.ts";
 import {
@@ -327,25 +331,6 @@ export function buatChatHash(senderFrom: string): string {
 }
 
 /**
- * Alat diagnosis sementara dev-only: mengekstrak struktur skema JSON (kunci dan tipe data) secara rekursif.
- * Jaminan keamanan: tidak ada nilai pesan, nomor telepon, atau data sensitif yang disertakan.
- */
-export function ekstrakStrukturPayload(data: unknown): unknown {
-  if (data === null) return "null";
-  if (Array.isArray(data)) {
-    return data.length === 0 ? [] : [ekstrakStrukturPayload(data[0])];
-  }
-  if (typeof data === "object") {
-    const hasil: Record<string, unknown> = {};
-    for (const [k, v] of Object.entries(data as Record<string, unknown>)) {
-      hasil[k] = ekstrakStrukturPayload(v);
-    }
-    return hasil;
-  }
-  return typeof data;
-}
-
-/**
  * Pengecekan dan pencatatan laju atomik (Refinement 7 & 8) via PostgreSQL ON CONFLICT DO UPDATE.
  */
 export async function periksaRateLimitAtomik(
@@ -383,7 +368,7 @@ export async function periksaRateLimitAtomik(
 
 /**
  * Pembersihan berkala data usang pada tabel wa_rate_limit (> 24 jam) dan wa_messages (> 30 hari).
- * Dijalankan secara oportunistik saat webhook masuk atau dapat dipanggil oleh rutinitas cron.
+ * Dijadwalkan melalui after() saat webhook masuk membuat tiket baru, atau dipanggil oleh rutinitas cron.
  */
 export async function bersihkanCatatanWaUsang(
   poolOrClient?: Pool | PoolClient
@@ -402,7 +387,7 @@ export async function bersihkanCatatanWaUsang(
   } catch (err) {
     console.warn(
       "[WA_BOT] Gagal membersihkan catatan WA lama:",
-      err instanceof Error ? err.message : "Kesalahan database"
+      ekstrakKodeGalatAman(err, "DB_ERROR")
     );
     return {
       rateLimitTerhapus: 0,
@@ -612,8 +597,17 @@ async function buatTiketDariWa(params: {
  * Pemroses utama webhook masuk WhatsApp (Phase 6A).
  */
 export async function prosesWebhookMasukWa(
-  payloadObj: Record<string, unknown> | null | undefined
+  payloadObj: Record<string, unknown> | null | undefined,
+  env: Record<string, string | undefined> = process.env
 ): Promise<HasilProsesWebhook> {
+  if (apakahWaGatewayNonaktif(env)) {
+    return {
+      ok: false,
+      kode: 503,
+      galat: "Layanan WhatsApp sedang dinonaktifkan (WA_GATEWAY_MODE=nonaktif).",
+    };
+  }
+
   if (!payloadObj || typeof payloadObj !== "object" || Array.isArray(payloadObj)) {
     return {
       ok: true,
@@ -633,15 +627,7 @@ export async function prosesWebhookMasukWa(
   }
 
   const pool = getPool();
-  const gateway = ambilWaGateway();
-
-  // Alat diagnosis dev-only: catat struktur skema payload tanpa nilai
-  if (process.env.WA_LOG_PAYLOAD_STRUCTURE === "true") {
-    console.log(
-      "[WA_DIAGNOSTIC_STRUCTURE]",
-      JSON.stringify(ekstrakStrukturPayload(payloadObj))
-    );
-  }
+  const gateway = ambilWaGateway(env);
 
   // Ekstrak pesan: mendukung struktur payload bersarang (WAHA standar) maupun datar
   const event = typeof payloadObj.event === "string" ? payloadObj.event : "";
@@ -1145,9 +1131,6 @@ ${teksPetunjukCek}
 _Terima kasih telah mencuci sepatu di Solemate!_`;
 
     await gateway.kirimTeks({ chatId, teks: teksSukses.trim() });
-
-    // Oportunistik: bersihkan catatan lama
-    bersihkanCatatanWaUsang(pool).catch(() => {});
 
     return {
       ok: true,

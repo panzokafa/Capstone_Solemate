@@ -1,15 +1,21 @@
 // Seed data contoh. Semua data palsu.
 // Aturan: TIDAK membuat users dan TIDAK memuat hash PIN apa pun.
 // Akun owner pertama dibuat lewat skrip terpisah di Phase 3.
-// Hanya berjalan saat NODE_ENV=development.
+// Hanya berjalan saat NODE_ENV=development (ditolak di NODE_ENV=production tanpa flag eksplisit).
 
 import pg from "pg";
+import { periksaIzinSeed } from "./seed-guard.mjs";
 
 const { Pool } = pg;
 
-if (process.env.NODE_ENV !== "development") {
-  console.log("Seed dilewati: NODE_ENV bukan 'development'.");
-  process.exit(0);
+const izin = periksaIzinSeed(process.env, process.argv);
+if (!izin.diizinkan) {
+  if (izin.levelLog === "error") {
+    console.error(izin.pesan);
+  } else {
+    console.log(izin.pesan);
+  }
+  process.exit(izin.kodeKeluar);
 }
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });

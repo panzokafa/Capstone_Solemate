@@ -461,10 +461,11 @@ export async function buatTiketToko(
       // 3. Kode tiket atomik dari ticket_counters berdasarkan TANGGAL TERBIT di Asia/Jakarta.
       const ctrRes = await c.query(
         `INSERT INTO ticket_counters (tanggal, terakhir)
-         VALUES ((now() AT TIME ZONE 'Asia/Jakarta')::date, 1)
+         VALUES (($1::timestamptz AT TIME ZONE 'Asia/Jakarta')::date, 1)
          ON CONFLICT (tanggal)
          DO UPDATE SET terakhir = ticket_counters.terakhir + 1
-         RETURNING to_char(tanggal, 'YYYYMMDD') AS tgl_teks, terakhir`
+         RETURNING to_char(tanggal, 'YYYYMMDD') AS tgl_teks, terakhir`,
+        [sekarang]
       );
       const tglTeks: string = ctrRes.rows[0].tgl_teks;
       const urut: number = ctrRes.rows[0].terakhir;

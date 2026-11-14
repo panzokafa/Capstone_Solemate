@@ -25,7 +25,8 @@
     "test:laporan-7a": "START_TEST_SERVER=1 node --env-file=.env scripts/with-test-db.mjs --experimental-strip-types --test 'tests/laporan-7a.test.mjs'",
     "test:rekap-7b": "START_TEST_SERVER=1 node --env-file=.env scripts/with-test-db.mjs --experimental-strip-types --test 'tests/rekap-7b.test.mjs'",
     "test:ekspor-7b": "START_TEST_SERVER=1 node --env-file=.env scripts/with-test-db.mjs --experimental-strip-types --test 'tests/ekspor-rekap-7b.test.mjs'",
-    "test": "npm run test:ui; a=$?; npm run test:db; b=$?; npm run test:auth; c=$?; npm run test:katalog; d=$?; npm run test:tiket; e=$?; npm run test:tiket-5b; f=$?; npm run test:wa-6a; g=$?; npm run test:wa-6b; h=$?; npm run test:laporan-7a; i=$?; npm run test:rekap-7b; j=$?; npm run test:ekspor-7b; k=$?; exit $((a || b || c || d || e || f || g || h || i || j || k))"
+    "test:prod-9a": "node --env-file=.env scripts/with-test-db.mjs --experimental-strip-types --test 'tests/kesiapan-produksi-9a.test.mjs'",
+    "test": "npm run test:ui; a=$?; npm run test:db; b=$?; npm run test:auth; c=$?; npm run test:katalog; d=$?; npm run test:tiket; e=$?; npm run test:tiket-5b; f=$?; npm run test:wa-6a; g=$?; npm run test:wa-6b; h=$?; npm run test:laporan-7a; i=$?; npm run test:rekap-7b; j=$?; npm run test:ekspor-7b; k=$?; npm run test:prod-9a; l=$?; exit $((a || b || c || d || e || f || g || h || i || j || k || l))"
   },
   "dependencies": {
     "argon2": "^0.45.1",

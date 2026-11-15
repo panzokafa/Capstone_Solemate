@@ -2,7 +2,7 @@ import type { NextConfig } from "next";
 import { bangunHeaderKeamanan } from "./src/lib/security-headers.ts";
 
 const nextConfig: NextConfig = {
-  serverExternalPackages: ["pdfkit"],
+  serverExternalPackages: ["pdfkit", "argon2"],
   outputFileTracingIncludes: {
     "/api/rekap-bulanan/ekspor": ["./node_modules/pdfkit/js/data/**/*"],
   },

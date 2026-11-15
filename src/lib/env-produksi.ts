@@ -354,15 +354,27 @@ export function validasiEnvProduksi(
           "DATABASE_URL_APP belum memiliki kredensial valid atau masih memakai password contoh/placeholder."
         );
       }
-      const sslmode = parsedDb.searchParams.get("sslmode")?.toLowerCase();
-      const sslParam = parsedDb.searchParams.get("ssl")?.toLowerCase();
+      const sslmodes = parsedDb.searchParams
+        .getAll("sslmode")
+        .map((v) => v.toLowerCase());
+      const sslParams = parsedDb.searchParams
+        .getAll("ssl")
+        .map((v) => v.toLowerCase());
+      const uselibpqcompats = parsedDb.searchParams
+        .getAll("uselibpqcompat")
+        .map((v) => v.toLowerCase());
       if (
-        sslmode === "disable" ||
-        sslmode === "allow" ||
-        sslmode === "prefer" ||
-        sslmode === "no-verify" ||
-        sslParam === "0" ||
-        sslParam === "false"
+        sslmodes.some(
+          (m) =>
+            m === "disable" ||
+            m === "allow" ||
+            m === "prefer" ||
+            m === "no-verify"
+        ) ||
+        uselibpqcompats.some((u) => u === "true" || u === "1") ||
+        sslParams.some(
+          (s) => s === "0" || s === "false" || s === "no-verify"
+        )
       ) {
         daftarGalat.push(
           "DATABASE_URL_APP di produksi tidak boleh mematikan verifikasi SSL."

@@ -8,7 +8,13 @@ const files = readdirSync(dir)
   .filter((f) => /^\d+.*\.(js|ts|mjs)$/.test(f))
   .sort();
 
-const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+const dbUrl = process.env.DATABASE_URL?.trim() ?? "";
+if (!dbUrl) {
+  console.error("DATABASE_URL belum diisi.");
+  process.exit(1);
+}
+
+const pool = new pg.Pool({ connectionString: dbUrl });
 try {
   const r = await pool.query(
     "SELECT name FROM pgmigrations ORDER BY id"

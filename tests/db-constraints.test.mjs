@@ -562,3 +562,87 @@ test("migrasi 0003 tidak menyertakan password literal di teks SQL yang dicetak n
     );
   }
 });
+
+test("migrasi 0015_neon_schema_usage memberi hak USAGE schema public ke solemate_app dan idempoten", async () => {
+  const { rows: awalRows } = await pool.query(
+    "SELECT has_schema_privilege('solemate_app', 'public', 'USAGE') AS boleh"
+  );
+  assert.equal(
+    awalRows[0]?.boleh,
+    true,
+    "setelah migrasi di solemate_test, role solemate_app wajib punya USAGE pada schema public"
+  );
+
+  const migrasi0015Mod = await import("../migrations/0015_neon_schema_usage.js");
+  const migrasi0015 = migrasi0015Mod.default ?? migrasi0015Mod;
+
+  const sqlUp = [];
+  migrasi0015.up({
+    sql(stmt) {
+      sqlUp.push(stmt);
+    },
+  });
+  assert.equal(sqlUp.length, 1);
+  assert.match(sqlUp[0], /has_schema_privilege\('solemate_app',\s*'public',\s*'USAGE'\)/);
+
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    // Simulasikan Postgres 15+/Neon saat PUBLIC tidak punya USAGE pada schema public
+    await client.query('REVOKE USAGE ON SCHEMA public FROM PUBLIC, "solemate_app"');
+
+    const { rows: sebelumRows } = await client.query(
+      "SELECT has_schema_privilege('solemate_app', 'public', 'USAGE') AS boleh"
+    );
+    assert.equal(sebelumRows[0]?.boleh, false);
+
+    await client.query("SAVEPOINT sebelum_uji_tolak");
+    await client.query('SET LOCAL ROLE "solemate_app"');
+    await assert.rejects(
+      client.query("SELECT count(*)::int FROM public.orders"),
+      (err) => err?.code === "42501"
+    );
+    await client.query("ROLLBACK TO SAVEPOINT sebelum_uji_tolak");
+    await client.query("RELEASE SAVEPOINT sebelum_uji_tolak");
+
+    // Eksekusi pertama saat USAGE belum ada -> harus memberi hak
+    await client.query(sqlUp[0]);
+    const { rows: sesudahRows } = await client.query(
+      "SELECT has_schema_privilege('solemate_app', 'public', 'USAGE') AS boleh"
+    );
+    assert.equal(sesudahRows[0]?.boleh, true);
+
+    await client.query("SAVEPOINT sebelum_uji_bisa");
+    await client.query('SET LOCAL ROLE "solemate_app"');
+    await client.query("SELECT count(*)::int FROM public.orders");
+    await client.query("ROLLBACK TO SAVEPOINT sebelum_uji_bisa");
+    await client.query("RELEASE SAVEPOINT sebelum_uji_bisa");
+
+    // Eksekusi kedua (sudah punya USAGE) -> wajib idempoten tanpa galat
+    await client.query(sqlUp[0]);
+    const { rows: idempotenRows } = await client.query(
+      "SELECT has_schema_privilege('solemate_app', 'public', 'USAGE') AS boleh"
+    );
+    assert.equal(idempotenRows[0]?.boleh, true);
+
+    await client.query("ROLLBACK");
+  } finally {
+    await client.query("ROLLBACK").catch(() => {});
+    client.release();
+  }
+
+  // Pastikan down() aman (no-op, tidak mencabut hak USAGE saat rollback)
+  const operasiDown = [];
+  const pgmDownSpy = new Proxy(
+    {},
+    {
+      get(_target, prop) {
+        return (...args) => {
+          operasiDown.push({ prop: String(prop), args });
+        };
+      },
+    }
+  );
+  migrasi0015.down(pgmDownSpy);
+  assert.equal(operasiDown.length, 0, "migrasi 0015 down() harus no-op");
+});

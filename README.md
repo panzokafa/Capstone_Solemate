@@ -459,7 +459,7 @@ Bagian ini mendokumentasikan konfigurasi kesiapan produksi untuk demo/deployment
 **Daftar eksplisit Environment Variables yang dipasang di Vercel (hanya variabel runtime, TANPA `DATABASE_URL` admin):**
 
 1. **Wajib dipasang (semua skenario):**
-   - `DATABASE_URL_APP` — URL pooler Neon milik role terbatas `solemate_app` (`postgresql://solemate_app:<PASSWORD>@ep-xxx-pooler.<region>.aws.neon.tech/solemate?sslmode=require`)
+   - `DATABASE_URL_APP` — URL pooler Neon milik role terbatas `solemate_app` (`postgresql://solemate_app:<PASSWORD>@ep-xxx-pooler.<region>.aws.neon.tech/solemate?sslmode=require`, hapus `&channel_binding=require` bila ada di salinan URL Neon)
    - `SESSION_SECRET` — string acak ≥ 32 karakter (bukan nilai contoh)
    - `APP_ORIGIN` — `https://NAMA-PROYEK.vercel.app` (diisi sebelum deploy pertama)
    - `TRUST_PROXY=true` — **WAJIB** di Vercel (`VERCEL=1`) agar pembatas laju IP login berjalan (*fail-closed* bila kosong/`false`)
@@ -475,40 +475,31 @@ Bagian ini mendokumentasikan konfigurasi kesiapan produksi untuk demo/deployment
    - `SESSION_TTL_SECONDS=28800`
    - `DB_POOL_MAX=5`
    - `DB_POOL_IDLE_TIMEOUT_MS=5000`
-   - `DB_POOL_CONNECTION_TIMEOUT_MS=10000`
-4. **TIDAK boleh dipasang di Vercel:** `DATABASE_URL` (kredensial admin), `APP_DB_PASSWORD`, `DB_SSL=false`, `DB_SSL_REJECT_UNAUTHORIZED=false`.
+   - `DB_POOL_CONNECTION_TIMEOUT_MS=10000` (opsional setel `15000` bila Neon sering bangun dari *cold start* > 10 detik)
+4. **TIDAK boleh dipasang di Vercel:** `DATABASE_URL` (kredensial admin), `APP_DB_PASSWORD`, `POSTGRES_*`, `DB_SSL*`, `WAHA_*` (saat `WA_GATEWAY_MODE=nonaktif`).
 
 ### 3. Migrasi Database & Pembuatan Role Terbatas `solemate_app` di Postgres Terkelola (Neon)
 
-Migrasi skema (`node-pg-migrate`) serta skrip CLI (`create-user`, `reset-pin`) selalu dijalankan **dari terminal mesin lokal** menggunakan koneksi **Direct (unpooled)** pada `DATABASE_URL` (bukan endpoint `-pooler`, karena migrasi DDL dan transaksi perubahan skema memerlukan sesi langsung).
+Migrasi skema (`node-pg-migrate`) serta skrip CLI (`create-user`, `reset-pin`) selalu dijalankan **dari terminal mesin lokal** menggunakan koneksi **Direct (unpooled)** pada `DATABASE_URL` (bukan endpoint `-pooler`, karena migrasi DDL dan transaksi perubahan skema memerlukan sesi langsung). **Hapus `&channel_binding=require`** bila ada pada string koneksi Neon, dan **jangan menyunting berkas `.env` lokal** — ekspor variabel ke sesi shell saja karena variabel shell **menang atas isi `.env`** pada `node --env-file=.env`.
 
-1. **Kasus A — Role Admin Memiliki Hak `CREATEROLE`:**
-   - Di Neon, Anda dapat membuat role `solemate_app` terlebih dahulu melalui **Neon Console -> Roles -> New Role** (atau jika role admin Anda memiliki `CREATEROLE`), lalu jalankan migrasi dari mesin lokal:
-     ```bash
-     DATABASE_URL="postgresql://<admin_user>:<admin_pass>@ep-xxx.ap-southeast-1.aws.neon.tech/solemate?sslmode=require" \
-     APP_DB_PASSWORD="<password_kuat_solemate_app>" \
-     npm run migrate:up
-     ```
-2. **Kasus B — Role Default Tidak Memiliki `CREATEROLE` penuh:**
-   - Buat role `solemate_app` melalui **Neon Console** (atau dashboard penyedia Postgres terkelola) dan catat password-nya.
-   - Karena migrasi [`migrations/0003_app_user.js`](migrations/0003_app_user.js) memeriksa `IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'solemate_app')`, jika role `solemate_app` sudah dibuat dari Console tetapi role `neondb_owner` tidak diizinkan menjalankan `ALTER ROLE solemate_app WITH PASSWORD ...`, Anda dapat membuat/mengatur password role dari Console dan memastikan hibah hak terbatas (`GRANT CONNECT`, `GRANT USAGE ON SCHEMA public`, `GRANT SELECT, INSERT, UPDATE` pada tabel aplikasi, serta `GRANT INSERT, SELECT ON audit_logs` tanpa `UPDATE`/`DELETE`) teraplikasi sesuai isi `migrations/0003_app_user.js`.
-3. **Verifikasi Status Migrasi:**
-   ```bash
-   DATABASE_URL="postgresql://<admin_user>:<admin_pass>@ep-xxx.ap-southeast-1.aws.neon.tech/solemate?sslmode=require" \
-   npm run migrate:status
-   ```
+- **DILARANG membuat role `solemate_app` terlebih dahulu di Neon Console.** Pada PostgreSQL 16+ di Neon, role owner bawaan Neon bukan superuser dan tidak memiliki `ADMIN OPTION` atas role yang dibuat lewat Console, sehingga `ALTER ROLE` di [`migrations/0003_app_user.js`](migrations/0003_app_user.js) akan ditolak. Biarkan migrasi `0003` yang membuat role `solemate_app` memakai hak `CREATEROLE` milik owner Neon, lalu migrasi [`migrations/0015_neon_schema_usage.js`](migrations/0015_neon_schema_usage.js) memastikan izin `USAGE` pada schema `public` terpenuhi secara kondisional.
+- Jalankan migrasi & verifikasi dari sesi shell laptop:
+  ```bash
+  export DATABASE_URL="postgresql://<admin_user>:<admin_pass>@ep-xxx.ap-southeast-1.aws.neon.tech/solemate?sslmode=require"
+  export APP_DB_PASSWORD="<password_kuat_solemate_app>"
+  npm run migrate:up
+  npm run migrate:status
+  ```
 
 ### 4. Membuat Akun `owner` Produksi & Mereset PIN 6 Digit
 
-Skrip `seed.js` **tidak pernah** membuat akun pengguna dan ditolak di `NODE_ENV=production`. Untuk membuat akun `owner` atau `kasir` pertama di database produksi, jalankan skrip interaktif dari mesin lokal menggunakan `DATABASE_URL` (direct + SSL):
+Skrip `seed.js` **tidak pernah** membuat akun pengguna dan ditolak di `NODE_ENV=production`. Selama variabel `DATABASE_URL` (Direct, tanpa `&channel_binding=require`) masih diekspor di sesi shell yang sama, jalankan skrip interaktif dari laptop:
 
 ```bash
 # Membuat akun owner atau kasir baru (PIN 6 digit diketik tersembunyi, di-hash dengan Argon2id)
-DATABASE_URL="postgresql://<admin_user>:<admin_pass>@ep-xxx.ap-southeast-1.aws.neon.tech/solemate?sslmode=require" \
 npm run create-user
 
 # Mereset PIN 6 digit akun yang sudah ada, mencabut seluruh sesi aktifnya, sekaligus membuka kunci rate-limit akun
-DATABASE_URL="postgresql://<admin_user>:<admin_pass>@ep-xxx.ap-southeast-1.aws.neon.tech/solemate?sslmode=require" \
 npm run reset-pin
 ```
 
@@ -554,11 +545,98 @@ npm run reset-pin
 
 ### 7. Checklist Pra-Hosting (Sebelum Demo / Go-Live)
 
-- [ ] Buat database di Neon, jalankan migrasi `0001` s/d `0014` dari mesin lokal via URL **Direct** (`DATABASE_URL` + `?sslmode=require`).
-- [ ] Pastikan role terbatas `solemate_app` hanya memiliki hak minimum sesuai `0003_app_user.js` s/d `0014_hak_minimum_solemate_app.js` (tanpa hak `UPDATE`/`DELETE` pada `audit_logs`, tanpa `INSERT`/`UPDATE` pada `users`/`employees`/`attendance`, dan tanpa akses ke `login_attempts`).
+- [ ] Buat database kosong di Neon (**DILARANG** membuat role `solemate_app` lebih dulu di Neon Console), hapus `&channel_binding=require` bila ada di string koneksi Neon, lalu jalankan migrasi `0001` s/d `0015` dari laptop memakai URL **Direct** lewat `export DATABASE_URL` dan `export APP_DB_PASSWORD` di sesi shell (tanpa mengedit `.env`; variabel shell menimpa `.env`).
+- [ ] Pastikan role terbatas `solemate_app` hanya memiliki hak minimum sesuai `0003_app_user.js` s/d `0015_neon_schema_usage.js` (memiliki `USAGE` pada schema `public`, tanpa hak `UPDATE`/`DELETE` pada `audit_logs`, tanpa `INSERT`/`UPDATE` pada `users`/`employees`/`attendance`, dan tanpa akses ke `login_attempts`).
 - [ ] Buat akun `owner` dan `kasir` awal dari mesin lokal dengan `npm run create-user` (jangan jalankan `seed.js` di produksi).
-- [ ] Sebelum deploy pertama di Vercel, pasang hanya variabel runtime (`DATABASE_URL_APP`, `SESSION_SECRET`, `APP_ORIGIN=https://NAMA-PROYEK.vercel.app`, `WA_GATEWAY_MODE` beserta `WAHA_*` jika `waha`, `TRUST_PROXY=true`) dan pastikan **TIDAK** ada `DATABASE_URL` admin.
-- [ ] Verifikasi di **deployment produksi Vercel** (`https://NAMA-PROYEK.vercel.app`): login `owner` & `kasir`, buat tiket baru (kode tiket sesuai tanggal WIB), ubah status tiket, pastikan `/dev/komponen` dan `/detail-tiket` mengembalikan `404`, serta uji **unduh Excel & PDF di `/rekap-bulanan`** (sebagai verifikasi final `outputFileTracingIncludes` untuk `pdfkit`).
+- [ ] Sebelum deploy pertama di Vercel, setel **Node.js Version = 22** di Project Settings Vercel, pasang hanya variabel runtime (`DATABASE_URL_APP`, `SESSION_SECRET`, `APP_ORIGIN=https://NAMA-PROYEK.vercel.app`, `WA_GATEWAY_MODE` beserta `WAHA_*` jika `waha`, `TRUST_PROXY=true`, serta opsional `DB_POOL_CONNECTION_TIMEOUT_MS=15000` untuk *cold start* Neon), dan pastikan **TIDAK** ada `DATABASE_URL` admin.
+- [ ] Deploy melalui integrasi **GitHub** (cloud build di Vercel, bukan `vercel deploy --prebuilt` dari Mac) dan verifikasi di **deployment produksi Vercel** (`https://NAMA-PROYEK.vercel.app`): login `owner` & `kasir`, buat tiket baru (kode tiket sesuai tanggal WIB), ubah status tiket, pastikan `/dev/komponen` dan `/detail-tiket` mengembalikan `404`, serta uji **unduh Excel & PDF di `/rekap-bulanan`** (sebagai verifikasi final `outputFileTracingIncludes` untuk `pdfkit`).
+
+## Deploy demo (Vercel + Neon)
+
+Bagian ini merangkum panduan langkah demi langkah untuk demo di **Vercel** (Node 22, serverless, runtime `UTC` dengan pemformatan bisnis `Asia/Jakarta` WIB) menggunakan database **Neon** kosong dan role aplikasi terbatas `solemate_app` tanpa integrasi WAHA (`WA_GATEWAY_MODE=nonaktif`). Semua contoh menggunakan placeholder tanpa rahasia maupun URL nyata.
+
+### 1. Langkah Berurutan
+
+1. **Siapkan database kosong di Neon:**
+   - Buat project Neon baru (pilih region terdekat, mis. Singapore `ap-southeast-1`) dengan database kosong.
+   - Ambil dua connection string untuk database tersebut dan **hapus parameter `&channel_binding=require`** bila ikut tersalin dari dashboard Neon:
+     - **Direct (unpooled)** — hostname tanpa `-pooler`, dipakai **hanya di sesi shell laptop** (`DATABASE_URL`) untuk migrasi & skrip CLI.
+     - **Pooled (`-pooler`)** — hostname berakhiran `-pooler`, nanti dipakai oleh runtime Vercel (`DATABASE_URL_APP`) menggunakan akun terbatas `solemate_app`.
+   - Gunakan `?sslmode=verify-full` (disarankan untuk menghindari peringatan keamanan `pg-connection-string`) atau `?sslmode=require`, dan **jangan** menambahkan `uselibpqcompat=true` maupun `ssl=no-verify`.
+   - **DILARANG membuat role `solemate_app` terlebih dahulu di Neon Console;** biarkan migrasi `0003_app_user.js` dan `0015_neon_schema_usage.js` yang membuatnya dan memberi hak schema `public` lewat role owner bawaan Neon (`CREATEROLE`) agar kepemilikan & `ALTER ROLE` tetap konsisten.
+
+2. **Jalankan seluruh migrasi (`0001`–`0015`) dari laptop via sesi shell:**
+   - Skrip di `package.json` memakai `node --env-file=.env`: Node.js hanya mengisi variabel dari `.env` bila belum ada di lingkungan proses, sehingga variabel yang diekspor di sesi shell (`export ...`) **menimpa** isi `.env` lokal tanpa perlu menyunting `.env`.
+   - Ekspor URL **Direct** (tanpa `&channel_binding=require`) dan password role aplikasi di sesi shell laptop, lalu jalankan migrasi:
+     ```bash
+     export DATABASE_URL="postgresql://<neon_owner>:<password_owner>@ep-contoh.<region>.aws.neon.tech/<nama_db>?sslmode=verify-full"
+     export APP_DB_PASSWORD="<password_acak_solemate_app_min_8_karakter>"
+     npm run migrate:up
+     ```
+   - Verifikasi seluruh berkas migrasi `0001` s/d `0015` sudah bertanda `[X] sudah dijalankan`:
+     ```bash
+     npm run migrate:status
+     ```
+
+3. **Buat akun pengguna awal & siapkan `DATABASE_URL_APP`:**
+   - Masih di sesi shell yang sama (atau dengan `DATABASE_URL` Direct yang sudah di-`export` — **jangan** menjalankan `npm run seed` ke database demo/produksi), buat akun `owner` dan `kasir` awal lewat prompt PIN tersembunyi, lalu bersihkan variabel sesi setelah selesai:
+     ```bash
+     npm run create-user
+     unset DATABASE_URL APP_DB_PASSWORD
+     ```
+   - Susun `DATABASE_URL_APP` untuk Vercel menggunakan role terbatas `solemate_app`, password dari `APP_DB_PASSWORD`, hostname **`-pooler`**, dan tanpa `&channel_binding=require`:
+     `postgresql://solemate_app:<password_solemate_app>@ep-contoh-pooler.<region>.aws.neon.tech/<nama_db>?sslmode=verify-full`
+
+4. **Konfigurasi proyek & Environment Variables di Vercel:**
+   - Di **Project Settings -> General -> Node.js Version**, pastikan versi disetel ke **`22`** (`22.x`).
+   - **Hindari** menghubungkan integrasi otomatis Neon–Vercel Marketplace (atau hapus seluruh `DATABASE_URL` dan `POSTGRES_*` jika integrasi tersebut menyuntikkannya otomatis).
+   - Di **Settings -> Environment Variables** (scope **Production**), isi **hanya** variabel wajib demo (ditambah opsional `DB_POOL_CONNECTION_TIMEOUT_MS=15000`) dan pastikan variabel terlarang tidak ada (daftar di bawah).
+
+5. **Deploy melalui integrasi GitHub (Vercel Cloud Build):**
+   - Deploy dengan menghubungkan repositori **GitHub** ke Vercel agar build (`next build`) berjalan langsung di **cloud Vercel (Linux)** yang sama dengan runtime Vercel, sehingga modul native `argon2` (`.node`) dan font `pdfkit` (`.afm`) ikut terbawa. **JANGAN** memakai `vercel deploy --prebuilt` dari Mac/Windows.
+   - Gunakan URL produksi tetap (`https://<nama-proyek>.vercel.app`) sesuai `APP_ORIGIN`.
+
+6. **Verifikasi pasca-deploy:**
+   - Buka `/login`, masuk memakai akun `owner` dan `kasir` yang dibuat di Langkah 3.
+   - Buat satu tiket dan ubah status pesanan/bayar (memverifikasi `Origin`, cookie `__Host-solemate_session`, zona waktu WIB, dan query PgBouncer melalui `-pooler`).
+   - Pastikan `/dev/komponen` dan `/detail-tiket` membalas `404`.
+   - Buka `/rekap-bulanan`, lalu uji unduh **Excel (`.xlsx`)** dan **PDF (`.pdf`)** (`/api/rekap-bulanan/ekspor`).
+   - Periksa **Logs** runtime Vercel untuk memastikan tidak ada galat startup maupun peringatan koneksi.
+
+### 2. Daftar Variabel Vercel (Demo Tanpa WAHA)
+
+| Kategori | Nama Variabel | Nilai / Keterangan |
+| :--- | :--- | :--- |
+| **WAJIB dipasang** | `DATABASE_URL_APP` | URL `-pooler` Neon milik role `solemate_app` dengan `?sslmode=verify-full` (atau `?sslmode=require`), tanpa `&channel_binding=require` |
+| **WAJIB dipasang** | `SESSION_SECRET` | String acak kuat ≥ 32 karakter (bukan nilai contoh) |
+| **WAJIB dipasang** | `APP_ORIGIN` | Origin `https://` deployment produksi (mis. `https://<nama-proyek>.vercel.app`) |
+| **WAJIB dipasang** | `TRUST_PROXY` | `true` (wajib saat `VERCEL=1`) |
+| **WAJIB dipasang** | `WA_GATEWAY_MODE` | `nonaktif` (untuk demo tanpa WAHA) |
+| **OPSIONAL** | `DB_POOL_CONNECTION_TIMEOUT_MS` | `15000` (disarankan untuk memberi toleransi lebih saat *cold start* compute Neon bangun dari *auto-suspend*; default `10000` ms) |
+| **DILARANG dipasang** | `DATABASE_URL` | Kredensial owner/admin; hanya untuk migrasi & CLI di laptop |
+| **DILARANG dipasang** | `APP_DB_PASSWORD` | Password mentah pembuatan role `0003`; tidak dipakai saat runtime |
+| **DILARANG dipasang** | `POSTGRES_*` | Variabel suntikan integrasi (`POSTGRES_URL`, `POSTGRES_USER`, dll.) umumnya memakai role owner |
+| **DILARANG dipasang** | `DB_SSL*` | Jangan menyetel `DB_SSL` / `DB_SSL_REJECT_UNAUTHORIZED` di Vercel; TLS terverifikasi wajib aktif di produksi |
+| **DILARANG dipasang** | `WAHA_*` | `WAHA_BASE_URL`, `WAHA_API_KEY`, `WAHA_WEBHOOK_HMAC_KEY`, `WAHA_SESSION`, `WAHA_IZINKAN_HTTP_INTERNAL` jangan dipasang saat `WA_GATEWAY_MODE=nonaktif` |
+
+### 3. Cara Membaca Log Runtime Vercel
+
+1. **Melalui Vercel Dashboard:** Buka proyek -> tab **Logs** (atau buka **Deployments** -> pilih deployment Production aktif -> tab **Logs** / **Functions**), lalu filter **Environment: Production** serta status **500** / **403** atau cari path fungsi (`/api/login`, `/api/tiket`, `/api/rekap-bulanan/ekspor`).
+2. **Melalui Vercel CLI:** Setelah `vercel login`, pantau log fungsi secara langsung dari terminal:
+   ```bash
+   npx vercel logs https://<nama-proyek>.vercel.app --follow
+   ```
+3. **Menemukan sinyal yang relevan:** Aplikasi menyensor data sensitif di log server (`[ENV_PRODUKSI_TIDAK_VALID]` tidak mencetak nilai rahasia; `[DB_POOL] Galat klien idle: <kode>` hanya mencetak kode error aman SQLSTATE/Node; handler API mencatat `<LABEL> gagal: <kode>`). Fokuskan pengecekan pada kode galat, status HTTP, dan stack startup `instrumentation.ts`.
+
+### 4. Tabel Galat Umum & Artinya
+
+| Galat / Gejala | Kemungkinan Penyebab | Cara Mengatasi |
+| :--- | :--- | :--- |
+| **`ENV_PRODUKSI_TIDAK_VALID`** (startup `instrumentation.ts` gagal, HTTP `500`) | Ada variabel wajib produksi yang kosong, bernilai placeholder, memakai `http://` pada `APP_ORIGIN`, `TRUST_PROXY` bukan `true`, `WA_GATEWAY_MODE` kosong/`mock`, atau `DATABASE_URL_APP` melemahkan SSL. | Baca pesan setelah `[ENV_PRODUKSI_TIDAK_VALID]` di log Vercel; perbaiki env yang kurang di **Environment Variables** lalu **Redeploy**. |
+| **Origin ditolak** (mutasi `POST`/`PATCH`/`DELETE` membalas `403` `Asal permintaan tidak valid.`) | Request dikirim dari URL *preview deployment* yang belum terdaftar di `APP_ORIGIN`, skema bukan `https://`, atau terdapat salah ketik/slash di belakang nilai `APP_ORIGIN`. | Samakan `APP_ORIGIN` persis dengan skema + host + port (tanpa path/garis miring akhir, mis. `https://<nama-proyek>.vercel.app`), lalu redeploy. |
+| **Timeout DB** (`ETIMEDOUT`, `Connection terminated due to connection timeout`, HTTP `500`) | Compute Neon baru bangun dari mode tidur (*auto-suspend* cold start > 10 detik), salah region Neon jauh dari region fungsi Vercel, atau `DATABASE_URL_APP` memakai host/port yang terblokir bukan `-pooler`. | Pastikan host `-pooler` benar dan region Neon & Vercel berdekatan; bila cold start sering melewati 10 detik, naikkan `DB_POOL_CONNECTION_TIMEOUT_MS` (mis. `15000`–`20000`). |
+| **Modul native** (`argon2`: `No native build was found...` / `ERR_DLOPEN_FAILED`) | Deployment diunggah memakai `vercel deploy --prebuilt` dari macOS/Windows sehingga `.node` bawaan yang ter-trace bukan biner Linux runtime Vercel, atau paket terbawa oleh bundler tanpa externalize. | Build dan deploy langsung di **Vercel cloud build** (Linux) dan pastikan `argon2` diperlakukan sebagai external server package (`serverExternalPackages`). |
+| **Font PDF** (`ENOENT: no such file or directory, open '.../Helvetica.afm'` saat ekspor PDF) | Berkas metrik font `.afm` di `node_modules/pdfkit/js/data/` tidak ikut terbawa oleh tracing serverless atau `pdfkit` ikut ter-bundle. | Pastikan `serverExternalPackages` mencakup `"pdfkit"` dan `outputFileTracingIncludes` untuk `/api/rekap-bulanan/ekspor` menyertakan `./node_modules/pdfkit/js/data/**/*` di `next.config.ts`. |
 
 ## Catatan
 

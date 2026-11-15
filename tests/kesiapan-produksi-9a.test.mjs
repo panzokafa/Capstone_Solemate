@@ -16,7 +16,7 @@ import crypto from "node:crypto";
 import { spawnSync } from "node:child_process";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
-import { Pool } from "pg";
+import pg, { Pool } from "pg";
 
 import {
   formatTanggal,
@@ -963,4 +963,259 @@ test("Phase 9A (7): Tidak ada console.* di src/ yang mencetak objek error mentah
     [],
     `Ditemukan console.* di src/ yang mencetak error mentah atau err.message: ${JSON.stringify(pelanggaran)}`
   );
+});
+
+// ============================================================================
+// 9. PHASE 9D: MIGRATE-STATUS FAIL-FAST, TLS/URL HARDENING NEON, & BUKTI 9D
+// ============================================================================
+
+test("Phase 9D: scripts/migrate-status.mjs gagal cepat tanpa mencetak nilai saat DATABASE_URL kosong/spasi", () => {
+  for (const nilaiKosong of ["", "   "]) {
+    const hasil = spawnSync(process.execPath, ["scripts/migrate-status.mjs"], {
+      cwd: process.cwd(),
+      env: { ...process.env, DATABASE_URL: nilaiKosong },
+      encoding: "utf8",
+    });
+    assert.equal(hasil.status, 1, "migrate:status harus exit 1 jika DATABASE_URL kosong");
+    assert.match(hasil.stderr, /DATABASE_URL belum diisi/);
+    assert.equal(hasil.stdout.trim(), "");
+  }
+});
+
+function bangunKonfigurasiPoolNaif9D(url) {
+  return {
+    connectionString: url,
+    ssl: { rejectUnauthorized: true },
+  };
+}
+
+function validasiEnvProduksiNaif9D(env) {
+  return validasiEnvProduksi({
+    ...env,
+    DATABASE_URL_APP: env.DATABASE_URL_APP.split("?")[0] + "?sslmode=require",
+  });
+}
+
+test("Phase 9D (Bukti gagal-lalu-lulus a): parameter ?uselibpqcompat=true&sslmode=require melemahkan pg jika URL diteruskan mentah, tetap strict SSL pada fungsi produksi bangunKonfigurasiPoolDb", () => {
+  const urlCompat =
+    "postgresql://solemate_app:SangatKuatDanUnik998877@ep-neon-pooler.ap-southeast-1.aws.neon.tech:5432/solemate?uselibpqcompat=true&sslmode=require";
+
+  const cfgNaif = bangunKonfigurasiPoolNaif9D(urlCompat);
+  const clientNaif = new pg.Client(cfgNaif);
+
+  // Di luar NODE_ENV=production (mis. preview/non-lokal dengan remote host Neon),
+  // tegakkanEnvProduksi tidak berjalan sehingga perlindungan lapis db.ts yang bekerja:
+  const cfgDbRemote = bangunKonfigurasiPoolDb({
+    NODE_ENV: "development",
+    DATABASE_URL_APP: urlCompat,
+  });
+  const clientDbRemote = new pg.Client(cfgDbRemote);
+
+  // Di NODE_ENV=production dengan URL valid (?sslmode=require), parameter sslmode juga dibersihkan
+  const urlProdRequire =
+    "postgresql://solemate_app:SangatKuatDanUnik998877@ep-neon-pooler.ap-southeast-1.aws.neon.tech:5432/solemate?sslmode=require";
+  const cfgProduksi = bangunKonfigurasiPoolDb({
+    ...ENV_PRODUKSI_VALID_WAHA,
+    DATABASE_URL_APP: urlProdRequire,
+  });
+  const clientProduksi = new pg.Client(cfgProduksi);
+
+  console.log(
+    "[BUKTI-9D] pg.Client naive ssl parse:",
+    JSON.stringify(clientNaif.ssl),
+    "| fungsi produksi (urlCompat):",
+    JSON.stringify(clientDbRemote.ssl),
+    "| produksi (sslmode=require):",
+    JSON.stringify(clientProduksi.ssl)
+  );
+
+  // Pastikan pembanding naif memang membuktikan kelemahan nyata pg-connection-string
+  assert.deepEqual(clientNaif.ssl, { rejectUnauthorized: false });
+  assert.deepEqual(clientProduksi.ssl, { rejectUnauthorized: true });
+
+  const cfgUji = PAKAI_PEMBANDING_NAIF ? cfgNaif : cfgDbRemote;
+  const clientUji = new pg.Client(cfgUji);
+  assert.deepEqual(
+    clientUji.ssl,
+    { rejectUnauthorized: true },
+    "SSL pool wajib { rejectUnauthorized: true } meski URL awal memuat ?uselibpqcompat=true&sslmode=require"
+  );
+
+  const urlTerbersih = new URL(cfgDbRemote.connectionString);
+  assert.equal(urlTerbersih.searchParams.has("ssl"), false);
+  assert.equal(urlTerbersih.searchParams.has("sslmode"), false);
+  assert.equal(urlTerbersih.searchParams.has("uselibpqcompat"), false);
+});
+
+test("Phase 9D (Bukti gagal-lalu-lulus b): validasiEnvProduksi menolak uselibpqcompat=true/1, ssl=no-verify, dan sslmode lemah termasuk parameter berulang", () => {
+  const jalurUji = [
+    "?uselibpqcompat=true&sslmode=require",
+    "?uselibpqcompat=1&sslmode=verify-full",
+    "?ssl=no-verify",
+    "?sslmode=disable",
+    "?sslmode=allow",
+    "?sslmode=prefer",
+    "?sslmode=no-verify",
+    "?sslmode=require&sslmode=disable",
+    "?sslmode=verify-full&uselibpqcompat=true",
+  ];
+
+  const validator = PAKAI_PEMBANDING_NAIF ? validasiEnvProduksiNaif9D : validasiEnvProduksi;
+
+  for (const query of jalurUji) {
+    const res = validator({
+      ...ENV_PRODUKSI_VALID_WAHA,
+      DATABASE_URL_APP:
+        "postgresql://solemate_app:SangatKuatDanUnik998877@ep-neon-pooler.ap-southeast-1.aws.neon.tech:5432/solemate" +
+        query,
+    });
+    assert.equal(
+      res.ok,
+      false,
+      `Query pelemah SSL "${query}" wajib ditolak oleh validasiEnvProduksi`
+    );
+  }
+});
+
+test("Phase 9D: skema postgres:// & postgresql://, karakter khusus password (@ : % / ?), dan query non-SSL tetap utuh setelah pembersihan URL", () => {
+  const pwAsli = "a@b:c%d/e?f";
+  const pwEncoded = "a%40b%3Ac%25d%2Fe%3Ff";
+
+  for (const skema of ["postgres://", "postgresql://"]) {
+    const urlAsli = `${skema}solemate_app:${pwEncoded}@ep-contoh-pooler.ap-southeast-1.aws.neon.tech:5432/solemate?sslmode=verify-full&application_name=solemate_app&connect_timeout=5`;
+    const cfg = bangunKonfigurasiPoolDb({
+      ...ENV_PRODUKSI_VALID_WAHA,
+      DATABASE_URL_APP: urlAsli,
+    });
+
+    assert.equal(
+      cfg.connectionString.startsWith(skema),
+      true,
+      `Skema ${skema} harus dipertahankan`
+    );
+    assert.deepEqual(cfg.ssl, { rejectUnauthorized: true });
+
+    const parsedUrl = new URL(cfg.connectionString);
+    assert.equal(parsedUrl.searchParams.has("ssl"), false);
+    assert.equal(parsedUrl.searchParams.has("sslmode"), false);
+    assert.equal(parsedUrl.searchParams.has("uselibpqcompat"), false);
+    assert.equal(parsedUrl.searchParams.get("application_name"), "solemate_app");
+    assert.equal(parsedUrl.searchParams.get("connect_timeout"), "5");
+
+    const client = new pg.Client(cfg);
+    assert.equal(client.password, pwAsli);
+    assert.deepEqual(client.ssl, { rejectUnauthorized: true });
+  }
+});
+
+test("Phase 9D: URL koneksi & password tidak pernah muncul dalam pesan galat maupun log", () => {
+  const rahasiaPw = "RahasiaUnik9D_JanganSampaiBocor";
+  const hostUnik = "ep-host-rahasia-9d.ap-southeast-1.aws.neon.tech";
+  const userUnik = "user_rahasia_9d";
+  const urlRahasia = `postgresql://${userUnik}:${rahasiaPw}@${hostUnik}:5432/solemate?uselibpqcompat=true&sslmode=disable`;
+
+  const resEnv = validasiEnvProduksi({
+    ...ENV_PRODUKSI_VALID_WAHA,
+    DATABASE_URL_APP: urlRahasia,
+  });
+  assert.equal(resEnv.ok, false);
+  assert.equal(resEnv.pesan.includes(rahasiaPw), false);
+  assert.equal(resEnv.pesan.includes(hostUnik), false);
+  assert.equal(resEnv.pesan.includes(userUnik), false);
+  for (const pesan of resEnv.daftarGalat) {
+    assert.equal(pesan.includes(rahasiaPw), false);
+    assert.equal(pesan.includes(hostUnik), false);
+    assert.equal(pesan.includes(userUnik), false);
+  }
+
+  assert.throws(
+    () =>
+      tegakkanEnvProduksi({
+        ...ENV_PRODUKSI_VALID_WAHA,
+        DATABASE_URL_APP: urlRahasia,
+      }),
+    (err) => {
+      const msg = String(err?.message ?? "");
+      assert.equal(msg.includes(rahasiaPw), false);
+      assert.equal(msg.includes(hostUnik), false);
+      assert.equal(msg.includes(userUnik), false);
+      return true;
+    }
+  );
+
+  // Url cacat juga tidak boleh membocorkan isi URL/password lewat bangunKonfigurasiPoolDb
+  assert.throws(
+    () =>
+      bangunKonfigurasiPoolDb({
+        NODE_ENV: "development",
+        DATABASE_URL_APP: `bukan url postgresql://${userUnik}:${rahasiaPw}@${hostUnik}/solemate`,
+      }),
+    (err) => {
+      const msg = String(err?.message ?? "");
+      assert.equal(msg.includes(rahasiaPw), false);
+      assert.equal(msg.includes(hostUnik), false);
+      assert.equal(msg.includes(userUnik), false);
+      return true;
+    }
+  );
+
+  // Simulasikan error pool yang mengandung URL koneksi lengkap -> catatGalatPoolAman hanya mencatat kode aman
+  const catatanLog = [];
+  const origError = console.error;
+  console.error = (...args) => catatanLog.push(args.map(String).join(" "));
+  try {
+    const errPalsu = Object.assign(new Error(`gagal konek ${urlRahasia}`), {
+      code: "ECONNREFUSED",
+    });
+    catatGalatPoolAman(errPalsu);
+  } finally {
+    console.error = origError;
+  }
+  const teksLog = catatanLog.join("\n");
+  assert.equal(teksLog.includes(rahasiaPw), false);
+  assert.equal(teksLog.includes(hostUnik), false);
+  assert.equal(teksLog.includes(userUnik), false);
+  assert.match(teksLog, /ECONNREFUSED/);
+});
+
+test("Phase 9D: URL produksi tanpa parameter query SSL apa pun tetap valid dan mengaktifkan strict SSL", () => {
+  const urlTanpaQuery =
+    "postgresql://solemate_app:SangatKuatDanUnik998877@ep-neon-pooler.ap-southeast-1.aws.neon.tech:5432/solemate";
+
+  const resEnv = validasiEnvProduksi({
+    ...ENV_PRODUKSI_VALID_WAHA,
+    DATABASE_URL_APP: urlTanpaQuery,
+  });
+  assert.equal(
+    resEnv.ok,
+    true,
+    `Seharusnya valid tanpa query SSL: ${resEnv.ok ? "" : resEnv.daftarGalat.join("; ")}`
+  );
+
+  const cfg = bangunKonfigurasiPoolDb({
+    ...ENV_PRODUKSI_VALID_WAHA,
+    DATABASE_URL_APP: urlTanpaQuery,
+  });
+  assert.deepEqual(cfg.ssl, { rejectUnauthorized: true });
+  const client = new pg.Client(cfg);
+  assert.deepEqual(client.ssl, { rejectUnauthorized: true });
+});
+
+test("Phase 9D: host loopback lokal (127.0.0.1, localhost, ::1) di non-produksi tidak menyetel ssl dan menjaga URL apa adanya", () => {
+  for (const host of ["127.0.0.1", "localhost", "[::1]"]) {
+    for (const nodeEnv of ["development", "test"]) {
+      const urlLokal = `postgresql://solemate_app:lokal_pass@${host}:5432/solemate?sslmode=disable&application_name=dev`;
+      const cfg = bangunKonfigurasiPoolDb({
+        NODE_ENV: nodeEnv,
+        DATABASE_URL_APP: urlLokal,
+        DATABASE_URL: urlLokal,
+      });
+      assert.equal(cfg.ssl, undefined, `Loopback ${host} di ${nodeEnv} tidak boleh menyetel ssl`);
+      assert.equal(
+        cfg.connectionString,
+        urlLokal,
+        `URL loopback ${host} tidak boleh dimodifikasi saat ssl === undefined`
+      );
+    }
+  }
 });

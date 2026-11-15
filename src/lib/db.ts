@@ -98,8 +98,20 @@ export function bangunKonfigurasiPoolDb(
     }
   }
 
+  // Hapus parameter pengatur SSL dari salinan URL hanya bila `db.ts` menyuplai `ssl` eksplisit,
+  // sehingga `ConnectionParameters` (`Object.assign`) tidak dapat menimpanya dengan `rejectUnauthorized: false`
+  // atau memicu SECURITY WARNING untuk `?sslmode=require`.
+  let connectionString = url;
+  if (ssl !== undefined) {
+    const urlSalinan = new URL(url);
+    urlSalinan.searchParams.delete("ssl");
+    urlSalinan.searchParams.delete("sslmode");
+    urlSalinan.searchParams.delete("uselibpqcompat");
+    connectionString = urlSalinan.toString();
+  }
+
   return {
-    connectionString: url,
+    connectionString,
     max,
     idleTimeoutMillis,
     connectionTimeoutMillis,

@@ -1,8 +1,9 @@
 // Halaman pratinjau komponen Solemate Design System.
 // Hanya tersedia di lingkungan non-produksi dan hanya untuk peran Owner.
 import { notFound } from "next/navigation";
-import { requireOwner } from "@/lib/auth";
+import { AksesDitolakError, requireOwner } from "@/lib/auth";
 import { apakahRuteDevTerblokir } from "@/lib/env-produksi";
+import { AksesDitolak } from "../../akses-ditolak";
 import {
   Button,
   Input,
@@ -30,7 +31,12 @@ export default async function DevKomponenPage() {
   }
 
   // Wajib peran Owner
-  await requireOwner();
+  try {
+    await requireOwner();
+  } catch (e) {
+    if (e instanceof AksesDitolakError) return <AksesDitolak />;
+    throw e;
+  }
 
   const contohTglUTC = "2026-05-10T20:00:00.000Z";
 

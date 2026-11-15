@@ -8,6 +8,8 @@ import { test, before } from "node:test";
 import assert from "node:assert/strict";
 import { buatAkunUji } from "./helpers/akun.mjs";
 import { Pool } from "pg";
+import { LOGIN_MAX_PER_AKUN } from "../src/config/auth.ts";
+import { PESAN_GAGAL } from "../src/lib/login.ts";
 
 const BASE = process.env.BASE_URL ?? "http://localhost:3000";
 
@@ -212,7 +214,11 @@ test("10 percobaan serentak tidak melewati batas 5", async () => {
     [NAMA]
   );
   const gagal = r.rows[0]?.gagal ?? 0;
-  assert.ok(gagal <= 5, `counter gagal tidak boleh melebihi 5, dapat ${gagal}`);
+  assert.equal(
+    gagal,
+    LOGIN_MAX_PER_AKUN + 1,
+    `counter gagal prapenambahan terkunci pada maks+1 (${LOGIN_MAX_PER_AKUN + 1}), dapat ${gagal}`
+  );
   await pool.end();
 });
 
@@ -461,6 +467,8 @@ test("batas pencatatan audit dihitung per IP dan per akun, bukan global", async 
   // Kosongkan hitungan rate-limit akun uji agar tiap kombinasi mulai dari nol.
   const akunA = `AuditA ${Date.now()}`;
   const akunB = `AuditB ${Date.now()}`;
+  await buatAkunUji(akunA, "kasir", pin6());
+  await buatAkunUji(akunB, "kasir", pin6());
   const ip1 = `10.0.0.${Math.floor(Math.random() * 250) + 1}`;
   const ip2 = `10.9.9.${Math.floor(Math.random() * 250) + 1}`;
 
@@ -516,4 +524,57 @@ test("batas pencatatan audit dihitung per IP dan per akun, bukan global", async 
   assert.ok(a2.rows[0].n >= 1, "akun A dari IP2 harus tercatat (batas per IP terpisah)");
 
   await pool.end();
+});
+
+test("username tak dikenal tidak menulis audit_logs maupun baris tipe akun di login_rate_limit", async () => {
+  const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+  const namaHantu = `TidakTerdaftar ${Date.now()}`;
+  const ipUji = `10.77.0.${Math.floor(Math.random() * 250) + 1}`;
+
+  try {
+    const res = await fetch(`${BASE}/api/login`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Origin: BASE,
+        "X-Forwarded-For": ipUji,
+      },
+      body: JSON.stringify({ username: namaHantu, pin: "000000" }),
+    });
+    assert.equal(res.status, 403);
+    const body = await res.json();
+    assert.equal(body.error, PESAN_GAGAL);
+
+    const auditCount = await pool.query(
+      `SELECT count(*)::int AS n FROM audit_logs WHERE nilai_baru->>'akun' = $1`,
+      [namaHantu]
+    );
+    assert.equal(
+      auditCount.rows[0].n,
+      0,
+      "username tak dikenal tidak boleh menulis ke audit_logs"
+    );
+
+    const rlAkunCount = await pool.query(
+      `SELECT count(*)::int AS n FROM login_rate_limit WHERE tipe = 'akun' AND kunci = $1`,
+      [namaHantu]
+    );
+    assert.equal(
+      rlAkunCount.rows[0].n,
+      0,
+      "username tak dikenal tidak boleh menulis baris tipe='akun' di login_rate_limit"
+    );
+
+    const rlIp = await pool.query(
+      `SELECT gagal FROM login_rate_limit WHERE tipe = 'ip' AND kunci = $1`,
+      [ipUji]
+    );
+    assert.equal(
+      rlIp.rows[0]?.gagal,
+      1,
+      "percobaan ke username tak dikenal tetap menaikkan penghitung IP"
+    );
+  } finally {
+    await pool.end();
+  }
 });

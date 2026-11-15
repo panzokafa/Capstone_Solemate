@@ -216,7 +216,7 @@ export class WahaGatewayAdapter implements WaGatewayAdapter {
     }
 
     try {
-      const url = `${this.baseUrl.replace(/\/+$/, "")}/api/${this.session}/lids/${encodeURIComponent(lid)}`;
+      const url = `${this.baseUrl.replace(/\/+$/, "")}/api/${encodeURIComponent(this.session)}/lids/${encodeURIComponent(lid)}`;
       const res = await fetch(url, {
         method: "GET",
         headers: {

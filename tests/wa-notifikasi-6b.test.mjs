@@ -684,24 +684,62 @@ test("hak akses solemate_app: DELETE dan TRUNCATE pada wa_notifikasi ditolak ole
 });
 
 // =========================================================================
-// 12. Uji Bukti Kegagalan Perilaku Lama (FAIL-then-PASS proof)
+// 12. Uji Bukti Kegagalan Perilaku Lama (FAIL-then-PASS proof — pembanding di berkas tes)
 // =========================================================================
-test("pembuktian celah lama: mode 'tanpa_klaim_atomik' menghasilkan pesan ganda pada proses paralel, sedangkan mode terkini mencegahnya", async () => {
-  const t = await buatTiketUji();
+test("pembuktian celah lama: pembanding tanpa klaim atomik menghasilkan pesan ganda pada proses paralel, sedangkan produksi mencegahnya (tanpa opsi uji di kode produksi)", async () => {
+  const { readFileSync } = await import("node:fs");
+  const { resolve } = await import("node:path");
+  const srcNotif = readFileSync(resolve(process.cwd(), "src/lib/wa-notifikasi.ts"), "utf8");
+  assert.doesNotMatch(
+    srcNotif,
+    /modeUjiPerilakuLama|tanpa_klaim_atomik/,
+    "kode produksi wa-notifikasi.ts tidak boleh mengandung parameter/cabang uji perilaku lama"
+  );
 
-  // Mode Perilaku Lama: tanpa klaim atomik -> dua proses menghasilkan 2 kiriman ke gateway
+  const t = await buatTiketUji();
+  await admin.query(
+    `INSERT INTO wa_notifikasi (order_id, jenis, status, percobaan)
+     VALUES ($1, 'siap_diambil', 'menunggu', 0)
+     ON CONFLICT (order_id, jenis) DO UPDATE SET status = 'menunggu'`,
+    [t.id]
+  );
+
+  // Pembanding perilaku lama (hanya di berkas tes): SELECT status -> kirim teks -> UPDATE status,
+  // tanpa klaim atomik (`UPDATE ... WHERE ... RETURNING`), sehingga 2 proses serentak sama-sama lolos.
+  async function pembandingTanpaKlaimAtomik(orderId) {
+    const cek = await admin.query(
+      `SELECT status FROM wa_notifikasi WHERE order_id = $1 AND jenis = 'siap_diambil'`,
+      [orderId]
+    );
+    if (cek.rows[0]?.status !== "menunggu") {
+      return { ok: false, status: "dilewati" };
+    }
+    // Simulasi jeda I/O jaringan sebelum UPDATE status (celah TOCTOU klasik).
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    await mockGateway.kirimTeks({ chatId: `${t.pelanggan.nomor_wa}@c.us`, teks: "duplikat" });
+    await admin.query(
+      `UPDATE wa_notifikasi SET status = 'terkirim' WHERE order_id = $1 AND jenis = 'siap_diambil'`,
+      [orderId]
+    );
+    return { ok: true, status: "terkirim" };
+  }
+
+  // Mode Perilaku Lama (GAGAL): dua proses serentak mengirim 2 pesan ke gateway
   mockGateway.reset();
   await Promise.all([
-    prosesNotifikasiSiapDiambil(t.id, { modeUjiPerilakuLama: "tanpa_klaim_atomik" }),
-    prosesNotifikasiSiapDiambil(t.id, { modeUjiPerilakuLama: "tanpa_klaim_atomik" }),
+    pembandingTanpaKlaimAtomik(t.id),
+    pembandingTanpaKlaimAtomik(t.id),
   ]);
   assert.equal(
     mockGateway.pesanTerkirim.length,
     2,
     "Perilaku lama tanpa klaim atomik terbukti rentan menghasilkan kiriman ganda (2 pesan terkirim)"
   );
+  console.log(
+    `[WA-ATOMIK-GAGAL] Pembanding tanpa klaim atomik (SELECT lalu kirim) mengirim ${mockGateway.pesanTerkirim.length} pesan ganda saat 2 proses serentak`
+  );
 
-  // Mode Perilaku Terkini: klaim atomik UPDATE ... RETURNING -> hanya 1 kiriman
+  // Mode Perilaku Terkini (LULUS): klaim atomik UPDATE ... RETURNING di kode produksi -> tepat 1 kiriman
   mockGateway.reset();
   await admin.query(
     `INSERT INTO wa_notifikasi (order_id, jenis, status, percobaan)
@@ -718,5 +756,8 @@ test("pembuktian celah lama: mode 'tanpa_klaim_atomik' menghasilkan pesan ganda 
     mockGateway.pesanTerkirim.length,
     1,
     "Perilaku baru dengan klaim atomik terbukti mencegah kiriman ganda (tepat 1 pesan terkirim)"
+  );
+  console.log(
+    `[WA-ATOMIK-LULUS] Kode produksi prosesNotifikasiSiapDiambil() mengirim tepat ${mockGateway.pesanTerkirim.length} pesan saat 2 proses serentak`
   );
 });

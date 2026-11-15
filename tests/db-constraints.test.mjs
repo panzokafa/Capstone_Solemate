@@ -365,19 +365,19 @@ test("migrasi 0006: tabel baru dengan kolom serial buatan admin tidak memberi ha
     await pool.query(`DROP TABLE IF EXISTS public._uji_hak_default_0006`);
   }
 
-  // 4. Pastikan izin ke seluruh tabel yang sudah ada tetap persis seperti semula.
+  // 4. Pastikan izin ke seluruh tabel yang sudah ada sesuai hak minimum pasca-migrasi 0014.
   const ekspektasi = [
-    ["users", ["SELECT", "INSERT", "UPDATE"]],
-    ["employees", ["SELECT", "INSERT", "UPDATE"]],
+    ["users", ["SELECT"]], // migrasi 0014 mencabut INSERT & UPDATE pada users
+    ["employees", ["SELECT"]], // migrasi 0014 mencabut INSERT & UPDATE (fitur ditunda)
     ["customers", ["SELECT", "INSERT", "UPDATE"]],
     ["services", ["SELECT", "INSERT", "UPDATE"]],
     ["orders", ["SELECT", "INSERT", "UPDATE"]],
     ["order_items", ["SELECT", "INSERT"]], // migrasi 0009 mencabut UPDATE pada order_items
     ["audit_logs", ["SELECT", "INSERT"]],
-    ["attendance", ["SELECT", "INSERT", "UPDATE"]],
+    ["attendance", ["SELECT"]], // migrasi 0014 mencabut INSERT & UPDATE (fitur ditunda)
     ["wa_messages", ["SELECT", "INSERT", "UPDATE", "DELETE"]],
     ["sessions", ["SELECT", "INSERT", "UPDATE", "DELETE"]],
-    ["login_attempts", ["SELECT", "INSERT", "DELETE"]],
+    ["login_attempts", []], // migrasi 0014 mencabut seluruh hak tabel usang login_attempts
     ["login_rate_limit", ["SELECT", "INSERT", "UPDATE", "DELETE"]],
   ];
 
@@ -397,29 +397,29 @@ test("migrasi 0006: tabel baru dengan kolom serial buatan admin tidak memberi ha
     }
   }
 
-  // 5. Pastikan izin USAGE dan SELECT pada seluruh sequence yang sudah ada tetap utuh.
-  const sequenceLama = [
-    "users_id_seq",
-    "employees_id_seq",
-    "customers_id_seq",
-    "services_id_seq",
-    "orders_id_seq",
-    "order_items_id_seq",
-    "audit_logs_id_seq",
-    "attendance_id_seq",
-    "wa_messages_id_seq",
-    "login_attempts_id_seq",
-    "login_rate_limit_id_seq",
+  // 5. Pastikan izin USAGE dan SELECT pada sequence sesuai hak minimum pasca-migrasi 0014.
+  const sequenceStatus = [
+    ["users_id_seq", false],
+    ["employees_id_seq", false],
+    ["customers_id_seq", true],
+    ["services_id_seq", true],
+    ["orders_id_seq", true],
+    ["order_items_id_seq", true],
+    ["audit_logs_id_seq", true],
+    ["attendance_id_seq", false],
+    ["wa_messages_id_seq", true],
+    ["login_attempts_id_seq", false],
+    ["login_rate_limit_id_seq", true],
   ];
 
-  for (const seq of sequenceLama) {
+  for (const [seq, bolehSeq] of sequenceStatus) {
     const r = await pool.query(
       `SELECT priv, has_sequence_privilege('solemate_app', $1, priv) AS punya
          FROM unnest(ARRAY['USAGE','SELECT','UPDATE']) AS priv`,
       [`public.${seq}`]
     );
     for (const baris of r.rows) {
-      const harus = baris.priv === "USAGE" || baris.priv === "SELECT";
+      const harus = bolehSeq && (baris.priv === "USAGE" || baris.priv === "SELECT");
       assert.equal(
         baris.punya,
         harus,
@@ -427,6 +427,104 @@ test("migrasi 0006: tabel baru dengan kolom serial buatan admin tidak memberi ha
       );
     }
   }
+});
+
+test("migrasi 0014 (gagal-lalu-lulus): solemate_app ditolak 42501 INSERT & UPDATE pada users (termasuk UPDATE peran) sementara UPDATE wa_messages tetap jalan", async () => {
+  const hashDummy = "$2b$10$abcdefghijklmnopqrstuv";
+  const adminUsr = await pool.query(
+    `INSERT INTO users (nama, peran, pin_hash, aktif)
+     VALUES ($1, 'kasir', $2, true)
+     RETURNING id`,
+    [`UjiHak0014_${Date.now()}`, hashDummy]
+  );
+  const uid = adminUsr.rows[0].id;
+
+  const msgSeed = await pool.query(
+    `INSERT INTO wa_messages (customer_id, arah, isi, provider_message_id)
+     VALUES (NULL, 'masuk', 'uji 0014', $1)
+     RETURNING id`,
+    [`msg-0014-${Date.now()}`]
+  );
+  const msgId = msgSeed.rows[0].id;
+
+  // 1. Pembanding GAGAL (simulasi hak lama pra-0014 di dalam transaksi yg selalu di-ROLLBACK):
+  // Sebelum 0014, solemate_app bisa menyisipkan user atau menaikkan peran kasir menjadi owner.
+  const c = await pool.connect();
+  try {
+    await c.query("BEGIN");
+    await c.query(`GRANT INSERT, UPDATE ON TABLE users TO "solemate_app"`);
+    await c.query(`GRANT USAGE, SELECT ON SEQUENCE users_id_seq TO "solemate_app"`);
+    await c.query(`SET LOCAL ROLE "solemate_app"`);
+
+    const upLama = await c.query(
+      `UPDATE users SET peran = 'owner' WHERE id = $1 RETURNING peran`,
+      [uid]
+    );
+    assert.equal(upLama.rows[0].peran, "owner");
+    console.log(
+      `[0014-GAGAL] Pembanding hak pra-0014 mengizinkan solemate_app menjalankan UPDATE users SET peran='owner'`
+    );
+  } finally {
+    await c.query("RESET ROLE").catch(() => {});
+    await c.query("ROLLBACK").catch(() => {});
+    c.release();
+  }
+
+  // 2. Produksi LULUS (koneksi nyata solemate_app pasca-migrasi 0014):
+  // Semua upaya INSERT dan UPDATE pada users (termasuk UPDATE peran) ditolak SQLSTATE 42501.
+  await assert.rejects(
+    () =>
+      appPool.query(
+        `INSERT INTO users (nama, peran, pin_hash, aktif) VALUES ('ilegal', 'owner', $1, true)`,
+        [hashDummy]
+      ),
+    (err) => err?.code === "42501" && /permission denied/i.test(err.message),
+    "solemate_app wajib ditolak (42501) INSERT INTO users"
+  );
+
+  await assert.rejects(
+    () => appPool.query(`UPDATE users SET peran = 'owner' WHERE id = $1`, [uid]),
+    (err) => err?.code === "42501" && /permission denied/i.test(err.message),
+    "solemate_app wajib ditolak (42501) UPDATE users SET peran = 'owner'"
+  );
+
+  await assert.rejects(
+    () => appPool.query(`UPDATE users SET pin_hash = $1 WHERE id = $2`, [hashDummy, uid]),
+    (err) => err?.code === "42501" && /permission denied/i.test(err.message),
+    "solemate_app wajib ditolak (42501) UPDATE users SET pin_hash"
+  );
+
+  // Pastikan peran di DB tetap 'kasir' (tidak berubah).
+  const cekUser = await pool.query(`SELECT peran FROM users WHERE id = $1`, [uid]);
+  assert.equal(cekUser.rows[0].peran, "kasir");
+
+  // Tabel employees, attendance, dan login_attempts juga terlindungi sesuai hak minimum.
+  await assert.rejects(
+    () => appPool.query(`INSERT INTO employees (nama) VALUES ('ilegal')`),
+    (err) => err?.code === "42501"
+  );
+  await assert.rejects(
+    () => appPool.query(`UPDATE employees SET aktif = false`),
+    (err) => err?.code === "42501"
+  );
+  await assert.rejects(
+    () => appPool.query(`UPDATE attendance SET clock_out = now()`),
+    (err) => err?.code === "42501"
+  );
+  await assert.rejects(
+    () => appPool.query(`SELECT * FROM login_attempts`),
+    (err) => err?.code === "42501"
+  );
+
+  // Sebaliknya, UPDATE wa_messages (yang dipakai wa-bot.ts) tetap berfungsi untuk solemate_app.
+  const upWa = await appPool.query(
+    `UPDATE wa_messages SET customer_id = NULL, order_id = NULL WHERE id = $1 RETURNING id`,
+    [msgId]
+  );
+  assert.equal(upWa.rowCount, 1, "UPDATE wa_messages tetap harus diizinkan untuk solemate_app");
+  console.log(
+    `[0014-LULUS] solemate_app ditolak (42501 permission denied) pada INSERT users, UPDATE users SET peran='owner', dan tabel tercabut; UPDATE wa_messages tetap berjalan`
+  );
 });
 
 test("migrasi 0003 tidak menyertakan password literal di teks SQL yang dicetak node-pg-migrate", async () => {

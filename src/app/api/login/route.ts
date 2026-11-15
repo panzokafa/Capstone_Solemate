@@ -40,13 +40,12 @@ export async function POST(req: NextRequest) {
     const hasil = await cobaLogin(username, pin, ip);
 
     if (!hasil.ok) {
-      // Pesan seragam untuk semua kasus.
+      // Status HTTP 403 dan pesan identik untuk PIN salah, akun tak dikenal, nonaktif,
+      // maupun akun terkunci; hanya kunci per-IP yang dibedakan (tidak bergantung akun).
       const msg =
-        hasil.alasan === "kunci_akun"
-          ? "Akun dikunci sementara. Coba lagi nanti."
-          : hasil.alasan === "kunci_ip"
-            ? "Terlalu banyak percobaan dari IP ini. Coba lagi nanti."
-            : PESAN_GAGAL;
+        hasil.alasan === "kunci_ip"
+          ? "Terlalu banyak percobaan dari IP ini. Coba lagi nanti."
+          : PESAN_GAGAL;
       return NextResponse.json({ error: msg }, { status: 403 });
     }
 

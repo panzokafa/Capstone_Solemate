@@ -2,6 +2,7 @@
 // TIDAK pernah jatuh kembali ke DATABASE_URL admin).
 import { Pool, type PoolConfig } from "pg";
 import {
+  adalahHostLoopback,
   apakahFaseBuildNext,
   ekstrakKodeGalatAman,
   tegakkanEnvProduksi,
@@ -62,12 +63,7 @@ export function bangunKonfigurasiPoolDb(
     throw new Error("DATABASE_URL_APP bukan URL koneksi PostgreSQL yang valid.");
   }
 
-  const hostLower = parsed.hostname.toLowerCase();
-  const adalahHostLokal =
-    hostLower === "127.0.0.1" ||
-    hostLower === "localhost" ||
-    hostLower === "::1" ||
-    hostLower === "[::1]";
+  const adalahHostLokal = adalahHostLoopback(parsed.hostname);
 
   const maxDefault = adalahProduksi ? 5 : 10;
   const idleDefault = adalahProduksi ? 5000 : 10000;

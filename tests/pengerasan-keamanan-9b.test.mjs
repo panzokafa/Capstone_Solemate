@@ -26,6 +26,10 @@ import {
 } from "../src/lib/security-headers.ts";
 import { ambilIp } from "../src/lib/ip.ts";
 import {
+  LOGIN_MAX_PER_AKUN,
+  LOGIN_MAX_PER_IP,
+} from "../src/config/auth.ts";
+import {
   API_RATE_LIMIT,
   MAKS_PANJANG_IP,
   MAKS_PANJANG_USERNAME,
@@ -37,6 +41,7 @@ import {
 } from "../src/config/keamanan.ts";
 import {
   OPSI_ARGON2_PIN,
+  PESAN_GAGAL,
   ambilHashDummy,
   ambilJumlahHitungHashDummy,
   cobaLogin,
@@ -1144,6 +1149,9 @@ test("Phase 9B [BUKTI-E]: pembatasan laju API (429 + Retry-After, hitungan terta
   });
   assert.equal(setelahReset.status, 200, "setelah jendela 60 detik lewat, permintaan harus diterima lagi");
 
+  // Beri jeda singkat agar callback after() dari permintaan setelahReset selesai sebelum baris uji disisipkan.
+  await new Promise((resolve) => setTimeout(resolve, 150));
+
   // 6e. Pembersihan baris api_* kedaluwarsa TIDAK boleh menghapus baris WA bot (`masuk`).
   await admin.query(
     `INSERT INTO wa_rate_limit (kunci, kategori, hitungan, window_mulai)
@@ -1356,4 +1364,369 @@ test("Phase 9B (8): /login tidak melakukan query users & HTML/RSC tidak memuat n
   console.log(
     `[LOGIN-MANUAL-LULUS] GET /login terverifikasi terhadap ${semuaNamaAktif.length} akun aktif: 0 nama/peran bocor di HTML/RSC; login valid 200 & gagal identik (${errPin})`
   );
+});
+
+// ============================================================================
+// Phase 9C-1: Login Seragam & Median <= 2x, 12 Percobaan Serentak Deterministik,
+// Prapenambahan IP + Pengembalian 1 Kuota Saat Sukses, dan /dev/komponen 403 UI
+// ============================================================================
+
+test("Phase 9C-1 [LOGIN-SERAGAM]: pembanding perilaku lama membocorkan pesan & waktu saat terkunci (>=3x); HTTP /api/login membalas 403 + pesan seragam dan median waktu <= 2x", async () => {
+  const akunSeragam = `Seragam ${TS}`;
+  const pinSeragam = pin6();
+  await buatAkunUji(akunSeragam, "kasir", pinSeragam);
+  const hashAsli = (
+    await admin.query(`SELECT pin_hash FROM users WHERE nama = $1`, [akunSeragam])
+  ).rows[0].pin_hash;
+
+  function median(nums) {
+    const s = [...nums].sort((a, b) => a - b);
+    const m = Math.floor(s.length / 2);
+    return s.length % 2 === 0 ? (s[m - 1] + s[m]) / 2 : s[m];
+  }
+
+  // --- Bagian 1: Pembanding perilaku lama (GAGAL): pesan berbeda & skip argon2 saat terkunci ---
+  async function pembandingLama(gagalSebelum) {
+    const t0 = performance.now();
+    await admin.query(`SELECT id, pin_hash FROM users WHERE nama = $1`, [akunSeragam]);
+    if (gagalSebelum >= LOGIN_MAX_PER_AKUN) {
+      return {
+        ms: performance.now() - t0,
+        error: "Akun dikunci sementara. Coba lagi nanti.",
+      };
+    }
+    await argon2.verify(hashAsli, "000000");
+    return {
+      ms: performance.now() - t0,
+      error: "PIN tidak sesuai, coba lagi.",
+    };
+  }
+
+  // Warm-up pembanding lama
+  await pembandingLama(0);
+  await pembandingLama(5);
+
+  const lamaKe1 = [];
+  const lamaKe6 = [];
+  let pesanLamaKe1 = "";
+  let pesanLamaKe6 = "";
+  for (let i = 0; i < 7; i++) {
+    const r1 = await pembandingLama(0);
+    const r6 = await pembandingLama(5);
+    lamaKe1.push(r1.ms);
+    lamaKe6.push(r6.ms);
+    pesanLamaKe1 = r1.error;
+    pesanLamaKe6 = r6.error;
+  }
+  const rasioLama = median(lamaKe1) / Math.max(median(lamaKe6), 0.01);
+  assert.notEqual(
+    pesanLamaKe1,
+    pesanLamaKe6,
+    "Pembanding lama membocorkan perbedaan pesan PIN salah vs akun terkunci"
+  );
+  assert.ok(
+    rasioLama >= 3,
+    `Pembanding lama seharusnya timpang >=3x karena skip argon2 saat terkunci, dapat ${rasioLama.toFixed(2)}x`
+  );
+  console.log(
+    `[LOGIN-SERAGAM-GAGAL] Pembanding perilaku lama: pesan berbeda ("${pesanLamaKe1}" vs "${pesanLamaKe6}") & median=${median(lamaKe1).toFixed(2)}ms vs ${median(lamaKe6).toFixed(2)}ms (${rasioLama.toFixed(2)}x >= 3x)`
+  );
+
+  // --- Bagian 2: Implementasi produksi HTTP POST /api/login (LULUS) ---
+  const akunAdaTerkunci = `SeragamKunci ${TS}`;
+  const pinAdaTerkunci = pin6();
+  await buatAkunUji(akunAdaTerkunci, "kasir", pinAdaTerkunci);
+  const akunTidakAdaKe6 = `SeragamHantu6_${TS}`;
+
+  // Kunci akunAdaTerkunci lewat 5 percobaan gagal dari IP khusus.
+  for (let i = 0; i < LOGIN_MAX_PER_AKUN; i++) {
+    const r = await login(akunAdaTerkunci, "000000", {
+      "X-Forwarded-For": `198.51.104.${10 + i}`,
+    });
+    assert.equal(r.res.status, 403);
+    assert.equal((await r.res.json()).error, PESAN_GAGAL);
+  }
+  // 5 percobaan awal pada akunTidakAdaKe6 juga harus sama persis.
+  for (let i = 0; i < LOGIN_MAX_PER_AKUN; i++) {
+    const r = await login(akunTidakAdaKe6, "000000", {
+      "X-Forwarded-For": `198.51.104.${20 + i}`,
+    });
+    assert.equal(r.res.status, 403);
+    assert.equal((await r.res.json()).error, PESAN_GAGAL);
+  }
+
+  // Bandingkan 4 kasus utama lewat HTTP: ada ke-1, ada ke-6 (salah PIN & PIN benar saat terkunci),
+  // tidak ada ke-1, tidak ada ke-6.
+  const bAda1 = await login(akunSeragam, "000000", { "X-Forwarded-For": "198.51.104.31" });
+  const bAda6Salah = await login(akunAdaTerkunci, "000000", { "X-Forwarded-For": "198.51.104.32" });
+  const bAda7BenarSaatKunci = await login(akunAdaTerkunci, pinAdaTerkunci, {
+    "X-Forwarded-For": "198.51.104.33",
+  });
+  const bTidak1 = await login(`SeragamHantu1_${TS}`, "000000", {
+    "X-Forwarded-For": "198.51.104.34",
+  });
+  const bTidak6 = await login(akunTidakAdaKe6, "000000", {
+    "X-Forwarded-For": "198.51.104.35",
+  });
+
+  const badanList = [];
+  for (const [label, r] of [
+    ["adaKe1", bAda1],
+    ["adaKe6Salah", bAda6Salah],
+    ["adaKe7BenarSaatTerkunci", bAda7BenarSaatKunci],
+    ["tidakAdaKe1", bTidak1],
+    ["tidakAdaKe6", bTidak6],
+  ]) {
+    assert.equal(r.res.status, 403, `${label} harus HTTP 403`);
+    const teks = await r.res.text();
+    const json = JSON.parse(teks);
+    assert.equal(json.error, PESAN_GAGAL, `${label} pesan harus PESAN_GAGAL`);
+    badanList.push({ label, teks });
+  }
+  const badanReferensi = badanList[0].teks;
+  for (const { label, teks } of badanList) {
+    assert.equal(teks, badanReferensi, `${label} body HTTP harus identik byte-per-byte`);
+  }
+
+  // Ukur waktu HTTP bergantian (>= 7 sampel, pakai 9 sampel ganjil) untuk ke-4 jalur.
+  const akunTiming1 = `SeragamT1_${TS}`;
+  await buatAkunUji(akunTiming1, "kasir", pin6());
+
+  const JUMLAH = 9;
+  const tAda1 = [];
+  const tAda6 = [];
+  const tTidak1 = [];
+  const tTidak6 = [];
+
+  for (let i = 0; i < JUMLAH; i++) {
+    await admin.query(`DELETE FROM login_rate_limit WHERE tipe = 'akun' AND kunci = $1`, [
+      akunTiming1,
+    ]);
+
+    const s1 = performance.now();
+    const r1 = await login(akunTiming1, "000000", {
+      "X-Forwarded-For": `198.51.105.${10 + i}`,
+    });
+    assert.equal(r1.res.status, 403);
+    assert.equal((await r1.res.json()).error, PESAN_GAGAL);
+    tAda1.push(performance.now() - s1);
+
+    const s2 = performance.now();
+    const r2 = await login(akunAdaTerkunci, "000000", {
+      "X-Forwarded-For": `198.51.105.${40 + i}`,
+    });
+    assert.equal(r2.res.status, 403);
+    assert.equal((await r2.res.json()).error, PESAN_GAGAL);
+    tAda6.push(performance.now() - s2);
+
+    const s3 = performance.now();
+    const r3 = await login(`SeragamHantuLoop_${TS}_${i}`, "000000", {
+      "X-Forwarded-For": `198.51.105.${70 + i}`,
+    });
+    assert.equal(r3.res.status, 403);
+    assert.equal((await r3.res.json()).error, PESAN_GAGAL);
+    tTidak1.push(performance.now() - s3);
+
+    const s4 = performance.now();
+    const r4 = await login(akunTidakAdaKe6, "000000", {
+      "X-Forwarded-For": `198.51.105.${100 + i}`,
+    });
+    assert.equal(r4.res.status, 403);
+    assert.equal((await r4.res.json()).error, PESAN_GAGAL);
+    tTidak6.push(performance.now() - s4);
+  }
+
+  const mAda1 = median(tAda1);
+  const mAda6 = median(tAda6);
+  const mTidak1 = median(tTidak1);
+  const mTidak6 = median(tTidak6);
+  const maxMed = Math.max(mAda1, mAda6, mTidak1, mTidak6);
+  const minMed = Math.min(mAda1, mAda6, mTidak1, mTidak6);
+  const rasioHttp = maxMed / minMed;
+
+  assert.ok(
+    rasioHttp <= 2.0,
+    `Rasio median HTTP 4 jalur login gagal melebihi 2x: ${rasioHttp.toFixed(2)}x (ada1=${mAda1.toFixed(2)}, ada6=${mAda6.toFixed(2)}, tidak1=${mTidak1.toFixed(2)}, tidak6=${mTidak6.toFixed(2)})`
+  );
+  console.log(
+    `[LOGIN-SERAGAM-LULUS] HTTP /api/login 4 jalur identik (403 ${PESAN_GAGAL}): median ms ada1=${mAda1.toFixed(2)}, ada6=${mAda6.toFixed(2)}, tidak1=${mTidak1.toFixed(2)}, tidak6=${mTidak6.toFixed(2)}, rasio=${rasioHttp.toFixed(2)}x <= 2.00x`
+  );
+});
+
+test("Phase 9C-1 [LOGIN-CONCURRENT]: 12 percobaan serentak deterministik dengan stub argon2.verify ~200ms membatasi verifikasi hash asli <= 5", async () => {
+  const akunConc = `Conc9C1 ${TS}`;
+  const pinConc = pin6();
+  await buatAkunUji(akunConc, "kasir", pinConc);
+  const hashAsli = (
+    await admin.query(`SELECT pin_hash FROM users WHERE nama = $1`, [akunConc])
+  ).rows[0].pin_hash;
+  // Pastikan hash dummy sudah terbentuk sebelum argon2.verify di-stub.
+  const hashDummy = await ambilHashDummy();
+  assert.notEqual(hashAsli, hashDummy);
+
+  // --- Pembanding perilaku lama (baca -> verifikasi ~200ms -> naikkan) -> 12/12 memeriksa hash asli ---
+  const akunConcLama = `ConcLama9C1 ${TS}`;
+  const catatanLama = [];
+  async function pembandingBacaVerifikasiNaik() {
+    const r = await admin.query(
+      `SELECT gagal FROM login_rate_limit
+       WHERE tipe = 'akun' AND kunci = $1
+         AND window_mulai > now() - make_interval(secs => 900)`,
+      [akunConcLama]
+    );
+    const gagalSebelum = r.rows[0]?.gagal ?? 0;
+    const hashDiperiksa = gagalSebelum >= LOGIN_MAX_PER_AKUN ? hashDummy : hashAsli;
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    catatanLama.push(hashDiperiksa);
+    await admin.query(
+      `INSERT INTO login_rate_limit (tipe, kunci, gagal, window_mulai)
+       VALUES ('akun', $1, 1, now())
+       ON CONFLICT (tipe, kunci) DO UPDATE SET
+         gagal = LEAST(login_rate_limit.gagal + 1, $2)`,
+      [akunConcLama, LOGIN_MAX_PER_AKUN + 1]
+    );
+  }
+  await Promise.all(Array.from({ length: 12 }, () => pembandingBacaVerifikasiNaik()));
+  const jumlahAsliLama = catatanLama.filter((h) => h === hashAsli).length;
+  assert.equal(jumlahAsliLama, 12, "Pembanding lama TOCTOU melakukan 12/12 verifikasi hash asli");
+  console.log(
+    `[LOGIN-CONCURRENT-GAGAL] Pembanding baca->verifikasi(200ms)->naik: ${jumlahAsliLama}/12 percobaan serentak memeriksa pin_hash asli (> batas 5)`
+  );
+
+  // --- Uji produksi cobaLogin dengan stub argon2.verify ~200ms (tanpa parameter uji di produksi) ---
+  const ipConc = "198.51.106.20";
+  await admin.query(`DELETE FROM login_rate_limit WHERE kunci = $1 OR kunci = $2`, [
+    akunConc,
+    ipConc,
+  ]);
+
+  const catatanProduksi = [];
+  const verifyAsli = argon2.verify;
+  argon2.verify = async (hash) => {
+    catatanProduksi.push(hash);
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    return false;
+  };
+
+  let hasil12;
+  try {
+    hasil12 = await Promise.all(
+      Array.from({ length: 12 }, () => cobaLogin(akunConc, "000000", ipConc))
+    );
+  } finally {
+    argon2.verify = verifyAsli;
+  }
+
+  assert.equal(hasil12.length, 12);
+  for (const h of hasil12) {
+    assert.deepEqual(h, { ok: false, alasan: "gagal" });
+  }
+
+  const asliCount = catatanProduksi.filter((h) => h === hashAsli).length;
+  const dummyCount = catatanProduksi.filter((h) => h === hashDummy).length;
+  assert.equal(catatanProduksi.length, 12, "Seluruh 12 permintaan tetap melakukan verifikasi hash");
+  assert.ok(
+    asliCount <= LOGIN_MAX_PER_AKUN,
+    `Maksimal ${LOGIN_MAX_PER_AKUN} percobaan boleh memeriksa hash asli, dapat ${asliCount}`
+  );
+  assert.equal(asliCount, LOGIN_MAX_PER_AKUN);
+  assert.equal(dummyCount, 12 - LOGIN_MAX_PER_AKUN);
+
+  const rlAkun = await admin.query(
+    `SELECT gagal FROM login_rate_limit WHERE tipe = 'akun' AND kunci = $1`,
+    [akunConc]
+  );
+  const rlIp = await admin.query(
+    `SELECT gagal FROM login_rate_limit WHERE tipe = 'ip' AND kunci = $1`,
+    [ipConc]
+  );
+  assert.equal(rlAkun.rows[0]?.gagal, LOGIN_MAX_PER_AKUN + 1);
+  assert.equal(rlIp.rows[0]?.gagal, 12);
+  assert.ok(12 <= LOGIN_MAX_PER_IP);
+
+  console.log(
+    `[LOGIN-CONCURRENT-LULUS] 12 percobaan serentak cobaLogin (stub 200ms): hash_asli=${asliCount}/${LOGIN_MAX_PER_AKUN}, hash_dummy=${dummyCount}/7, akun.gagal=${rlAkun.rows[0]?.gagal}, ip.gagal=${rlIp.rows[0]?.gagal}, semua respons identik`
+  );
+});
+
+test("Phase 9C-1 [LOGIN-IP-QUOTA]: prapenambahan IP + pengembalian tepat 1 hitungan (GREATEST(gagal - 1, 0)) menjaga kuota login sukses tanpa mereset gagal", async () => {
+  const akunIp = `KuotaIp9C1 ${TS}`;
+  const pinIp = pin6();
+  await buatAkunUji(akunIp, "owner", pinIp);
+  const ipKhusus = "198.51.107.77";
+  await admin.query(`DELETE FROM login_rate_limit WHERE kunci = $1 OR kunci = $2`, [
+    akunIp,
+    ipKhusus,
+  ]);
+
+  // 10 login valid berturut-turut dari IP yang sama -> kuota IP kembali menjadi 0.
+  for (let i = 0; i < 10; i++) {
+    const r = await login(akunIp, pinIp, { "X-Forwarded-For": ipKhusus });
+    assert.equal(r.res.status, 200, `Login valid ke-${i + 1} harus sukses`);
+  }
+  const ipSetelah10Valid = await admin.query(
+    `SELECT gagal FROM login_rate_limit WHERE tipe = 'ip' AND kunci = $1`,
+    [ipKhusus]
+  );
+  assert.equal(
+    ipSetelah10Valid.rows[0]?.gagal ?? 0,
+    0,
+    "10 login valid tidak boleh menghabiskan kuota IP toko"
+  );
+
+  // 3 login gagal diikuti 1 login sukses -> hitungan IP tetap 3 (tidak direset ke 0).
+  for (let i = 0; i < 3; i++) {
+    const r = await login(akunIp, "000000", { "X-Forwarded-For": ipKhusus });
+    assert.equal(r.res.status, 403);
+  }
+  const ipSebelumSukses = await admin.query(
+    `SELECT gagal FROM login_rate_limit WHERE tipe = 'ip' AND kunci = $1`,
+    [ipKhusus]
+  );
+  assert.equal(ipSebelumSukses.rows[0]?.gagal, 3);
+
+  const rSukses = await login(akunIp, pinIp, { "X-Forwarded-For": ipKhusus });
+  assert.equal(rSukses.res.status, 200);
+
+  const ipSetelahSukses = await admin.query(
+    `SELECT gagal FROM login_rate_limit WHERE tipe = 'ip' AND kunci = $1`,
+    [ipKhusus]
+  );
+  const akunSetelahSukses = await admin.query(
+    `SELECT count(*)::int AS n FROM login_rate_limit WHERE tipe = 'akun' AND kunci = $1`,
+    [akunIp]
+  );
+  assert.equal(
+    ipSetelahSukses.rows[0]?.gagal,
+    3,
+    "Login sukses hanya mengembalikan tepat 1 hitungan IP-nya sendiri (GREATEST(4 - 1, 0) = 3), bukan reset"
+  );
+  assert.equal(
+    akunSetelahSukses.rows[0].n,
+    0,
+    "Penghitung akun direset saat login sukses"
+  );
+});
+
+test("Phase 9C-1 [DEV-KOMPONEN]: /dev/komponen menangkap AksesDitolakError menjadi tampilan Akses Ditolak (bukan 500)", async () => {
+  const resAnon = await fetch(`${BASE}/dev/komponen`, { redirect: "manual" });
+  assert.equal(resAnon.status, 307);
+  assert.match(resAnon.headers.get("location") ?? "", /\/login$/);
+
+  const resKasir = await fetch(`${BASE}/dev/komponen`, {
+    headers: { Cookie: kasirCookie },
+    redirect: "manual",
+  });
+  assert.equal(resKasir.status, 200, "Kasir di /dev/komponen tidak boleh memicu HTTP 500");
+  const htmlKasir = await resKasir.text();
+  assert.match(htmlKasir, /Akses Ditolak/i);
+
+  const resOwner = await fetch(`${BASE}/dev/komponen`, {
+    headers: { Cookie: ownerCookie },
+    redirect: "manual",
+  });
+  assert.equal(resOwner.status, 200);
+  const htmlOwner = await resOwner.text();
+  assert.ok(!/Akses Ditolak/i.test(htmlOwner), "Owner harus melihat halaman komponen");
+  assert.match(htmlOwner, /Komponen/i);
 });

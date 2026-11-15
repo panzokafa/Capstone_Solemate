@@ -44,7 +44,6 @@ export type OpsiProsesNotifikasi = {
   lewatiJeda?: boolean;
   paksaKirimUlang?: boolean;
   userId?: number;
-  modeUjiPerilakuLama?: string;
 };
 
 /**
@@ -168,14 +167,6 @@ export async function prosesNotifikasiSiapDiambil(
   env: Record<string, string | undefined> = process.env
 ): Promise<HasilProsesNotifikasi> {
   const pool = poolClient ?? getPool();
-
-  // Mode uji: demonstrasi perilaku lama tanpa klaim atomik / tanpa cek saklar
-  if (opts?.modeUjiPerilakuLama === "tanpa_klaim_atomik") {
-    // Mode simulasi celah lama: tidak ada klaim atomik, dua proses langsung jalan serentak
-    const gw = ambilWaGateway();
-    await gw.kirimTeks({ chatId: "628123456789@c.us", teks: "mock" });
-    return { ok: true, status: "terkirim" };
-  }
 
   // 1. Klaim baris notifikasi secara atomik (UPDATE ... WHERE ... RETURNING)
   // Menangani status 'menunggu', 'gagal', 'saklar_mati' (jika dipaksa kirim ulang),

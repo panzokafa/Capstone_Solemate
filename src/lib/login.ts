@@ -13,10 +13,12 @@ import { MAKS_PANJANG_USERNAME } from "../config/keamanan.ts";
 
 export type HasilLogin =
   | { ok: true; userId: number; peran: "owner" | "kasir" }
-  | { ok: false; alasan: "kunci_akun" | "kunci_ip" | "gagal" };
+  | { ok: false; alasan: "kunci_ip" | "gagal" };
 
-// Pesan seragam untuk semua kegagalan (tidak membedakan akun nonaktif/PIN salah).
-export const PESAN_GAGAL = "PIN tidak sesuai, coba lagi.";
+// Pesan seragam untuk seluruh kegagalan berbasis kredensial/akun (tidak membedakan
+// akun tak dikenal, akun nonaktif, PIN salah, maupun akun terkunci sementara).
+export const PESAN_GAGAL =
+  "Nama pengguna atau PIN tidak sesuai, atau akun sedang dikunci sementara setelah beberapa percobaan gagal. Silakan coba lagi.";
 
 // Parameter Argon2id yang SAMA PERSIS dengan scripts/create-user.mjs dan scripts/reset-pin.mjs.
 export const OPSI_ARGON2_PIN = {
@@ -54,8 +56,9 @@ if (process.env.NEXT_PHASE !== "phase-production-build") {
   void ambilHashDummy();
 }
 
-// Naikkan counter gagal secara atomik (satu perintah SQL, tanpa race),
-// dibatasi agar tidak melewati `maks`. Jendela lewat → reset ke 1.
+// Naikkan counter secara atomik SEBELUM verifikasi PIN (satu perintah SQL, tanpa race),
+// dibatasi maksimal `maks + 1` agar permintaan saat terkunci tertahan tanpa memperpanjang jendela.
+// Jendela lewat → reset ke 1.
 async function naikkanGagal(
   tipe: "akun" | "ip",
   kunci: string,
@@ -69,7 +72,7 @@ async function naikkanGagal(
      ON CONFLICT (tipe, kunci) DO UPDATE SET
        gagal = CASE
          WHEN login_rate_limit.window_mulai > now() - make_interval(secs => $3)
-         THEN LEAST(login_rate_limit.gagal + 1, $4::integer)
+         THEN LEAST(login_rate_limit.gagal + 1, $4::integer + 1)
          ELSE 1
        END,
        window_mulai = CASE
@@ -89,7 +92,7 @@ async function naikkanGagal(
         `DELETE FROM login_rate_limit
           WHERE tipe = 'ip'
             AND window_mulai <= now() - make_interval(secs => $1)`,
-        [LOGIN_WINDOW_PER_IP]
+        [windowSec]
       )
       .catch(() => {});
   }
@@ -97,15 +100,15 @@ async function naikkanGagal(
   return gagal;
 }
 
-// Baca counter gagal saat ini (tanpa menaikkan) — untuk cek batas sebelum verifikasi PIN.
-async function bacaGagal(tipe: "akun" | "ip", kunci: string, windowSec: number): Promise<number> {
-  const r = await getPool().query(
-    `SELECT gagal FROM login_rate_limit
-      WHERE tipe = $1 AND kunci = $2
-        AND window_mulai > now() - make_interval(secs => $3)`,
-    [tipe, kunci, windowSec]
+// Kembalikan tepat satu hitungan pra-inkremen IP secara atomik saat login berhasil,
+// agar login sah tidak menghabiskan kuota IP toko tanpa pernah mereset kegagalan IP lain.
+async function kembalikanSatuGagalIp(ip: string): Promise<void> {
+  await getPool().query(
+    `UPDATE login_rate_limit
+     SET gagal = GREATEST(gagal - 1, 0)
+     WHERE tipe = 'ip' AND kunci = $1`,
+    [ip]
   );
-  return r.rows[0]?.gagal ?? 0;
 }
 
 // Catat login GAGAL ke audit_logs — TANPA PIN. Batas pencatatan per (akun, IP),
@@ -184,7 +187,7 @@ export async function cobaLogin(
   const pool = getPool();
 
   // 1) Cari user lebih dulu. Akun tak dikenal tidak membuat baris di `login_rate_limit`
-  //    sehingga tabel tidak tumbuh tanpa batas oleh serangan brute-force nama acak.
+  //    maupun `audit_logs` sehingga tabel tidak tumbuh tanpa batas oleh nama acak.
   const r = await pool.query(
     `SELECT id, nama, peran, pin_hash, aktif FROM users WHERE nama = $1`,
     [namaBersih]
@@ -193,64 +196,70 @@ export async function cobaLogin(
     | { id: number; nama: string; peran: "owner" | "kasir"; pin_hash: string; aktif: boolean }
     | undefined;
 
-  // 2) Cek batas per akun (khusus akun terdaftar) dan per IP sebelum verifikasi PIN.
-  const gagalAkun = user
-    ? await bacaGagal("akun", user.nama, LOGIN_WINDOW_PER_AKUN)
-    : 0;
-  const akunTerkunci = gagalAkun >= LOGIN_MAX_PER_AKUN;
-  const gagalIp = ip ? await bacaGagal("ip", ip, LOGIN_WINDOW_PER_IP) : 0;
-  const ipTerkunci = ip !== null && gagalIp >= LOGIN_MAX_PER_IP;
-
-  if (akunTerkunci || ipTerkunci) {
-    // Tetap dicatat: percobaan saat terkunci tidak boleh hilang dari jejak.
-    await catatAuditGagal({
-      userId: user ? user.id : null,
-      akun: user ? user.nama : namaBersih,
-      ip,
-      alasan: "dikunci",
-    });
-    return { ok: false, alasan: akunTerkunci ? "kunci_akun" : "kunci_ip" };
-  }
+  // 2) Pra-inkremen batas per IP secara atomik SEBELUM verifikasi PIN & pengecekan akun.
   if (!ip) {
     console.warn("cobaLogin: IP tidak diketahui, batas per-IP dilewati (hanya batas per-akun).");
   }
-
-  // 3) Verifikasi PIN dengan kerja Argon2id konstan baik akun ditemukan maupun tidak.
-  const hashTarget = user ? user.pin_hash : await ambilHashDummy();
-  const cocok = await argon2.verify(hashTarget, pin).catch(() => false);
-
-  if (!user || !cocok || !user.aktif) {
-    // Hanya akun terdaftar yang menambah penghitung per-akun di `login_rate_limit`.
-    let gagalSekarang = 0;
+  const gagalIp = ip
+    ? await naikkanGagal("ip", ip, LOGIN_WINDOW_PER_IP, LOGIN_MAX_PER_IP)
+    : 0;
+  if (ip !== null && gagalIp > LOGIN_MAX_PER_IP) {
     if (user) {
-      gagalSekarang = await naikkanGagal(
-        "akun",
-        user.nama,
-        LOGIN_WINDOW_PER_AKUN,
-        LOGIN_MAX_PER_AKUN
-      );
+      await catatAuditGagal({
+        userId: user.id,
+        akun: user.nama,
+        ip,
+        alasan: "dikunci",
+      });
     }
-    if (ip) {
-      await naikkanGagal("ip", ip, LOGIN_WINDOW_PER_IP, LOGIN_MAX_PER_IP);
-    }
-    await catatAuditGagal({
-      userId: user ? user.id : null,
-      akun: user ? user.nama : namaBersih,
-      ip,
-      alasan: !user ? "tidak_ditemukan" : !cocok ? "pin_salah" : "nonaktif",
-    });
-    return {
-      ok: false,
-      alasan: user && gagalSekarang >= LOGIN_MAX_PER_AKUN ? "kunci_akun" : "gagal",
-    };
+    return { ok: false, alasan: "kunci_ip" };
   }
 
-  // 4) Berhasil: reset HANYA counter gagal per akun (JANGAN menghapus counter per IP
-  //    agar login sah dari akun lain tidak mereset kuota gagal IP), catat audit.
+  // 3) Pra-inkremen batas per akun secara atomik SEBELUM verifikasi PIN (khusus akun terdaftar).
+  const gagalAkun = user
+    ? await naikkanGagal("akun", user.nama, LOGIN_WINDOW_PER_AKUN, LOGIN_MAX_PER_AKUN)
+    : 0;
+  const akunTerkunci = Boolean(user && gagalAkun > LOGIN_MAX_PER_AKUN);
+
+  // 4) Verifikasi Argon2id selalu dijalankan baik akun ditemukan, tak dikenal, nonaktif,
+  //    maupun sedang terkunci agar waktu respons identik dan hash asli tidak diuji saat terkunci.
+  const pakaiHashAsli = Boolean(user && user.aktif && !akunTerkunci);
+  const hashTarget = pakaiHashAsli ? user!.pin_hash : await ambilHashDummy();
+  const cocok = await argon2.verify(hashTarget, pin).catch(() => false);
+
+  if (!user) {
+    return { ok: false, alasan: "gagal" };
+  }
+
+  if (akunTerkunci) {
+    await catatAuditGagal({
+      userId: user.id,
+      akun: user.nama,
+      ip,
+      alasan: "dikunci",
+    });
+    return { ok: false, alasan: "gagal" };
+  }
+
+  if (!user.aktif || !cocok) {
+    await catatAuditGagal({
+      userId: user.id,
+      akun: user.nama,
+      ip,
+      alasan: !user.aktif ? "nonaktif" : "pin_salah",
+    });
+    return { ok: false, alasan: "gagal" };
+  }
+
+  // 5) Berhasil: reset penghitung akun dan kembalikan tepat satu hitungan IP secara atomik
+  //    (agar login sah tidak menghabiskan kuota IP toko, namun tidak mereset kegagalan lain).
   await pool.query(
     `DELETE FROM login_rate_limit WHERE tipe = 'akun' AND kunci = $1`,
     [user.nama]
   );
+  if (ip) {
+    await kembalikanSatuGagalIp(ip);
+  }
   await catatAuditLogin(user.id, user.nama, ip);
   return { ok: true, userId: user.id, peran: user.peran };
 }

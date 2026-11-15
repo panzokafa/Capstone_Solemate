@@ -134,9 +134,9 @@ Skrip meminta nama akun dan PIN baru (6 digit, prompt tersembunyi). Skrip juga *
 Buka http://localhost:3000/login — masukkan nama pengguna dan PIN.
 
 Aturan login:
-- Per akun: maks 5 percobaan salah per 15 menit → akun terkunci.
-- Per IP: maks 5 percobaan salah per 15 menit (jika IP diketahui).
-- **Selama akun terkunci, PIN yang benar pun ditolak.** Tunggu 15 menit atau hubungi owner.
+- Per akun: maks 5 percobaan salah per 15 menit → akun terkunci (pra-inkremen atomik sebelum verifikasi PIN).
+- Per IP: maks 20 percobaan salah per 30 menit (jika IP diketahui); login berhasil mengembalikan tepat 1 hitungan IP (`GREATEST(gagal - 1, 0)`) tanpa mereset kegagalan sebelumnya.
+- **Selama akun terkunci, PIN yang benar pun ditolak** dengan status HTTP (`403`) dan pesan yang identik dengan kegagalan biasa serta verifikasi hash dummy konstan untuk mencegah enumerasi akun. Tunggu 15 menit atau hubungi owner.
 - Sesi berlaku 8 jam (bisa diatur `SESSION_TTL_SECONDS`), cookie HttpOnly + SameSite.
 - Peran dan status aktif dibaca ulang dari database tiap request — perubahan langsung terlihat.
 
@@ -159,12 +159,12 @@ Halaman terlindungi mengarahkan ke login jika belum login. Kasir yang coba akses
 
 ### Login audit
 
-Setiap percobaan login (berhasil atau gagal) dicatat ke `audit_logs` tanpa PIN, beserta IP (jika diketahui). Jika percobaan gagal melebihi batas per akun/IP, baris ringkasan satu kali direkam daripada dilewatkan.
+Setiap percobaan login pada akun terdaftar (berhasil atau gagal) dicatat ke `audit_logs` tanpa PIN, beserta IP (jika diketahui). Nama pengguna yang tidak terdaftar di tabel `users` tetap dihitung pada batas laju per-IP (`login_rate_limit`), namun tidak ditulis ke `audit_logs` agar tabel *append-only* tidak membengkak akibat nama acak. Jika percobaan gagal melebihi batas per `(akun, ip)`, baris ringkasan satu kali direkam daripada dilewatkan.
 
 Catatan audit `login` dan `login_gagal`:
 - `login`: login berhasil.
-- `login_gagal`: login gagal (sebab: `pin_salah`, `tidak_ditemukan`, atau `nonaktif`).
-- `login_gagal_ringkasan`: batas percobaan tercapai (detail diedit agar tak terlalu banyak baris).
+- `login_gagal`: login gagal pada akun terdaftar (sebab: `pin_salah`, `nonaktif`, atau `dikunci`).
+- `login_gagal_ringkasan`: batas pencatatan audit tercapai (detail diedit agar tak terlalu banyak baris).
 
 ## Testing
 
@@ -416,7 +416,7 @@ Fitur Karyawan dan Absensi (`FR-70`–`FR-72`) saat ini ditunda (`KARYAWAN_ABSEN
 - Halaman `/absensi` mengembalikan HTTP `404` untuk seluruh pengunjung termasuk anonim (tanpa redirect ke `/login`).
 - Berkas halaman/API, skema tabel `employees` & `attendance`, seed, dan skrip manajemen akun tetap dipertahankan tanpa dihapus.
 
-**Cara mengaktifkan kembali:** ubah `export const KARYAWAN_ABSENSI_AKTIF: boolean = false;` menjadi `true` pada `src/config/fitur.ts`, lalu build/restart server.
+**Cara mengaktifkan kembali:** ubah `export const KARYAWAN_ABSENSI_AKTIF: boolean = false;` menjadi `true` pada `src/config/fitur.ts`, buat migrasi baru untuk mengembalikan hak `INSERT, UPDATE` pada tabel `employees`, `attendance` (serta `USAGE, SELECT` pada `employees_id_seq`, `attendance_id_seq`) kepada `solemate_app` yang dicabut di [`migrations/0014_hak_minimum_solemate_app.js`](migrations/0014_hak_minimum_solemate_app.js), lalu build/restart server.
 
 ## Kesiapan produksi (Phase 9A)
 
@@ -437,9 +437,10 @@ Bagian ini mendokumentasikan konfigurasi kesiapan produksi untuk demo/deployment
 | `SESSION_SECRET` | **WAJIB** (≥ 32 karakter) | **WAJIB** (≥ 32 karakter, bukan contoh) | `<64_karakter_hex_acak>` | Kunci rahasia HMAC sesi & pencacahan rate-limit WA. Nilai placeholder dari `.env.example` ditolak saat startup produksi. |
 | `SESSION_TTL_SECONDS` | Opsional (default `28800`) | Opsional (default `28800`) | `28800` | Masa berlaku cookie sesi dalam detik (default 8 jam). |
 | `APP_ORIGIN` | Opsional (default `Host` lokal) | **WAJIB** (`https://`) | `https://solemate-demo.vercel.app` | Daftar origin publik aplikasi (dipisahkan koma jika >1). Di produksi wajib berskema `https://` dan dipakai untuk validasi header `Origin` pada seluruh rute mutasi (`POST`/`PUT`/`PATCH`/`DELETE`). |
-| `TRUST_PROXY` | Opsional (`false`) | Opsional (`true` di Vercel) | `true` | Bila `true`, `ambilIpKlien` membaca IP pertama dari `X-Forwarded-For` untuk pembatasan laju percobaan login per IP. |
+| `TRUST_PROXY` | Opsional (`false`) | **WAJIB `true` saat `VERCEL=1`** | `true` | Bila `true`, `ambilIp` membaca IP klien dari proxy tepercaya; di produksi Vercel (`VERCEL=1`), `TRUST_PROXY=true` wajib diatur (*fail-closed*) agar pembatas laju login per-IP aktif. |
 | `WA_GATEWAY_MODE` | Opsional (default `waha`; `mock` saat tes) | **WAJIB** eksplisit (`waha` atau `nonaktif`) | `waha` atau `nonaktif` | Di produksi wajib disetel eksplisit ke `waha` atau `nonaktif`. Nilai kosong atau `mock` ditolak (*fail-closed*). Jika `nonaktif`, webhook membalas `503` dan notifikasi keluar dilewati dengan alasan `saklar_mati` tanpa membutuhkan `WAHA_*`. |
-| `WAHA_BASE_URL` | Wajib jika mode `waha` | **WAJIB** jika `WA_GATEWAY_MODE=waha` | `https://waha.contoh-domain.id` | URL publik/tunnel menuju mesin WAHA. |
+| `WAHA_BASE_URL` | Wajib jika mode `waha` | **WAJIB `https://`** jika `WA_GATEWAY_MODE=waha` | `https://waha.contoh-domain.id` | URL publik/tunnel terenkripsi menuju mesin WAHA. Di produksi wajib `https://` kecuali host loopback (`127.0.0.1`/`localhost`/`::1`) atau `WAHA_IZINKAN_HTTP_INTERNAL=true`. |
+| `WAHA_IZINKAN_HTTP_INTERNAL` | Opsional (`false`) | Opsional (`false`) | `false` | **Hanya** setel `true` jika WAHA berjalan lewat jaringan internal/VPN tertutup/tunnel terenkripsi (`http://` non-TLS). **Peringatan keamanan:** pada jaringan publik, HTTP polos membuka `X-Api-Key` serta isi pesan/nomor WA pelanggan terhadap penyadapan/MITM. |
 | `WAHA_API_KEY` | Opsional di lokal | **WAJIB** jika `WA_GATEWAY_MODE=waha` | `<kunci_api_waha_acak>` | Kunci autentikasi header `X-Api-Key` ke REST API WAHA (bukan nilai contoh). |
 | `WAHA_SESSION` | Opsional (default `default`) | Opsional (default `default`) | `default` | Nama sesi aktif pada WAHA. |
 | `WAHA_WEBHOOK_HMAC_KEY` | Wajib untuk uji webhook | **WAJIB** jika `WA_GATEWAY_MODE=waha` (≥ 32 karakter) | `<64_karakter_hex_acak>` | Kunci rahasia verifikasi tanda tangan `X-Webhook-Hmac` (HMAC-SHA512). |
@@ -461,15 +462,16 @@ Bagian ini mendokumentasikan konfigurasi kesiapan produksi untuk demo/deployment
    - `DATABASE_URL_APP` — URL pooler Neon milik role terbatas `solemate_app` (`postgresql://solemate_app:<PASSWORD>@ep-xxx-pooler.<region>.aws.neon.tech/solemate?sslmode=require`)
    - `SESSION_SECRET` — string acak ≥ 32 karakter (bukan nilai contoh)
    - `APP_ORIGIN` — `https://NAMA-PROYEK.vercel.app` (diisi sebelum deploy pertama)
+   - `TRUST_PROXY=true` — **WAJIB** di Vercel (`VERCEL=1`) agar pembatas laju IP login berjalan (*fail-closed* bila kosong/`false`)
    - `WA_GATEWAY_MODE` — wajib eksplisit: `waha` atau `nonaktif`
 2. **Wajib tambahan bila `WA_GATEWAY_MODE=waha`:**
-   - `WAHA_BASE_URL` — URL HTTPS publik/tunnel ke server WAHA
+   - `WAHA_BASE_URL` — URL `https://` publik/tunnel ke server WAHA (`http://` non-loopback ditolak di produksi kecuali opt-in `WAHA_IZINKAN_HTTP_INTERNAL=true` pada jaringan internal tertutup)
    - `WAHA_API_KEY` — kunci API WAHA asli
    - `WAHA_WEBHOOK_HMAC_KEY` — kunci HMAC webhook ≥ 32 karakter acak
    - `WAHA_SESSION` — opsional (default `default`)
    - `WA_NOTIFIKASI_AKTIF` — `true` atau `false` (default `false`)
 3. **Opsional runtime (nilai default produksi sudah aman):**
-   - `TRUST_PROXY=true` (untuk pembacaan IP dari proxy Vercel saat rate-limit login)
+   - `WAHA_IZINKAN_HTTP_INTERNAL=false` (setel `true` hanya pada jaringan internal tertutup / VPN antar-mesin; membawa risiko tanpa TLS jika melintasi jaringan tidak tepercaya)
    - `SESSION_TTL_SECONDS=28800`
    - `DB_POOL_MAX=5`
    - `DB_POOL_IDLE_TIMEOUT_MS=5000`
@@ -524,11 +526,12 @@ npm run reset-pin
 4. **Pemeriksaan Origin (`APP_ORIGIN`), Cookie Sesi, `TRUST_PROXY`, & Risiko Lockout Akun:**
    - `periksaPermintaanUbah` (`src/lib/request-guard.ts`) **tidak** mempercayai `x-forwarded-host` dan diterapkan di seluruh endpoint mutasi termasuk `POST /api/login` dan `POST /api/logout` (satu-satunya pengecualian adalah `POST /api/wa/webhook` yang memakai tanda tangan HMAC). Di produksi, setiap permintaan mutasi wajib memiliki `Content-Type: application/json` dan header `Origin` berskema `https://` yang cocok dengan daftar `APP_ORIGIN`.
    - Cookie sesi memakai helper `namaCookieSesi()` (`src/config/keamanan.ts` / `src/lib/session.ts`): bernama `__Host-solemate_session` saat `NODE_ENV === "production"` (`httpOnly: true`, `sameSite: "lax"`, `path: "/"`, `secure: true`) untuk mencegah *cookie tossing* subdomain, dan `solemate_session` (`secure: false`) saat lokal/tes. Login baru menghapus sesi lama dari cookie yang dibawa serta membersihkan baris `sessions` kedaluwarsa; `scripts/reset-pin.mjs` juga mencabut seluruh sesi aktif pengguna tersebut di database.
-   - Saat `TRUST_PROXY=true`, `ambilIp` (`src/lib/ip.ts`) memvalidasi sintaks IP lewat `node:net` `isIP()` (maksimal 45 karakter), membaca `x-vercel-forwarded-for` / `x-real-ip` / `x-forwarded-for` hanya bila `VERCEL=1`, dan tidak mempercayai header vendor pihak ketiga di luar Vercel (`cf-connecting-ip`, `true-client-ip`, dll.). Login sukses tidak menghapus counter gagal IP (`20 gagal / 30 menit`) dan akun tak dikenal tidak membuat baris per-akun (`5 gagal / 15 menit`) di `login_rate_limit`.
-   - **Paritas Waktu Verifikasi Login (`cobaLogin`) & Sisa Selisih (~1,3x):** Untuk mencegah enumerasi username lewat waktu respons, `cobaLogin` (`src/lib/login.ts`) menjalankan `argon2.verify` dengan *hash dummy* berparameter identik (dihitung sekali per proses) ketika username tidak ditemukan, dan form `/login` memakai input nama pengguna manual (nama terakhir diingat di `localStorage` perangkat) tanpa mengirim daftar akun maupun peran ke browser. Pada pengujian lokal tetap tampak sisa selisih kecil sekitar ~1,3x (~10–20 ms lebih lambat untuk akun terdaftar) karena jalur akun terdaftar juga membaca dan menaikkan penghitung `login_rate_limit` kategori `akun` di PostgreSQL sedangkan jalur akun tak dikenal sengaja tidak menulis baris `akun` agar tabel tidak tumbuh tanpa batas oleh serangan brute-force nama acak. Selisih kecil tersebut diterima untuk tahap ini karena: (a) ukurannya jauh di bawah perbedaan tanpa hash dummy (>= 3x–5x) dan umumnya tertutup oleh jitter jaringan internet/TLS, (b) pembatas laju **per IP** (`20` gagal / 30 menit) maupun **per akun** (`5` gagal / 15 menit) tetap membatasi upaya enumerasi, dan (c) mencegah *table bloat* di PostgreSQL. **Opsi perbaikan ke depan (bila skenario ancaman menuntut paritas ketat):** memindahkan penghitung gagal login sementara ke penyimpanan berkapasitas/TTL tetap di memori (mis. Redis) agar akun tak dikenal tetap menempuh jalur baca/tulis konstan tanpa membebani PostgreSQL, atau menambahkan *rate limit* pra-login di edge/WAF serta penyeimbang waktu (*time-flooring*) di akhir kedua jalur.
+   - Saat `TRUST_PROXY=true` (wajib saat `VERCEL=1`), `ambilIp` (`src/lib/ip.ts`) memvalidasi sintaks IP lewat `node:net` `isIP()` (maksimal 45 karakter), membaca `x-vercel-forwarded-for` / `x-real-ip` / `x-forwarded-for` hanya bila `VERCEL=1`, dan tidak mempercayai header vendor pihak ketiga di luar Vercel (`cf-connecting-ip`, `true-client-ip`, dll.). Batas percobaan login menggunakan pra-inkremen atomik *sebelum* verifikasi Argon2 (`5` gagal / 15 menit per akun lewat `LOGIN_WINDOW_PER_AKUN`; `20` gagal / 30 menit per IP lewat `LOGIN_WINDOW_PER_IP`): saat login **berhasil**, penghitung akun di-reset sedangkan penghitung IP dikembalikan tepat satu hitungan (`GREATEST(gagal - 1, 0)`) agar login sah dari kasir tidak menghabiskan kuota IP toko dan pemegang akun sah tidak bisa me-reset kuota gagal IP. Akun tak dikenal tidak menulis baris ke `login_rate_limit` maupun `audit_logs`.
+   - **Paritas Respons & Waktu Login (`cobaLogin` + `POST /api/login`):** Untuk mencegah enumerasi akun, HTTP status (`403`) dan pesan `PESAN_GAGAL` disamakan persis untuk PIN salah, akun tak dikenal, akun nonaktif, maupun akun terkunci (`gagalAkun > 5`), dan verifikasi `argon2.verify` tetap dijalankan dengan *hash dummy* berparameter identik (dihitung sekali per proses) baik ketika akun tak dikenal maupun ketika akun terkunci/nonaktif sehingga hash PIN asli akun terkunci tidak diuji dan waktu respons tetap seragam. Pada pengujian lokal tetap tampak selisih sangat kecil (rasio median <= 2x) karena jalur akun terdaftar menulis pengawasan ke tabel pembatas laju akun/audit. **Dampak pra-inkremen pada pengguna sah:** pengguna yang mencoba masuk saat kuota belum habis masih berkesempatan memverifikasi PIN pada percobaan ke-1 s/d ke-5 (dan langsung di-reset/dikembalikan 1 hitungan IP bila benar), namun bila >= 5 permintaan serentak masuk bersamaan untuk akun yang sama, permintaan ke-6 ke atas langsung tertolak oleh pra-inkremen atomik tanpa menghabiskan verifikasi PIN terhadap hash asli.
    - **Risiko Lockout Akun Eksternal (DoS) & Pemulihan:** Karena batas gagal login per akun (`5 gagal / 15 menit`) dihitung berdasarkan nama akun terdaftar, pihak luar yang sengaja mengirim 5 PIN salah dapat mengunci login akun sasaran selama 15 menit sementara. Bila perlu pemulihan sebelum jendela 15 menit berakhir, jalankan **`npm run reset-pin`** dari mesin admin (memerlukan `DATABASE_URL`): skrip ini mengganti hash PIN, menghapus seluruh `sessions` aktif akun tersebut, dan langsung menghapus kunci `login_rate_limit` kategori `akun`.
-5. **Penjaga Rute Pengembangan & Seed:**
-   - Di `NODE_ENV=production`, rute `/dev`, `/dev/*`, dan `/detail-tiket` mengembalikan HTTP `404` untuk seluruh pengunjung termasuk anonim (dijaga di `src/proxy.ts` dan di komponen halaman melalui `apakahRuteDevTerblokir`).
+5. **Penjaga Rute Pengembangan, Hak Minimum DB (`0014`), & Seed:**
+   - Di `NODE_ENV=production`, rute `/dev`, `/dev/*`, dan `/detail-tiket` mengembalikan HTTP `404` untuk seluruh pengunjung termasuk anonim (dijaga di `src/proxy.ts` dan di komponen halaman melalui `apakahRuteDevTerblokir`). Di non-produksi, `/dev/komponen` menangkap `AksesDitolakError` dan merender `<AksesDitolak />` untuk peran selain owner.
+   - Migrasi `0014_hak_minimum_solemate_app.js` mencabut hak `INSERT`/`UPDATE` pada `users`, `employees`, `attendance` serta semua hak pada tabel usang `login_attempts` (beserta sequence-nya) dari `solemate_app`, sambil mempertahankan `UPDATE` pada `wa_messages` karena dipakai `buatTiketDariWa()`.
    - `scripts/seed.js` menolak berjalan di `NODE_ENV=production` (`exit 1`) melalui fungsi murni `periksaIzinSeed`.
 6. **Bundling Font `pdfkit` untuk Ekspor PDF (`/api/rekap-bulanan/ekspor`):**
    - `next.config.ts` sudah mengonfigurasi `outputFileTracingIncludes` untuk rute `/api/rekap-bulanan/ekspor` agar berkas metrik font `.afm` (`./node_modules/pdfkit/js/data/**/*`) ikut dibundle ke fungsi serverless Vercel. Verifikasi akhir dilakukan langsung dengan **mengunduh PDF rekap bulanan dari halaman `/rekap-bulanan` di deployment Vercel**.
@@ -551,8 +554,8 @@ npm run reset-pin
 
 ### 7. Checklist Pra-Hosting (Sebelum Demo / Go-Live)
 
-- [ ] Buat database di Neon, jalankan migrasi `0001` s/d `0013` dari mesin lokal via URL **Direct** (`DATABASE_URL` + `?sslmode=require`).
-- [ ] Pastikan role terbatas `solemate_app` telah dibuat dan hanya memiliki hak sesuai `0003_app_user.js` (tanpa hak `UPDATE`/`DELETE` pada `audit_logs`).
+- [ ] Buat database di Neon, jalankan migrasi `0001` s/d `0014` dari mesin lokal via URL **Direct** (`DATABASE_URL` + `?sslmode=require`).
+- [ ] Pastikan role terbatas `solemate_app` hanya memiliki hak minimum sesuai `0003_app_user.js` s/d `0014_hak_minimum_solemate_app.js` (tanpa hak `UPDATE`/`DELETE` pada `audit_logs`, tanpa `INSERT`/`UPDATE` pada `users`/`employees`/`attendance`, dan tanpa akses ke `login_attempts`).
 - [ ] Buat akun `owner` dan `kasir` awal dari mesin lokal dengan `npm run create-user` (jangan jalankan `seed.js` di produksi).
 - [ ] Sebelum deploy pertama di Vercel, pasang hanya variabel runtime (`DATABASE_URL_APP`, `SESSION_SECRET`, `APP_ORIGIN=https://NAMA-PROYEK.vercel.app`, `WA_GATEWAY_MODE` beserta `WAHA_*` jika `waha`, `TRUST_PROXY=true`) dan pastikan **TIDAK** ada `DATABASE_URL` admin.
 - [ ] Verifikasi di **deployment produksi Vercel** (`https://NAMA-PROYEK.vercel.app`): login `owner` & `kasir`, buat tiket baru (kode tiket sesuai tanggal WIB), ubah status tiket, pastikan `/dev/komponen` dan `/detail-tiket` mengembalikan `404`, serta uji **unduh Excel & PDF di `/rekap-bulanan`** (sebagai verifikasi final `outputFileTracingIncludes` untuk `pdfkit`).

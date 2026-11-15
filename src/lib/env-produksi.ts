@@ -8,16 +8,23 @@ export const DAFTAR_PLACEHOLDER_RAHASIA = new Set([
   "ganti_dengan_string_acak_panjang",
   "ganti_dengan_string_acak_minimal_32_karakter",
   "ganti_dengan_kunci_rahasia_minimal_32_karakter",
+  "ganti_dengan_kunci_acak_minimal_32_karakter",
+  "isi_dengan_kunci_rahasia_hmac_sha512_minimal_32_karakter",
   "ganti_kunci_hmac_ini",
   "ganti_password_ini",
   "ganti_app_password_ini",
   "ganti_api_key_ini",
   "placeholder",
   "changeme",
+  "change_me",
   "change-me",
+  "change_me_to_a_random_32_character_secret",
   "secret",
+  "default",
   "your-secret-key",
   "your_secret_key",
+  "your_secret_here",
+  "your_webhook_hmac_key",
   "example",
   "contoh",
   "test",
@@ -40,6 +47,16 @@ export function apakahFaseBuildNext(
   env: Record<string, string | undefined> = process.env
 ): boolean {
   return env.NEXT_PHASE === "phase-production-build";
+}
+
+export function adalahHostLoopback(hostname: string): boolean {
+  const hostLower = hostname.trim().toLowerCase();
+  return (
+    hostLower === "127.0.0.1" ||
+    hostLower === "localhost" ||
+    hostLower === "::1" ||
+    hostLower === "[::1]"
+  );
 }
 
 export function adalahNilaiPlaceholder(nilai: string): boolean {
@@ -376,10 +393,15 @@ export function validasiEnvProduksi(
     daftarGalat.push("SESSION_SECRET masih menggunakan teks contoh/placeholder.");
   }
 
-  // 4. APP_ORIGIN (wajib https di produksi)
+  // 4. APP_ORIGIN (wajib https di produksi) & TRUST_PROXY (wajib di Vercel)
   const hasilOrigin = validasiDaftarAppOrigin(env.APP_ORIGIN, true);
   if (!hasilOrigin.ok) {
     daftarGalat.push(hasilOrigin.galat);
+  }
+  if (env.VERCEL === "1" && env.TRUST_PROXY?.trim() !== "true") {
+    daftarGalat.push(
+      "TRUST_PROXY=true wajib diatur di produksi saat berjalan di Vercel (VERCEL=1) agar pembatas laju berbasis IP klien berfungsi."
+    );
   }
 
   // 5. WA_GATEWAY_MODE & kredensial WAHA
@@ -398,13 +420,24 @@ export function validasiEnvProduksi(
     );
   } else if (modeWa === "waha") {
     const wahaUrl = env.WAHA_BASE_URL?.trim() ?? "";
+    const izinkanHttpInternal = env.WAHA_IZINKAN_HTTP_INTERNAL?.trim() === "true";
     if (wahaUrl.length === 0) {
       daftarGalat.push("WAHA_BASE_URL wajib diisi saat WA_GATEWAY_MODE='waha'.");
     } else {
       try {
         const u = new URL(wahaUrl);
-        if (u.protocol !== "http:" && u.protocol !== "https:") {
-          daftarGalat.push("WAHA_BASE_URL harus berskema http:// atau https://.");
+        if (u.protocol === "https:") {
+          // Protokol terenkripsi selalu diterima.
+        } else if (u.protocol === "http:") {
+          if (!adalahHostLoopback(u.hostname) && !izinkanHttpInternal) {
+            daftarGalat.push(
+              "WAHA_BASE_URL di produksi wajib menggunakan protokol https:// (kecuali host loopback atau WAHA_IZINKAN_HTTP_INTERNAL=true untuk jaringan internal tertutup)."
+            );
+          }
+        } else {
+          daftarGalat.push(
+            "WAHA_BASE_URL di produksi harus menggunakan protokol https:// (atau http:// khusus loopback / WAHA_IZINKAN_HTTP_INTERNAL=true)."
+          );
         }
       } catch {
         daftarGalat.push("WAHA_BASE_URL bukan URL yang valid.");

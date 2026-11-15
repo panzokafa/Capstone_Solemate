@@ -12,9 +12,11 @@
 
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
+import crypto from "node:crypto";
 import { spawnSync } from "node:child_process";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
+import { Pool } from "pg";
 
 import {
   formatTanggal,
@@ -48,13 +50,17 @@ import {
   ambilWaGateway,
   aturWaGatewayInstance,
   MockWaGatewayAdapter,
+  WahaGatewayAdapter,
 } from "../src/lib/wa-gateway.ts";
 import {
   cekSaklarNotifikasiAktif,
   jadwalkanPengirimanNotifikasiSiapDiambil,
   prosesNotifikasiSiapDiambil,
 } from "../src/lib/wa-notifikasi.ts";
-import { prosesWebhookMasukWa } from "../src/lib/wa-bot.ts";
+import {
+  prosesWebhookMasukWa,
+  verifikasiTandaTanganWebhookWa,
+} from "../src/lib/wa-bot.ts";
 import { buatTiketToko } from "../src/lib/tiket.ts";
 
 // Toggle murni di berkas tes untuk membuktikan skenario GAGAL (pembanding naif)
@@ -139,13 +145,21 @@ test("Phase 9A (8a): Bukti gagal-lalu-lulus kode tiket bertanggal WIB pada 2026-
   );
   const serviceId = layananRes.rows[0].id;
 
-  const userRes = await pool.query(
-    `INSERT INTO users (nama, peran, pin_hash, aktif)
-     VALUES ('kasir_uji_tz_9a', 'kasir', '$argon2id$v=19$m=19456,t=2,p=1$c2FsdHVqaTlh$aGFzaHVqaTlh', true)
-     ON CONFLICT (nama) DO UPDATE SET aktif = true
-     RETURNING id`
-  );
-  const userId = userRes.rows[0].id;
+  // Insert/upsert tabel users menggunakan koneksi admin DATABASE_URL karena migration 0014
+  // mencabut hak INSERT/UPDATE users dari role runtime solemate_app.
+  const adminPool = new Pool({ connectionString: process.env.DATABASE_URL });
+  let userId;
+  try {
+    const userRes = await adminPool.query(
+      `INSERT INTO users (nama, peran, pin_hash, aktif)
+       VALUES ('kasir_uji_tz_9a', 'kasir', '$argon2id$v=19$m=19456,t=2,p=1$c2FsdHVqaTlh$aGFzaHVqaTlh', true)
+       ON CONFLICT (nama) DO UPDATE SET aktif = true
+       RETURNING id`
+    );
+    userId = userRes.rows[0].id;
+  } finally {
+    await adminPool.end();
+  }
 
   // Verifikasi ekspresi SQL dengan sesi UTC eksplisit
   const client = await pool.connect();
@@ -341,6 +355,140 @@ test("Phase 9A (2): catatGalatPoolAman pada pool.on('error') hanya mencatat kode
   );
   assert.ok(!tangkapan[0].includes("Rahasia12345"));
   assert.ok(!tangkapan[0].includes("password authentication failed"));
+});
+
+test("Phase 9C-1 (6 & 7): Penyatuan daftar placeholder (hex 64/base64 acak diterima, placeholder .env.example ditolak), TRUST_PROXY wajib di VERCEL=1, WAHA HTTPS, dan encodeURIComponent(session)", async () => {
+  // 1. Secret acak kriptografis 64 hex & 44 base64 TIDAK boleh dianggap placeholder.
+  const secretHex64 = crypto.randomBytes(32).toString("hex");
+  const secretBase64 = crypto.randomBytes(32).toString("base64");
+  assert.equal(secretHex64.length, 64);
+  assert.ok(secretBase64.length >= 32);
+  assert.equal(adalahNilaiPlaceholder(secretHex64), false);
+  assert.equal(adalahNilaiPlaceholder(secretBase64), false);
+
+  const hasilAcak = validasiEnvProduksi({
+    ...ENV_PRODUKSI_VALID_WAHA,
+    SESSION_SECRET: secretHex64,
+    WAHA_WEBHOOK_HMAC_KEY: secretBase64,
+  });
+  assert.equal(hasilAcak.ok, true);
+
+  // Verifikasi webhook WAHA menerima kunci base64 acak dan menolak placeholder terpadu.
+  const kunciLama = process.env.WAHA_WEBHOOK_HMAC_KEY;
+  try {
+    const body = JSON.stringify({ event: "message", payload: {} });
+    process.env.WAHA_WEBHOOK_HMAC_KEY = secretBase64;
+    const hmacValid = crypto
+      .createHmac("sha512", secretBase64)
+      .update(body, "utf8")
+      .digest("hex");
+    assert.equal(verifikasiTandaTanganWebhookWa(body, hmacValid).ok, true);
+
+    for (const placeholderContoh of [
+      "ganti_password_ini",
+      "ganti_app_password_ini",
+      "ganti_dengan_string_acak_panjang",
+      "changeme",
+      "change_me",
+      "change_me_to_a_random_32_character_secret",
+      "ganti_apa_saja_yang_panjang_sekali_32_karakter",
+      "isi_dengan_kunci_rahasia_hmac_sha512_minimal_32_karakter",
+    ]) {
+      assert.equal(
+        adalahNilaiPlaceholder(placeholderContoh),
+        true,
+        `Placeholder harus ditolak: ${placeholderContoh}`
+      );
+      process.env.WAHA_WEBHOOK_HMAC_KEY = placeholderContoh;
+      const ver = verifikasiTandaTanganWebhookWa(body, hmacValid);
+      assert.equal(ver.ok, false);
+      assert.equal(ver.kode, 503);
+    }
+  } finally {
+    if (kunciLama === undefined) {
+      delete process.env.WAHA_WEBHOOK_HMAC_KEY;
+    } else {
+      process.env.WAHA_WEBHOOK_HMAC_KEY = kunciLama;
+    }
+  }
+
+  // 2. VERCEL=1 wajib TRUST_PROXY=true di produksi.
+  const vercelTanpaTrustProxy = validasiEnvProduksi({
+    ...ENV_PRODUKSI_VALID_WAHA,
+    VERCEL: "1",
+  });
+  assert.equal(vercelTanpaTrustProxy.ok, false);
+  assert.ok(
+    vercelTanpaTrustProxy.daftarGalat.some((g) => g.includes("TRUST_PROXY")),
+    `Harus menolak VERCEL=1 tanpa TRUST_PROXY=true: ${vercelTanpaTrustProxy.pesan}`
+  );
+
+  const vercelDenganTrustProxy = validasiEnvProduksi({
+    ...ENV_PRODUKSI_VALID_WAHA,
+    VERCEL: "1",
+    TRUST_PROXY: "true",
+  });
+  assert.equal(vercelDenganTrustProxy.ok, true);
+
+  // 3. WAHA_BASE_URL di produksi wajib https:// kecuali loopback atau WAHA_IZINKAN_HTTP_INTERNAL=true.
+  const wahaHttpPublik = validasiEnvProduksi({
+    ...ENV_PRODUKSI_VALID_WAHA,
+    WAHA_BASE_URL: "http://waha.internal:3001",
+  });
+  assert.equal(wahaHttpPublik.ok, false);
+  assert.ok(
+    wahaHttpPublik.daftarGalat.some((g) => g.includes("WAHA_BASE_URL")),
+    `Harus menolak http:// non-loopback: ${wahaHttpPublik.pesan}`
+  );
+
+  assert.equal(
+    validasiEnvProduksi({
+      ...ENV_PRODUKSI_VALID_WAHA,
+      WAHA_BASE_URL: "http://waha.internal:3001",
+      WAHA_IZINKAN_HTTP_INTERNAL: "true",
+    }).ok,
+    true
+  );
+  assert.equal(
+    validasiEnvProduksi({
+      ...ENV_PRODUKSI_VALID_WAHA,
+      WAHA_BASE_URL: "http://127.0.0.1:3001",
+    }).ok,
+    true
+  );
+  assert.equal(
+    validasiEnvProduksi({
+      ...ENV_PRODUKSI_VALID_WAHA,
+      WAHA_BASE_URL: "http://localhost:3001",
+    }).ok,
+    true
+  );
+
+  // 4. WahaGatewayAdapter.petakanLidKeNomor memakai encodeURIComponent(this.session).
+  const fetchAsli = globalThis.fetch;
+  let urlDipanggil = null;
+  globalThis.fetch = async (url) => {
+    urlDipanggil = String(url);
+    return new Response(
+      JSON.stringify({ lid: "123@lid", pn: "6281234567890@c.us" }),
+      { status: 200, headers: { "Content-Type": "application/json" } }
+    );
+  };
+  try {
+    const adapter = new WahaGatewayAdapter({
+      baseUrl: "https://waha.solemate-contoh.id/",
+      apiKey: "kunci-uji",
+      session: "toko 1/utara",
+    });
+    const hasilNomor = await adapter.petakanLidKeNomor("123@lid");
+    assert.equal(hasilNomor, "6281234567890");
+    assert.equal(
+      urlDipanggil,
+      "https://waha.solemate-contoh.id/api/toko%201%2Futara/lids/123%40lid"
+    );
+  } finally {
+    globalThis.fetch = fetchAsli;
+  }
 });
 
 // ============================================================================

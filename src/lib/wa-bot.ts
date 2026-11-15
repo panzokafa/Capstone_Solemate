@@ -6,6 +6,7 @@ import crypto from "node:crypto";
 import type { Pool, PoolClient } from "pg";
 import { getPool } from "./db.ts";
 import {
+  adalahNilaiPlaceholder,
   apakahWaGatewayNonaktif,
   ekstrakKodeGalatAman,
 } from "./env-produksi.ts";
@@ -123,18 +124,6 @@ export type HasilProsesWebhook = {
   galat?: string;
 };
 
-const DAFTAR_PLACEHOLDER_HMAC = new Set([
-  "isi_dengan_kunci_rahasia_hmac_sha512_minimal_32_karakter",
-  "ganti_dengan_kunci_acak_minimal_32_karakter",
-  "change_me_to_a_random_32_character_secret",
-  "change_me",
-  "your_secret_here",
-  "your_webhook_hmac_key",
-  "placeholder",
-  "secret",
-  "default",
-]);
-
 /**
  * Memverifikasi tanda tangan HMAC-SHA512 pada header X-Webhook-Hmac (Refinement 4).
  * Gagal tertutup (503) jika WAHA_WEBHOOK_HMAC_KEY kosong, < 32 karakter, atau teks placeholder.
@@ -167,7 +156,7 @@ export function verifikasiTandaTanganWebhookWa(
     };
   }
 
-  if (DAFTAR_PLACEHOLDER_HMAC.has(trimmedSecret.toLowerCase())) {
+  if (adalahNilaiPlaceholder(trimmedSecret)) {
     console.warn(
       "[WA_BOT] Peringatan keamanan: WAHA_WEBHOOK_HMAC_KEY masih menggunakan teks placeholder contoh."
     );
@@ -276,7 +265,7 @@ export function validasiSessionSecret():
     };
   }
 
-  if (DAFTAR_PLACEHOLDER_HMAC.has(trimmedSecret.toLowerCase())) {
+  if (adalahNilaiPlaceholder(trimmedSecret)) {
     console.warn(
       "[WA_BOT] Peringatan keamanan: SESSION_SECRET masih menggunakan teks placeholder contoh."
     );

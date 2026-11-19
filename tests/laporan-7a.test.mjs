@@ -16,6 +16,7 @@ import {
   ambilDataDashboard,
 } from "../src/lib/laporan.ts";
 import { keNominalAman, keJumlahAman } from "../src/config/laporan.ts";
+import { daftarTargetStatusPesananValid } from "../src/config/order-status.ts";
 import { hitungGeometriGrafikTren, formatTanggalGrafik } from "../src/lib/grafik-tren.ts";
 
 const { Pool } = pg;
@@ -154,7 +155,7 @@ test("otorisasi: kasir ditolak 403 pada API & halaman laporan, tanpa login diara
   assert.equal(ownerHalaman.res.status, 200);
   assert.match(ownerHalaman.html, /Laporan Harian Operasional/i);
   assert.match(ownerHalaman.html, /Dihitung otomatis dari data tiket/i);
-  assert.match(ownerHalaman.html, /Hanya-baca/i);
+  assert.doesNotMatch(ownerHalaman.html, /hanya[\s-]*baca/i);
   assert.match(ownerHalaman.html, /Angka dihitung dari data tiket saat ini/i);
   assert.match(ownerHalaman.html, /Tiket yang sudah dibayar lalu dibatalkan/i);
   assert.doesNotMatch(ownerHalaman.html, /dikembalikan/i);
@@ -612,7 +613,7 @@ test("periode hari ini & dashboard: transaksi waktu nyata dihitung akurat tanpa 
   }
 });
 
-test("dashboard SSR: owner melihat grafik tren & label 'tren, bukan laporan harian', kasir melihat tombol Buat Tiket", async () => {
+test("dashboard SSR: owner melihat grafik tren tanpa badge 'tren, bukan laporan harian', kasir melihat tombol Buat Tiket", async () => {
   const htmlKasir = await ambilHtml(kasirCookie, "/");
   assert.equal(htmlKasir.res.status, 200);
   assert.match(
@@ -625,7 +626,7 @@ test("dashboard SSR: owner melihat grafik tren & label 'tren, bukan laporan hari
   const htmlOwner = await ambilHtml(ownerCookie, "/");
   assert.equal(htmlOwner.res.status, 200);
   assert.match(htmlOwner.html, /Tren Pesanan 7 Hari Terakhir/i, "Owner melihat grafik tren 7 hari");
-  assert.match(htmlOwner.html, /tren, bukan laporan harian/i, "Wajib ada label 'tren, bukan laporan harian'");
+  assert.doesNotMatch(htmlOwner.html, /tren, bukan laporan harian/i, "Label 'tren, bukan laporan harian' harus dihapus");
   assert.match(htmlOwner.html, /Grafik tren pesanan 7 hari terakhir/i);
   assert.match(htmlOwner.html, /\(Hari Ini\)/);
   assert.match(htmlOwner.html, /Buka Laporan Harian/i);
@@ -710,4 +711,127 @@ test("konversi aman: keNominalAman & keJumlahAman melempar galat jika di luar ba
   assert.equal(keJumlahAman("12"), 12);
   assert.throws(() => keJumlahAman(3.14), /di luar rentang integer aman/);
   assert.throws(() => keJumlahAman(-5), /di luar rentang integer aman/);
+});
+
+test("pembersihan UI & logo baru SSR: /login, dashboard owner/kasir, /rekap-bulanan, /tiket, /tiket/[id], dan /laporan-harian bersih dari frasa terhapus & memuat LogoSolemate", async () => {
+  // 1. Verifikasi labelPilihan terpusat tanpa tanda kurung sementara status & arah tetap utuh
+  assert.deepEqual(daftarTargetStatusPesananValid("Belum dicuci"), [
+    { status: "Belum dicuci", arah: "saat_ini", labelPilihan: "Belum dicuci" },
+    { status: "Diproses", arah: "maju", labelPilihan: "Diproses" },
+  ]);
+  assert.deepEqual(daftarTargetStatusPesananValid("Diproses"), [
+    { status: "Diproses", arah: "saat_ini", labelPilihan: "Diproses" },
+    { status: "Siap diambil", arah: "maju", labelPilihan: "Siap diambil" },
+    { status: "Belum dicuci", arah: "koreksi", labelPilihan: "Belum dicuci" },
+  ]);
+  assert.deepEqual(daftarTargetStatusPesananValid("Siap diambil"), [
+    { status: "Siap diambil", arah: "saat_ini", labelPilihan: "Siap diambil" },
+    { status: "Sudah diambil", arah: "maju", labelPilihan: "Sudah diambil" },
+    { status: "Diproses", arah: "koreksi", labelPilihan: "Diproses" },
+  ]);
+  assert.deepEqual(daftarTargetStatusPesananValid("Sudah diambil"), [
+    { status: "Sudah diambil", arah: "saat_ini", labelPilihan: "Sudah diambil" },
+    { status: "Siap diambil", arah: "koreksi", labelPilihan: "Siap diambil" },
+  ]);
+  assert.deepEqual(daftarTargetStatusPesananValid("Dibatalkan"), [
+    { status: "Dibatalkan", arah: "saat_ini", labelPilihan: "Dibatalkan" },
+  ]);
+
+  // 2. Siapkan 1 tiket berstatus 'Diproses' agar dropdown memuat opsi maju & koreksi
+  const buat = await api(kasirCookie, "POST", "/api/tiket", {
+    nama_pelanggan: `Pelanggan UI 9E ${Date.now()}`,
+    nomor_wa: waUnik08(),
+    items: [{ service_id: layanan1.id, deskripsi_barang: "Running Shoe", jumlah: 1 }],
+    status_bayar: "Belum bayar",
+  });
+  assert.equal(buat.res.status, 201);
+  const tiket = buat.data.data;
+
+  const majukan = await api(kasirCookie, "PATCH", `/api/tiket/${tiket.id}`, {
+    jenis: "status_pesanan",
+    status_pesanan: "Diproses",
+    status_sebelumnya: "Belum dicuci",
+  });
+  assert.equal(majukan.res.status, 200);
+
+  // 3. Ambil seluruh HTML SSR yang relevan
+  const [
+    halamanLogin,
+    dashboardOwner,
+    dashboardKasir,
+    rekapBulanan,
+    daftarKasir,
+    daftarOwner,
+    detailKasir,
+    detailOwner,
+    laporanHarian,
+  ] = await Promise.all([
+    ambilHtml(null, "/login"),
+    ambilHtml(ownerCookie, "/"),
+    ambilHtml(kasirCookie, "/"),
+    ambilHtml(ownerCookie, "/rekap-bulanan"),
+    ambilHtml(kasirCookie, `/tiket?cari=${encodeURIComponent(tiket.kode_tiket)}`),
+    ambilHtml(ownerCookie, `/tiket?cari=${encodeURIComponent(tiket.kode_tiket)}`),
+    ambilHtml(kasirCookie, `/tiket/${tiket.id}`),
+    ambilHtml(ownerCookie, `/tiket/${tiket.id}`),
+    ambilHtml(ownerCookie, "/laporan-harian"),
+  ]);
+
+  for (const h of [
+    halamanLogin,
+    dashboardOwner,
+    dashboardKasir,
+    rekapBulanan,
+    daftarKasir,
+    daftarOwner,
+    detailKasir,
+    detailOwner,
+    laporanHarian,
+  ]) {
+    assert.equal(h.res.status, 200);
+    assert.match(h.html, /alt="Solemate Shoes Clean"/, "Logo baru harus memakai alt 'Solemate Shoes Clean'");
+    assert.ok(h.html.includes("logo-solemate.jpeg"), "HTML harus mereferensikan aset logo-solemate.jpeg");
+  }
+
+  // /login: tidak ada lagi lingkaran inisial "S"
+  assert.doesNotMatch(halamanLogin.html, />S</);
+
+  // Dashboard owner & kasir: bebas Owner View, Kasir View, tren bukan laporan harian, hanya lihat/baca
+  for (const htmlDash of [dashboardOwner.html, dashboardKasir.html]) {
+    assert.doesNotMatch(htmlDash, /tren, bukan laporan harian/i);
+    assert.doesNotMatch(htmlDash, /kasir\s*view/i);
+    assert.doesNotMatch(htmlDash, /owner\s*view/i);
+    assert.doesNotMatch(htmlDash, /hanya[\s-]*(lihat|baca)/i);
+  }
+  assert.match(dashboardOwner.html, /Tren Pesanan 7 Hari Terakhir/);
+
+  // Rekap Bulanan: bebas badge hanya-baca, definisi angka, disclaimer, pembulatan/harga transaksi, & Laba Rugi
+  assert.match(rekapBulanan.html, /Rekap Bulanan/);
+  for (const polaTerhapus of [
+    /hanya[\s-]*(lihat|baca)/i,
+    /Definisi Angka/i,
+    /Angka dihitung dari data tiket saat ini/i,
+    /perubahan setelah periode berlalu/i,
+    /Persentase dibulatkan satu desimal/i,
+    /Nominal memakai harga saat transaksi/i,
+    /Laba Rugi/i,
+    /Belum tersedia:\s*sumber data pengeluaran belum ditentukan/i,
+  ]) {
+    assert.doesNotMatch(rekapBulanan.html, polaTerhapus);
+  }
+
+  // Laporan Harian: bebas badge hanya-baca (disclaimer di Laporan Harian tetap utuh)
+  assert.match(laporanHarian.html, /Laporan Harian Operasional/);
+  assert.doesNotMatch(laporanHarian.html, /hanya[\s-]*(lihat|baca)/i);
+
+  // Daftar Tiket & Detail Tiket (Kasir & Owner): bebas hanya lihat/hanya baca; dropdown kasir punya value asli tanpa kurung
+  for (const htmlTiket of [daftarKasir.html, daftarOwner.html, detailKasir.html, detailOwner.html]) {
+    assert.doesNotMatch(htmlTiket, /hanya[\s-]*(lihat|baca)/i);
+  }
+  for (const htmlDropdown of [daftarKasir.html, detailKasir.html]) {
+    assert.match(htmlDropdown, /<option\b[^>]*value="Diproses"[^>]*>\s*Diproses\s*<\/option>/);
+    assert.match(htmlDropdown, /<option\b[^>]*value="Siap diambil"[^>]*>\s*Siap diambil\s*<\/option>/);
+    assert.match(htmlDropdown, /<option\b[^>]*value="Belum dicuci"[^>]*>\s*Belum dicuci\s*<\/option>/);
+    assert.doesNotMatch(htmlDropdown, /<option\b[^>]*>[^<]*\((Maju|Koreksi|Final)\)[^<]*<\/option>/i);
+  }
 });

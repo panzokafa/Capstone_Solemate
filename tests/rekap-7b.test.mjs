@@ -161,8 +161,8 @@ test("otorisasi & keamanan rekap bulanan: hanya owner, kasir ditolak, tanpa logi
   assert.equal(ssrOwner.res.status, 200);
   assert.match(ssrOwner.html, /Rekap Bulanan/i);
   assert.match(ssrOwner.html, /Dihitung otomatis dari data tiket/i);
-  assert.match(ssrOwner.html, /Angka dihitung dari data tiket saat ini/i);
-  assert.match(ssrOwner.html, /Belum tersedia: sumber data pengeluaran belum ditentukan/i);
+  assert.doesNotMatch(ssrOwner.html, /Angka dihitung dari data tiket saat ini/i);
+  assert.doesNotMatch(ssrOwner.html, /Belum tersedia: sumber data pengeluaran belum ditentukan/i);
   assert.match(ssrOwner.html, /Unduh Excel/i, "Tombol Unduh Excel harus tersedia di Rekap Bulanan");
   assert.match(ssrOwner.html, /Unduh PDF/i, "Tombol Unduh PDF harus tersedia di Rekap Bulanan");
   assert.doesNotMatch(ssrOwner.html, /Ekspor CSV|Cetak Rekap/i, "Tidak boleh ada tombol ekspor format lain");
@@ -797,12 +797,12 @@ test("pembulatan jujur baris Lainnya pada 11 layanan (9x27, 1x22, 1x1) tampil ~0
   assert.equal(lainnya.jumlah_pasang, 1);
   assert.equal(lainnya.persentase_pasang, 0.4, "Lainnya berisi 1/266 pasang wajib tampil 0,4%, bukan 0,0%");
 
-  // Verifikasi halaman /rekap-bulanan menampilkan 0,4% dan catatan pembulatan
+  // Verifikasi halaman /rekap-bulanan menampilkan 0,4% dan bebas catatan pembulatan di UI
   const ssrNov = await ambilHtml(
     ownerCookie,
     "/rekap-bulanan?periode=rentang&dari=2025-11-01&sampai=2025-11-30"
   );
   assert.equal(ssrNov.res.status, 200);
   assert.match(ssrNov.html, /0,4%/);
-  assert.match(ssrNov.html, /99,9%–100,1%/);
+  assert.doesNotMatch(ssrNov.html, /99,9%–100,1%/);
 });

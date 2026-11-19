@@ -6,6 +6,11 @@ const nextConfig: NextConfig = {
   outputFileTracingIncludes: {
     "/api/rekap-bulanan/ekspor": ["./node_modules/pdfkit/js/data/**/*"],
   },
+  experimental: {
+    // Nonaktifkan pengingat upgrade agen otomatis agar `next dev` (server tes) dan `next build`
+    // tidak berhenti mendadak dengan SecurityFatalError saat upgrade tidak diminta.
+    agentUpgrade: false,
+  },
   async headers() {
     return [
       {

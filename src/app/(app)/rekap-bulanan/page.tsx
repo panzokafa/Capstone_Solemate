@@ -9,7 +9,7 @@ import {
   ambilRekapBulanan,
   type FilterRekapBulanan,
 } from "@/lib/laporan.ts";
-import { RekapBulananClient } from "./rekap-bulanan-client.tsx";
+import { RekapBulananClient, type DataRekapBulananUi } from "./rekap-bulanan-client.tsx";
 
 export const dynamic = "force-dynamic";
 
@@ -48,11 +48,28 @@ export default async function RekapBulananPage({ searchParams }: HalamanProps) {
   }
 
   const data = await ambilRekapBulanan(filter);
+  const {
+    disclaimer: _disclaimerDihilangkan,
+    laba_rugi: _labaRugiDihilangkan,
+    layanan_terlaris: {
+      catatan_pembulatan: _catatanPembulatanDihilangkan,
+      ...layananTerlarisUi
+    },
+    ...sisaData
+  } = data;
+  void _disclaimerDihilangkan;
+  void _labaRugiDihilangkan;
+  void _catatanPembulatanDihilangkan;
+
+  const dataUi: DataRekapBulananUi = {
+    ...sisaData,
+    layanan_terlaris: layananTerlarisUi,
+  };
 
   return (
     <RekapBulananClient
-      key={`${data.periode}:${data.rentang.dari}:${data.rentang.sampai}:${galatQuery ?? ""}`}
-      data={data}
+      key={`${dataUi.periode}:${dataUi.rentang.dari}:${dataUi.rentang.sampai}:${galatQuery ?? ""}`}
+      data={dataUi}
       galatQuery={galatQuery}
     />
   );

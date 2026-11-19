@@ -7,6 +7,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import type { ItemMenu } from "@/config/menu";
 import { Ikon } from "@/components/ikon";
+import { LogoSolemate } from "@/components/logo-solemate";
 
 export function Sidebar({
   menu,
@@ -94,20 +95,8 @@ export function Sidebar({
   return (
     <>
       {/* Top bar untuk Tablet & Ponsel (< lg) */}
-      <header className="lg:hidden sticky top-0 z-30 bg-surface-card/95 backdrop-blur-md border-b border-border-warm px-4 py-3 flex items-center justify-between shadow-xs">
-        <div className="flex items-center gap-2.5">
-          <div className="w-9 h-9 rounded-full bg-primary text-white flex items-center justify-center font-bold text-sm shadow-xs font-outfit">
-            S
-          </div>
-          <div className="flex flex-col">
-            <span className="font-outfit font-extrabold text-base text-primary-dark leading-none">
-              Solemate
-            </span>
-            <span className="text-[9px] font-bold tracking-[0.18em] text-text-muted uppercase mt-0.5 font-outfit">
-              Shoes Clean
-            </span>
-          </div>
-        </div>
+      <header className="lg:hidden sticky top-0 z-30 bg-surface-card/95 backdrop-blur-md border-b border-border-warm px-4 py-2.5 flex items-center justify-between shadow-xs">
+        <LogoSolemate ukuran="topbar" />
 
         <div className="flex items-center gap-2">
           <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-surface-subtle text-primary capitalize font-outfit">
@@ -143,19 +132,7 @@ export function Sidebar({
       >
         <div className="overflow-y-auto">
           <div className="flex items-center justify-between mb-6 pb-2 border-b border-border-warm/60">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-primary text-white flex items-center justify-center font-bold font-outfit">
-                S
-              </div>
-              <div className="flex flex-col">
-                <span className="font-outfit font-extrabold text-lg text-primary-dark leading-none">
-                  Solemate
-                </span>
-                <span className="text-[10px] font-bold tracking-[0.2em] text-text-muted uppercase mt-0.5 font-outfit">
-                  Shoes Clean
-                </span>
-              </div>
-            </div>
+            <LogoSolemate ukuran="sidebar" />
             <button
               type="button"
               onClick={() => setBukaDrawer(false)}
@@ -175,18 +152,8 @@ export function Sidebar({
       {/* Sidebar tetap untuk Desktop (>= lg) */}
       <aside className="hidden lg:flex fixed left-0 top-0 h-full w-64 bg-surface-card border-r border-border-warm flex-col justify-between p-5 z-20">
         <div>
-          <div className="flex items-center gap-3 mb-7 px-1">
-            <div className="w-10 h-10 rounded-full bg-primary text-white flex items-center justify-center font-bold shadow-xs font-outfit">
-              S
-            </div>
-            <div className="flex flex-col">
-              <span className="font-outfit font-extrabold text-lg text-primary-dark leading-none">
-                Solemate
-              </span>
-              <span className="text-[10px] font-bold tracking-[0.2em] text-text-muted uppercase mt-0.5 font-outfit">
-                Shoes Clean
-              </span>
-            </div>
+          <div className="mb-7 px-1">
+            <LogoSolemate ukuran="sidebar" />
           </div>
 
           {navContent()}

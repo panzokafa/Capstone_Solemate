@@ -588,11 +588,6 @@ export function DaftarTiketClient({
       <PageHeader
         title="Daftar Tiket Pesanan"
         description="Lihat seluruh tiket cucian sepatu masuk dari semua status pengerjaan dan pembayaran."
-        badge={
-          peran === "owner" ? (
-            <Badge variant="default">Hanya lihat</Badge>
-          ) : undefined
-        }
         actions={
           bolehBuatTiket ? (
             <Link

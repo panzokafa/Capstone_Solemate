@@ -456,7 +456,6 @@ export function DetailTiketClient({ tiketAwal, peran }: DetailTiketClientProps) 
               </Badge>
             )}
             <Badge variant="bayar" statusBayar={tiket.status_bayar} />
-            {peran === "owner" && <Badge variant="default">Hanya lihat</Badge>}
           </div>
         }
       />
@@ -868,15 +867,12 @@ export function DetailTiketClient({ tiketAwal, peran }: DetailTiketClientProps) 
         </CardFooter>
       </Card>
 
-      {/* Riwayat Perubahan (Log Audit Hanya Baca) */}
+      {/* Riwayat Perubahan (Log Audit) */}
       <Card>
         <CardHeader>
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="flex items-center gap-2.5">
-              <Ikon name="history" size={20} className="h-5 w-5 text-primary" aria-hidden="true" />
-              <CardTitle as="h2">Riwayat Perubahan (Log Audit)</CardTitle>
-            </div>
-            <Badge variant="default">Hanya baca</Badge>
+          <div className="flex items-center gap-2.5">
+            <Ikon name="history" size={20} className="h-5 w-5 text-primary" aria-hidden="true" />
+            <CardTitle as="h2">Riwayat Perubahan (Log Audit)</CardTitle>
           </div>
           <CardDescription>
             Catatan kronologis permanen dari tabel audit_logs yang tidak dapat diubah maupun dihapus.

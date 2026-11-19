@@ -1221,7 +1221,10 @@ test("SSR /tiket dan /tiket/[id]: kasir vs owner (owner hanya lihat tanpa kontro
   assert.equal(daftarOwner.status, 200);
   const htmlDaftarOwner = await daftarOwner.text();
   assert.ok(htmlDaftarOwner.includes(tiket.kode_tiket), "owner dapat melihat daftar tiket");
-  assert.ok(htmlDaftarOwner.includes("Hanya lihat"), "owner melihat penanda Hanya lihat");
+  assert.ok(
+    !/hanya[\s-]*(lihat|baca)/i.test(htmlDaftarOwner),
+    "penanda Hanya lihat tidak ditampilkan di daftar tiket owner"
+  );
   assert.ok(
     !htmlDaftarOwner.includes("https://wa.me/"),
     "owner tidak boleh melihat tombol aksi wa.me"
@@ -1262,7 +1265,7 @@ test("SSR /tiket dan /tiket/[id]: kasir vs owner (owner hanya lihat tanpa kontro
   assert.equal(detailOwner.status, 200);
   const htmlDetailOwner = await detailOwner.text();
   assert.ok(htmlDetailOwner.includes(tiket.kode_tiket));
-  assert.ok(htmlDetailOwner.includes("Hanya lihat"));
+  assert.ok(!/hanya[\s-]*(lihat|baca)/i.test(htmlDetailOwner));
   assert.ok(htmlDetailOwner.includes("Riwayat Perubahan (Log Audit)"));
   assert.ok(
     !htmlDetailOwner.includes("https://wa.me/"),

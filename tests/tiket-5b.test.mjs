@@ -1089,7 +1089,7 @@ test("SSR /tiket dan /tiket/[id]: kontrol ubah & wa.me hanya untuk kasir; lencan
     `/tiket?cari=${encodeURIComponent(tagSsr)}`
   );
   assert.equal(daftarOwner.res.status, 200);
-  assert.match(daftarOwner.html, /Hanya lihat/);
+  assert.doesNotMatch(daftarOwner.html, /hanya[\s-]*(lihat|baca)/i);
   assert.match(daftarOwner.html, /3 hari belum diambil/);
   assert.doesNotMatch(daftarOwner.html, /Ubah status pesanan/);
   assert.doesNotMatch(daftarOwner.html, /Tandai Lunas/);
@@ -1108,7 +1108,7 @@ test("SSR /tiket dan /tiket/[id]: kontrol ubah & wa.me hanya untuk kasir; lencan
 
   const detailOwner = await ambilHtml(ownerCookie, `/tiket/${tiket.id}`);
   assert.equal(detailOwner.res.status, 200);
-  assert.match(detailOwner.html, /Hanya lihat/);
+  assert.doesNotMatch(detailOwner.html, /hanya[\s-]*(lihat|baca)/i);
   assert.match(detailOwner.html, /Status pesanan diubah/);
   assert.doesNotMatch(detailOwner.html, /Kelola Status/);
   assert.doesNotMatch(detailOwner.html, /Batalkan Tiket/);

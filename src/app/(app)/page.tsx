@@ -103,12 +103,7 @@ export default async function DashboardPage() {
     <div className="flex flex-col gap-6 font-jakarta pb-12">
       <PageHeader
         title={`Halo, ${sesi.nama}`}
-        description="Outlet Bojongsoang · Buka 09.00 – 21.00 WIB"
-        badge={
-          <Badge variant="primary">
-            {sesi.peran === "owner" ? "Owner View" : "Kasir View"}
-          </Badge>
-        }
+        description="Outlet Bojongsoang · Buka 09.00 – 20.00 WIB"
         actions={
           sesi.peran === "kasir" ? (
             <Link href="/buat-tiket">
@@ -204,12 +199,9 @@ export default async function DashboardPage() {
         <Card className="flex flex-col gap-4">
           <CardHeader className="pb-2">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-border-warm">
-              <div className="flex items-center gap-2">
-                <CardTitle className="text-base font-bold text-text-main">
-                  Tren Pesanan 7 Hari Terakhir
-                </CardTitle>
-                <Badge variant="primary">tren, bukan laporan harian</Badge>
-              </div>
+              <CardTitle className="text-base font-bold text-text-main">
+                Tren Pesanan 7 Hari Terakhir
+              </CardTitle>
               <span className="text-xs text-text-muted font-medium">
                 Volume: Pasang Sepatu per Hari
               </span>

@@ -122,7 +122,7 @@ export function daftarTargetStatusPesananValid(
   dari: StatusPesanan
 ): OpsiTransisiStatusUi[] {
   if (dari === "Dibatalkan") {
-    return [{ status: "Dibatalkan", arah: "saat_ini", labelPilihan: "Dibatalkan (Final)" }];
+    return [{ status: "Dibatalkan", arah: "saat_ini", labelPilihan: "Dibatalkan" }];
   }
 
   const idx = (URUTAN_ALUR_PESANAN as readonly string[]).indexOf(dari);
@@ -135,7 +135,7 @@ export function daftarTargetStatusPesananValid(
     hasil.push({
       status: maju,
       arah: "maju",
-      labelPilihan: `${maju} (Maju)`,
+      labelPilihan: maju,
     });
   }
 
@@ -144,7 +144,7 @@ export function daftarTargetStatusPesananValid(
     hasil.push({
       status: mundur,
       arah: "koreksi",
-      labelPilihan: `${mundur} (Koreksi)`,
+      labelPilihan: mundur,
     });
   }
 

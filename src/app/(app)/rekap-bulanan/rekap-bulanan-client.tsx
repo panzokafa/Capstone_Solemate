@@ -27,8 +27,15 @@ import {
   PageHeader,
 } from "@/components/ui/index.ts";
 
+export type DataRekapBulananUi = Omit<
+  DataRekapBulanan,
+  "disclaimer" | "laba_rugi" | "layanan_terlaris"
+> & {
+  layanan_terlaris: Omit<DataRekapBulanan["layanan_terlaris"], "catatan_pembulatan">;
+};
+
 export interface RekapBulananClientProps {
-  data: DataRekapBulanan;
+  data: DataRekapBulananUi;
   galatQuery?: string | null;
 }
 
@@ -156,12 +163,7 @@ export function RekapBulananClient({ data, galatQuery }: RekapBulananClientProps
       <PageHeader
         title="Rekap Bulanan"
         description="Ringkasan operasional, layanan terlaris, dan penerimaan pembayaran per rentang tanggal."
-        badge={
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge variant="primary">Dihitung otomatis dari data tiket</Badge>
-            <Badge variant="default">Hanya-baca</Badge>
-          </div>
-        }
+        badge={<Badge variant="primary">Dihitung otomatis dari data tiket</Badge>}
         actions={
           <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
             <Button
@@ -188,15 +190,12 @@ export function RekapBulananClient({ data, galatQuery }: RekapBulananClientProps
         }
       />
 
-      {/* Info Rentang Aktif & Disclaimer */}
-      <div className="rounded-2xl border border-border-card bg-surface-canvas p-4 flex items-start gap-3 text-xs text-text-muted">
-        <Ikon name="calendar_month" size={18} className="h-4.5 w-4.5 shrink-0 text-primary mt-0.5" aria-hidden="true" />
-        <div>
-          <p className="font-semibold text-text-main">
-            Rentang Periode (WIB): {labelRentangAktif}
-          </p>
-          <p className="mt-0.5">{data.disclaimer}</p>
-        </div>
+      {/* Info Rentang Aktif */}
+      <div className="rounded-2xl border border-border-card bg-surface-canvas p-4 flex items-center gap-3 text-xs text-text-muted">
+        <Ikon name="calendar_month" size={18} className="h-4.5 w-4.5 shrink-0 text-primary" aria-hidden="true" />
+        <p className="font-semibold text-text-main">
+          Rentang Periode (WIB): {labelRentangAktif}
+        </p>
       </div>
 
       {galatForm && (
@@ -367,7 +366,7 @@ export function RekapBulananClient({ data, galatQuery }: RekapBulananClientProps
         </Card>
       </section>
 
-      {/* Grid Utama: Layanan Terlaris (Kiri) + Pembayaran & Laba Rugi (Kanan) */}
+      {/* Grid Utama: Layanan Terlaris (Kiri) + Pembayaran Diterima (Kanan) */}
       <section className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* Kiri: Layanan Terlaris (FR-51) */}
         <Card className="lg:col-span-7">
@@ -480,14 +479,10 @@ export function RekapBulananClient({ data, galatQuery }: RekapBulananClientProps
                 </div>
               )}
             />
-
-            <p className="text-[11px] text-text-muted leading-relaxed">
-              {lt.catatan_pembulatan} Nominal memakai harga saat transaksi masing-masing tiket.
-            </p>
           </CardContent>
         </Card>
 
-        {/* Kanan: Pembayaran Diterima & Laba Rugi */}
+        {/* Kanan: Pembayaran Diterima */}
         <div className="lg:col-span-5 flex flex-col gap-6">
           {/* Pembayaran Diterima menurut tanggal bayar (FR-51) */}
           <Card>
@@ -562,38 +557,8 @@ export function RekapBulananClient({ data, galatQuery }: RekapBulananClientProps
               </div>
             </CardContent>
           </Card>
-
-          {/* Kartu Laba Rugi (FR-52) */}
-          <Card className="border-dashed border-border-card bg-surface-canvas">
-            <CardHeader className="pb-2">
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
-                  <Ikon name="event_note" size={18} className="text-text-muted shrink-0" aria-hidden="true" />
-                  <CardTitle className="text-base font-bold text-text-main">
-                    Laba Rugi
-                  </CardTitle>
-                </div>
-                <Badge variant="default">FR-52</Badge>
-              </div>
-            </CardHeader>
-            <CardContent className="pt-0">
-              <p className="text-sm font-medium text-text-muted">
-                {data.laba_rugi.pesan}
-              </p>
-            </CardContent>
-          </Card>
         </div>
       </section>
-
-      {/* Catatan Definisi Angka */}
-      <div className="rounded-2xl border border-border-warm bg-surface-canvas p-4 text-xs text-text-muted space-y-1">
-        <p className="font-semibold text-text-main">Definisi Angka (Hanya-Baca)</p>
-        <p>
-          • Pesanan Masuk &amp; Layanan Terlaris dihitung dari tiket non-batal menurut tanggal masuk (WIB).
-          Pembayaran Diterima dihitung menurut tanggal bayar (WIB) dan tidak menyertakan tiket berstatus Dibatalkan.
-        </p>
-        <p>• {data.disclaimer}</p>
-      </div>
     </div>
   );
 }

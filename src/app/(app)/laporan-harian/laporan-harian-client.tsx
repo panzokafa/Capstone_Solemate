@@ -94,12 +94,7 @@ export function LaporanHarianClient({ data, galatQuery }: LaporanHarianClientPro
       <PageHeader
         title="Laporan Harian Operasional"
         description="Ringkasan penerimaan kasir, volume fisik sepatu masuk, dan pembayaran."
-        badge={
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge variant="primary">Dihitung otomatis dari data tiket</Badge>
-            <Badge variant="default">Hanya-baca</Badge>
-          </div>
-        }
+        badge={<Badge variant="primary">Dihitung otomatis dari data tiket</Badge>}
       />
 
       {/* Disclaimer Keterbatasan Perhitungan Sekarang */}

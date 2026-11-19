@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { getSesi } from "@/lib/auth";
 import { KARYAWAN_ABSENSI_AKTIF } from "@/config/fitur";
 import { Card } from "@/components/ui/card";
+import { LogoSolemate } from "@/components/logo-solemate";
 import { LoginForm } from "./login-form";
 
 // Halaman ini membaca cookie sesi per request, jangan di-prerender statis.
@@ -15,20 +16,8 @@ export default async function LoginPage() {
 
   return (
     <div className="min-h-screen bg-surface-canvas flex flex-col">
-      <header className="w-full py-6 px-6">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-primary text-white flex items-center justify-center font-bold font-outfit shadow-xs">
-            S
-          </div>
-          <div className="flex flex-col">
-            <span className="font-outfit font-extrabold text-lg text-primary-dark leading-none">
-              Solemate
-            </span>
-            <span className="font-outfit text-[10px] font-bold tracking-[0.2em] text-text-muted uppercase mt-0.5">
-              Shoes Clean
-            </span>
-          </div>
-        </div>
+      <header className="w-full py-5 px-6">
+        <LogoSolemate ukuran="halaman" />
       </header>
 
       <main className="flex-1 flex items-center justify-center px-4 pb-12">
